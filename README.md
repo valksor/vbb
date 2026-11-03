@@ -1,3 +1,5 @@
+> **vbb is an unofficial fork of [bb](https://github.com/get-bb/bb).** It is not affiliated with or endorsed by the bb project or its authors. vbb follows bb's `main` and adds its own features. bb's MIT license and copyright notice apply unchanged, and vbb's own changes are released under the same MIT license; see [LICENSE](LICENSE).
+
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/e40bda56-54a4-47f8-a417-6bbadf2e5b40">
