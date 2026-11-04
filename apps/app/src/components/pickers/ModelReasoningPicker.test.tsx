@@ -6,6 +6,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import type {
   AvailableModel,
@@ -377,6 +378,25 @@ describe("ModelReasoningPicker", () => {
       key: "ArrowRight",
     });
     expect(onReasoningChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps the more-models submenu open when opened from the keyboard without a prior hover", async () => {
+    renderPicker({ moreModelOptions: [{ value: "legacy", label: "Legacy" }] });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Provider, model and reasoning" }),
+    );
+
+    const moreModels = screen.getByRole("button", { name: "More models" });
+    fireEvent.keyDown(moreModels, { key: "Enter" });
+    expect(
+      await screen.findByRole("button", { name: "Legacy" }),
+    ).toBeTruthy();
+    expect(moreModels.getAttribute("aria-expanded")).toBe("true");
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Legacy" }),
+      ),
+    );
   });
 
   it("leaves modified arrows and models without reasoning alone", () => {
@@ -1550,16 +1570,20 @@ describe("ModelReasoningPicker service tiers", () => {
   });
 
   describe("long session-option selects", () => {
-    const selectOption = (count: number) => ({
+    const selectOption = (
+      count: number,
+      id = "agent",
+      label = "Main-thread agent persona",
+    ) => ({
       type: "select" as const,
-      id: "agent",
-      label: "Main-thread agent persona",
+      id,
+      label,
       description: null,
       category: null,
-      value: "agent-0",
+      value: `${id}-0`,
       pendingValue: null,
       values: Array.from({ length: count }, (_, index) => ({
-        id: `agent-${index}`,
+        id: `${id}-${index}`,
         label: `Agent ${index}`,
         description: null,
         group: null,
@@ -1567,6 +1591,11 @@ describe("ModelReasoningPicker service tiers", () => {
     });
     const sectionsFor = (count: number) =>
       buildSessionOptionMenuSections([selectOption(count)], {});
+    const twoSections = () =>
+      buildSessionOptionMenuSections(
+        [selectOption(69), selectOption(69, "depth", "Depth persona")],
+        {},
+      );
 
     it("collapses a 69-value select into one row and keeps the models", async () => {
       renderPicker({ agentSections: sectionsFor(69) });
@@ -1617,8 +1646,74 @@ describe("ModelReasoningPicker service tiers", () => {
       fireEvent.keyDown(row, { key: "Enter" });
       const items = await screen.findAllByRole("menuitemradio");
       expect(items).toHaveLength(69);
-      expect(screen.getAllByRole("menuitemradio")).toHaveLength(69);
       expect(row.getAttribute("aria-expanded")).toBe("true");
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole("menuitemradio", { name: "Agent 0" }),
+        ),
+      );
+    });
+
+    it("closes a pointer-opened submenu when another row is hovered", async () => {
+      renderPicker({ agentSections: twoSections() });
+      openPicker();
+
+      fireEvent.pointerEnter(
+        screen.getByRole("button", { name: /Main-thread agent persona/ }),
+      );
+      expect(
+        await screen.findByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+
+      fireEvent.pointerEnter(
+        screen.getByRole("button", { name: /Depth persona/ }),
+      );
+      expect(
+        screen.queryByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("menu", { name: "Depth persona" }),
+      ).toBeTruthy();
+    });
+
+    it("closes a keyboard-opened submenu when another row is hovered", async () => {
+      renderPicker({ agentSections: twoSections() });
+      openPicker();
+
+      fireEvent.keyDown(
+        screen.getByRole("button", { name: /Main-thread agent persona/ }),
+        { key: "Enter" },
+      );
+      expect(
+        await screen.findByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+
+      fireEvent.pointerEnter(
+        screen.getByRole("button", { name: /Depth persona/ }),
+      );
+      expect(
+        screen.queryByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("menu", { name: "Depth persona" }),
+      ).toBeTruthy();
+    });
+
+    it("restores focus to the row after selecting an item from a keyboard-opened submenu", async () => {
+      const { onAgentOptionChange } = renderPicker({
+        agentSections: sectionsFor(69),
+      });
+      openPicker();
+
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      fireEvent.keyDown(row, { key: "Enter" });
+      fireEvent.click(
+        await screen.findByRole("menuitemradio", { name: "Agent 42" }),
+      );
+      expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-42");
+      expect(document.activeElement).toBe(row);
     });
 
     it("restores focus to the submenu row after selecting an item", async () => {

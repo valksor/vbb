@@ -136,6 +136,23 @@ export function ModelReasoningMenu({
   const openSub = useCallback(() => {
     onMoreModelsOpenChange(true);
   }, [onMoreModelsOpenChange]);
+  const [openSelectSectionId, setOpenSelectSectionId] = useState<string | null>(
+    null,
+  );
+  const handleSelectSectionOpenChange = useCallback(
+    (sectionId: string, next: boolean) => {
+      setOpenSelectSectionId(next ? sectionId : null);
+      if (next) {
+        onMoreModelsOpenChange(false);
+      }
+    },
+    [onMoreModelsOpenChange],
+  );
+  useEffect(() => {
+    if (moreModelsOpen) {
+      setOpenSelectSectionId(null);
+    }
+  }, [moreModelsOpen]);
 
   return (
     <MenuHoverProvider>
@@ -412,6 +429,10 @@ export function ModelReasoningMenu({
                     section={section}
                     note={note}
                     inline={isCompactViewport}
+                    open={openSelectSectionId === section.id}
+                    onOpenChange={(next) =>
+                      handleSelectSectionOpenChange(section.id, next)
+                    }
                     onSelect={(value) => onAgentOptionChange(section.id, value)}
                   />
                 </div>
@@ -553,6 +574,7 @@ function MoreModelsSubmenu({
   onSelect: (value: string) => void;
 }) {
   const { isLastHovered, hoverProps } = useMenuItemHover();
+  const openedViaKeyboardRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const focusFirstSubItem = useCallback(() => {
@@ -562,23 +584,38 @@ function MoreModelsSubmenu({
   }, []);
 
   useEffect(() => {
-    if (open && !isLastHovered) {
+    if (open && !openedViaKeyboardRef.current && !isLastHovered) {
       onOpenChange(false);
     }
   }, [open, isLastHovered, onOpenChange]);
 
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          openedViaKeyboardRef.current = false;
+        }
+        onOpenChange(next);
+      }}
+    >
       <PopoverAnchor asChild>
         <button
           ref={triggerRef}
           type="button"
           aria-haspopup="menu"
           aria-expanded={open}
-          onClick={openSub}
+          onClick={() => {
+            if (!open) {
+              openSub();
+            }
+          }}
           onPointerEnter={(event) => {
             hoverProps.onPointerEnter(event);
-            openSub();
+            if (!open) {
+              openedViaKeyboardRef.current = false;
+              openSub();
+            }
           }}
           onKeyDown={(event) => {
             hoverProps.onKeyDown(event);
@@ -590,6 +627,7 @@ function MoreModelsSubmenu({
               event.key === "ArrowRight"
             ) {
               event.preventDefault();
+              openedViaKeyboardRef.current = true;
               openSub();
               focusFirstSubItem();
               return;
@@ -635,7 +673,10 @@ function MoreModelsSubmenu({
               label={stripModelBrandPrefix(option.label, activeBrandPrefix)}
               qualifier={option.routeProviderId}
               selected={!isPreviewing && option.value === modelValue}
-              onClick={() => onSelect(option.value)}
+              onClick={() => {
+                onSelect(option.value);
+                triggerRef.current?.focus();
+              }}
             />
           ))}
         </MenuHoverProvider>
@@ -684,19 +725,22 @@ function CollapsedSelectSection({
   section,
   note,
   inline,
+  open,
+  onOpenChange,
   onSelect,
 }: {
   section: SessionOptionMenuSection;
   note: ReactNode;
   inline: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSelect: (value: SessionOptionChoice) => void;
 }) {
   const { isLastHovered, hoverProps } = useMenuItemHover();
-  const [open, setOpen] = useState(false);
   const openedViaKeyboardRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  const openSub = useCallback(() => setOpen(true), []);
+  const previousOpenRef = useRef(open);
   const focusFirstSubItem = useCallback(() => {
     window.setTimeout(() => {
       contentRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
@@ -705,9 +749,19 @@ function CollapsedSelectSection({
 
   useEffect(() => {
     if (open && !openedViaKeyboardRef.current && !isLastHovered) {
-      setOpen(false);
+      onOpenChange(false);
     }
-  }, [open, isLastHovered]);
+  }, [open, isLastHovered, onOpenChange]);
+
+  useEffect(() => {
+    if (!open && previousOpenRef.current) {
+      openedViaKeyboardRef.current = false;
+      if (contentRef.current?.contains(document.activeElement)) {
+        triggerRef.current?.focus();
+      }
+    }
+    previousOpenRef.current = open;
+  }, [open]);
 
   if (inline) {
     return (
@@ -734,7 +788,7 @@ function CollapsedSelectSection({
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverAnchor asChild>
         <button
           ref={triggerRef}
@@ -742,11 +796,17 @@ function CollapsedSelectSection({
           aria-haspopup="menu"
           aria-expanded={open}
           title={section.description ?? undefined}
-          onClick={openSub}
+          onClick={() => {
+            if (!open) {
+              onOpenChange(true);
+            }
+          }}
           onPointerEnter={(event) => {
             hoverProps.onPointerEnter(event);
-            openedViaKeyboardRef.current = false;
-            openSub();
+            if (!open) {
+              openedViaKeyboardRef.current = false;
+              onOpenChange(true);
+            }
           }}
           onKeyDown={(event) => {
             hoverProps.onKeyDown(event);
@@ -759,14 +819,15 @@ function CollapsedSelectSection({
             ) {
               event.preventDefault();
               openedViaKeyboardRef.current = true;
-              openSub();
+              onOpenChange(true);
               focusFirstSubItem();
               return;
             }
 
             if (event.key === "Escape" || event.key === "ArrowLeft") {
               event.preventDefault();
-              setOpen(false);
+              onOpenChange(false);
+              triggerRef.current?.focus();
             }
           }}
           className={cn(
@@ -798,7 +859,7 @@ function CollapsedSelectSection({
         onKeyDown={(event) => {
           if (event.key === "Escape" || event.key === "ArrowLeft") {
             event.preventDefault();
-            setOpen(false);
+            onOpenChange(false);
             triggerRef.current?.focus();
           }
         }}
@@ -811,7 +872,7 @@ function CollapsedSelectSection({
                 item={item}
                 onSelect={(value) => {
                   onSelect(value);
-                  setOpen(false);
+                  onOpenChange(false);
                   triggerRef.current?.focus();
                 }}
               />
