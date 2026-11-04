@@ -6,6 +6,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import type {
   AvailableModel,
@@ -377,6 +378,43 @@ describe("ModelReasoningPicker", () => {
       key: "ArrowRight",
     });
     expect(onReasoningChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps the more-models submenu open when opened from the keyboard without a prior hover", async () => {
+    renderPicker({ moreModelOptions: [{ value: "legacy", label: "Legacy" }] });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Provider, model and reasoning" }),
+    );
+
+    const moreModels = screen.getByRole("button", { name: "More models" });
+    fireEvent.keyDown(moreModels, { key: "Enter" });
+    expect(
+      await screen.findByRole("button", { name: "Legacy" }),
+    ).toBeTruthy();
+    expect(moreModels.getAttribute("aria-expanded")).toBe("true");
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Legacy" }),
+      ),
+    );
+  });
+
+  it("closes a keyboard-opened more-models submenu after its row is hovered and navigation moves on", async () => {
+    renderPicker({ moreModelOptions: [{ value: "legacy", label: "Legacy" }] });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Provider, model and reasoning" }),
+    );
+
+    const moreModels = screen.getByRole("button", { name: "More models" });
+    fireEvent.keyDown(moreModels, { key: "Enter" });
+    expect(
+      await screen.findByRole("button", { name: "Legacy" }),
+    ).toBeTruthy();
+
+    fireEvent.pointerEnter(moreModels);
+    fireEvent.keyDown(moreModels, { key: "ArrowDown" });
+    expect(screen.queryByRole("button", { name: "Legacy" })).toBeNull();
+    expect(document.activeElement).toBe(moreModels);
   });
 
   it("leaves modified arrows and models without reasoning alone", () => {
@@ -1547,6 +1585,246 @@ describe("ModelReasoningPicker service tiers", () => {
     ).toBe("true");
     fireEvent.click(screen.getByRole("radio", { name: "Shallow" }));
     expect(onAgentOptionChange).toHaveBeenLastCalledWith("depth", "shallow");
+  });
+
+  describe("long session-option selects", () => {
+    const selectOption = (
+      count: number,
+      id = "agent",
+      label = "Main-thread agent persona",
+    ) => ({
+      type: "select" as const,
+      id,
+      label,
+      description: null,
+      category: null,
+      value: `${id}-0`,
+      pendingValue: null,
+      values: Array.from({ length: count }, (_, index) => ({
+        id: `${id}-${index}`,
+        label: `Agent ${index}`,
+        description: null,
+        group: null,
+      })),
+    });
+    const sectionsFor = (count: number) =>
+      buildSessionOptionMenuSections([selectOption(count)], {});
+    const twoSections = () =>
+      buildSessionOptionMenuSections(
+        [selectOption(69), selectOption(69, "depth", "Depth persona")],
+        {},
+      );
+
+    it("collapses a 69-value select into one row and keeps the models", async () => {
+      renderPicker({ agentSections: sectionsFor(69) });
+      openPicker();
+
+      expect(
+        screen.queryByRole("radiogroup", { name: "Main-thread agent persona" }),
+      ).toBeNull();
+      expect(
+        screen.queryAllByRole("radio", { name: /^Agent \d+$/ }),
+      ).toHaveLength(0);
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      expect(row.getAttribute("aria-haspopup")).toBe("menu");
+      expect(row.textContent).toContain("Agent 0");
+      expect(screen.getAllByText("5.5")).toHaveLength(2);
+    });
+
+    it("keeps a 2-value select as a toggle group", () => {
+      renderPicker({ agentSections: sectionsFor(2) });
+      openPicker();
+
+      expect(
+        screen.getByRole("radiogroup", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+      expect(
+        screen.getAllByRole("radio", { name: /^Agent \d+$/ }),
+      ).toHaveLength(2);
+    });
+
+    it("keeps a 6-value select as a toggle group", () => {
+      renderPicker({ agentSections: sectionsFor(6) });
+      openPicker();
+
+      expect(
+        screen.getAllByRole("radio", { name: /^Agent \d+$/ }),
+      ).toHaveLength(6);
+    });
+
+    it("keeps the submenu open when opened from the keyboard without a prior hover", async () => {
+      renderPicker({ agentSections: sectionsFor(69) });
+      openPicker();
+
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      fireEvent.keyDown(row, { key: "Enter" });
+      const items = await screen.findAllByRole("menuitemradio");
+      expect(items).toHaveLength(69);
+      expect(row.getAttribute("aria-expanded")).toBe("true");
+      await waitFor(() =>
+        expect(document.activeElement).toBe(
+          screen.getByRole("menuitemradio", { name: "Agent 0" }),
+        ),
+      );
+    });
+
+    it("closes a pointer-opened submenu when another row is hovered", async () => {
+      renderPicker({ agentSections: twoSections() });
+      openPicker();
+
+      fireEvent.pointerEnter(
+        screen.getByRole("button", { name: /Main-thread agent persona/ }),
+      );
+      expect(
+        await screen.findByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+
+      fireEvent.pointerEnter(
+        screen.getByRole("button", { name: /Depth persona/ }),
+      );
+      expect(
+        screen.queryByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("menu", { name: "Depth persona" }),
+      ).toBeTruthy();
+    });
+
+    it("closes a keyboard-opened submenu when another row is hovered", async () => {
+      renderPicker({ agentSections: twoSections() });
+      openPicker();
+
+      fireEvent.keyDown(
+        screen.getByRole("button", { name: /Main-thread agent persona/ }),
+        { key: "Enter" },
+      );
+      expect(
+        await screen.findByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+
+      fireEvent.pointerEnter(
+        screen.getByRole("button", { name: /Depth persona/ }),
+      );
+      expect(
+        screen.queryByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeNull();
+      expect(
+        screen.getByRole("menu", { name: "Depth persona" }),
+      ).toBeTruthy();
+    });
+
+    it("restores focus to the row after selecting an item from a keyboard-opened submenu", async () => {
+      const { onAgentOptionChange } = renderPicker({
+        agentSections: sectionsFor(69),
+      });
+      openPicker();
+
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      fireEvent.keyDown(row, { key: "Enter" });
+      fireEvent.click(
+        await screen.findByRole("menuitemradio", { name: "Agent 42" }),
+      );
+      expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-42");
+      expect(document.activeElement).toBe(row);
+    });
+
+    it("does not change reasoning when ArrowRight is pressed inside the submenu", async () => {
+      const { onReasoningChange } = renderPicker({
+        agentSections: sectionsFor(69),
+      });
+      openPicker();
+
+      fireEvent.keyDown(
+        screen.getByRole("button", { name: /Main-thread agent persona/ }),
+        { key: "Enter" },
+      );
+      const item = await screen.findByRole("menuitemradio", {
+        name: "Agent 0",
+      });
+      fireEvent.keyDown(item, { key: "ArrowRight" });
+      expect(onReasoningChange).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(item);
+    });
+
+    it("keeps a click-opened submenu open on hover-loss and closes it once the pointer takes over", async () => {
+      renderPicker({ agentSections: sectionsFor(69) });
+      openPicker();
+
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      fireEvent.click(row);
+      expect(
+        await screen.findByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+      fireEvent.keyDown(row, { key: "ArrowDown" });
+      expect(
+        screen.getByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+
+      fireEvent.pointerEnter(row);
+      fireEvent.keyDown(row, { key: "ArrowDown" });
+      expect(
+        screen.queryByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeNull();
+    });
+
+    it("restores focus to the submenu row after selecting an item", async () => {
+      const { onAgentOptionChange } = renderPicker({
+        agentSections: sectionsFor(69),
+      });
+      openPicker();
+
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      fireEvent.pointerEnter(row);
+      fireEvent.click(
+        await screen.findByRole("menuitemradio", { name: "Agent 42" }),
+      );
+      expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-42");
+      expect(document.activeElement).toBe(row);
+    });
+
+    it("reports the chosen item from the submenu and closes it", async () => {
+      const { onAgentOptionChange } = renderPicker({
+        agentSections: sectionsFor(69),
+      });
+      openPicker();
+
+      fireEvent.pointerEnter(
+        screen.getByRole("button", { name: /Main-thread agent persona/ }),
+      );
+      const items = await screen.findAllByRole("menuitemradio");
+      expect(items).toHaveLength(69);
+      expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+
+      fireEvent.click(screen.getByRole("menuitemradio", { name: "Agent 42" }));
+      expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-42");
+      expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0);
+    });
+
+    it("lists the items inline in a bounded scroller on compact viewports", async () => {
+      const { onAgentOptionChange } = renderPicker({
+        agentSections: sectionsFor(69),
+        compact: true,
+      });
+      openPicker();
+
+      const list = await screen.findByRole("menu", {
+        name: "Main-thread agent persona",
+      });
+      expect(list.classList.contains("overflow-y-auto")).toBe(true);
+      expect(list.classList.contains("max-h-48")).toBe(true);
+      fireEvent.click(screen.getByRole("menuitemradio", { name: "Agent 7" }));
+      expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-7");
+    });
   });
 
   it("keeps reasoning ladders on one compact row", () => {
