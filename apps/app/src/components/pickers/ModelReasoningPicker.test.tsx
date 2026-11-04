@@ -1549,6 +1549,99 @@ describe("ModelReasoningPicker service tiers", () => {
     expect(onAgentOptionChange).toHaveBeenLastCalledWith("depth", "shallow");
   });
 
+  describe("long session-option selects", () => {
+    const selectOption = (count: number) => ({
+      type: "select" as const,
+      id: "agent",
+      label: "Main-thread agent persona",
+      description: null,
+      category: null,
+      value: "agent-0",
+      pendingValue: null,
+      values: Array.from({ length: count }, (_, index) => ({
+        id: `agent-${index}`,
+        label: `Agent ${index}`,
+        description: null,
+        group: null,
+      })),
+    });
+    const sectionsFor = (count: number) =>
+      buildSessionOptionMenuSections([selectOption(count)], {});
+
+    it("collapses a 69-value select into one row and keeps the models", async () => {
+      renderPicker({ agentSections: sectionsFor(69) });
+      openPicker();
+
+      expect(
+        screen.queryByRole("radiogroup", { name: "Main-thread agent persona" }),
+      ).toBeNull();
+      expect(
+        screen.queryAllByRole("radio", { name: /^Agent \d+$/ }),
+      ).toHaveLength(0);
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      expect(row.getAttribute("aria-haspopup")).toBe("menu");
+      expect(row.textContent).toContain("Agent 0");
+      expect(screen.getAllByText("5.5")).toHaveLength(2);
+    });
+
+    it("keeps a 2-value select as a toggle group", () => {
+      renderPicker({ agentSections: sectionsFor(2) });
+      openPicker();
+
+      expect(
+        screen.getByRole("radiogroup", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+      expect(
+        screen.getAllByRole("radio", { name: /^Agent \d+$/ }),
+      ).toHaveLength(2);
+    });
+
+    it("keeps a 6-value select as a toggle group", () => {
+      renderPicker({ agentSections: sectionsFor(6) });
+      openPicker();
+
+      expect(
+        screen.getAllByRole("radio", { name: /^Agent \d+$/ }),
+      ).toHaveLength(6);
+    });
+
+    it("reports the chosen item from the submenu and closes it", async () => {
+      const { onAgentOptionChange } = renderPicker({
+        agentSections: sectionsFor(69),
+      });
+      openPicker();
+
+      fireEvent.pointerEnter(
+        screen.getByRole("button", { name: /Main-thread agent persona/ }),
+      );
+      const items = await screen.findAllByRole("menuitemradio");
+      expect(items).toHaveLength(69);
+      expect(items[0]?.getAttribute("aria-checked")).toBe("true");
+
+      fireEvent.click(screen.getByRole("menuitemradio", { name: "Agent 42" }));
+      expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-42");
+      expect(screen.queryAllByRole("menuitemradio")).toHaveLength(0);
+    });
+
+    it("lists the items inline in a bounded scroller on compact viewports", async () => {
+      const { onAgentOptionChange } = renderPicker({
+        agentSections: sectionsFor(69),
+        compact: true,
+      });
+      openPicker();
+
+      const list = await screen.findByRole("menu", {
+        name: "Main-thread agent persona",
+      });
+      expect(list.classList.contains("overflow-y-auto")).toBe(true);
+      expect(list.classList.contains("max-h-48")).toBe(true);
+      fireEvent.click(screen.getByRole("menuitemradio", { name: "Agent 7" }));
+      expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-7");
+    });
+  });
+
   it("keeps reasoning ladders on one compact row", () => {
     const levels = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
     const layoutOf = (

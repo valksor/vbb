@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -46,6 +47,8 @@ import {
   ModelLoadErrorMessage,
 } from "./model-load-error-message";
 import type { ModelNavRow } from "./ModelReasoningPicker";
+
+const MAX_TOGGLE_SELECT_ITEMS = 6;
 
 export interface ModelReasoningMenuProps {
   listRef: RefObject<HTMLDivElement | null>;
@@ -400,6 +403,21 @@ export function ModelReasoningMenu({
               </Fragment>
             );
           }
+          if (section.items.length > MAX_TOGGLE_SELECT_ITEMS) {
+            return (
+              <Fragment key={section.id}>
+                <div className="shrink-0 border-t border-border" />
+                <div className="shrink-0 p-1">
+                  <CollapsedSelectSection
+                    section={section}
+                    note={note}
+                    inline={isCompactViewport}
+                    onSelect={(value) => onAgentOptionChange(section.id, value)}
+                  />
+                </div>
+              </Fragment>
+            );
+          }
           return (
             <Fragment key={section.id}>
               <div className="shrink-0 border-t border-border" />
@@ -620,6 +638,181 @@ function MoreModelsSubmenu({
               onClick={() => onSelect(option.value)}
             />
           ))}
+        </MenuHoverProvider>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function SessionOptionItemButton({
+  item,
+  onSelect,
+}: {
+  item: SessionOptionMenuSection["items"][number];
+  onSelect: (value: SessionOptionChoice) => void;
+}) {
+  const { hoverProps } = useMenuItemHover();
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={item.selected}
+      title={item.description ?? undefined}
+      onClick={() => onSelect(item.value)}
+      className={cn(
+        "relative flex w-full cursor-default select-none items-center justify-between gap-3 rounded-sm px-2 text-xs outline-none hover:bg-state-hover hover:text-foreground",
+        LIST_HOVER_TRANSITION,
+        MENU_ITEM_LAST_HOVERED_CLASS,
+        "py-[0.3125rem] max-md:pointer-coarse:py-2",
+      )}
+      {...hoverProps}
+    >
+      <span className="truncate">{item.label}</span>
+      <Icon
+        name="Check"
+        className={cn(
+          COARSE_POINTER_ICON_SIZE_SHRINK_CLASS,
+          "shrink-0 text-subtle-foreground",
+          item.selected ? "opacity-100" : "opacity-0",
+        )}
+      />
+    </button>
+  );
+}
+
+function CollapsedSelectSection({
+  section,
+  note,
+  inline,
+  onSelect,
+}: {
+  section: SessionOptionMenuSection;
+  note: ReactNode;
+  inline: boolean;
+  onSelect: (value: SessionOptionChoice) => void;
+}) {
+  const { isLastHovered, hoverProps } = useMenuItemHover();
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const openSub = useCallback(() => setOpen(true), []);
+  const focusFirstSubItem = useCallback(() => {
+    window.setTimeout(() => {
+      contentRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (open && !isLastHovered) {
+      setOpen(false);
+    }
+  }, [open, isLastHovered]);
+
+  if (inline) {
+    return (
+      <div className="px-1 py-1" title={section.description ?? undefined}>
+        <MenuSectionLabel className="mb-1 px-1 py-0">
+          {section.label}
+          {note}
+        </MenuSectionLabel>
+        <div
+          role="menu"
+          aria-label={section.label}
+          className="max-h-48 overflow-y-auto overscroll-contain"
+        >
+          {section.items.map((item) => (
+            <SessionOptionItemButton
+              key={item.key}
+              item={item}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverAnchor asChild>
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          title={section.description ?? undefined}
+          onClick={openSub}
+          onPointerEnter={(event) => {
+            hoverProps.onPointerEnter(event);
+            openSub();
+          }}
+          onKeyDown={(event) => {
+            hoverProps.onKeyDown(event);
+
+            if (
+              event.key === "Enter" ||
+              event.key === " " ||
+              event.key === "Spacebar" ||
+              event.key === "ArrowRight"
+            ) {
+              event.preventDefault();
+              openSub();
+              focusFirstSubItem();
+              return;
+            }
+
+            if (event.key === "Escape" || event.key === "ArrowLeft") {
+              event.preventDefault();
+              setOpen(false);
+            }
+          }}
+          className={cn(
+            "relative flex w-full cursor-default select-none items-center justify-between gap-3 rounded-sm px-2 py-[0.3125rem] text-xs outline-none hover:bg-state-hover hover:text-foreground",
+            LIST_HOVER_TRANSITION,
+            MENU_ITEM_LAST_HOVERED_CLASS,
+          )}
+          data-last-hovered={hoverProps["data-last-hovered"]}
+        >
+          <span className="min-w-0 truncate">
+            {section.label}
+            {note}
+          </span>
+          <span className="flex min-w-0 shrink items-center gap-1 text-muted-foreground">
+            <span className="truncate">{section.selectedLabel}</span>
+            <Icon name="ChevronRight" className="size-3.5 shrink-0" />
+          </span>
+        </button>
+      </PopoverAnchor>
+      <PopoverContent
+        ref={contentRef}
+        side="right"
+        align="start"
+        sideOffset={6}
+        className={cn(
+          "max-h-[min(20rem,var(--radix-popover-content-available-height),calc(100dvh-0.5rem))] overflow-y-auto overscroll-contain p-1 data-[state=closed]:animate-none",
+          MODEL_PICKER_MENU_WIDTH_CLASS_NAME,
+        )}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" || event.key === "ArrowLeft") {
+            event.preventDefault();
+            setOpen(false);
+            triggerRef.current?.focus();
+          }
+        }}
+      >
+        <MenuHoverProvider>
+          <div role="menu" aria-label={section.label}>
+            {section.items.map((item) => (
+              <SessionOptionItemButton
+                key={item.key}
+                item={item}
+                onSelect={(value) => {
+                  onSelect(value);
+                  setOpen(false);
+                }}
+              />
+            ))}
+          </div>
         </MenuHoverProvider>
       </PopoverContent>
     </Popover>
