@@ -693,6 +693,7 @@ function CollapsedSelectSection({
 }) {
   const { isLastHovered, hoverProps } = useMenuItemHover();
   const [open, setOpen] = useState(false);
+  const openedViaKeyboardRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const openSub = useCallback(() => setOpen(true), []);
@@ -703,7 +704,7 @@ function CollapsedSelectSection({
   }, []);
 
   useEffect(() => {
-    if (open && !isLastHovered) {
+    if (open && !openedViaKeyboardRef.current && !isLastHovered) {
       setOpen(false);
     }
   }, [open, isLastHovered]);
@@ -744,6 +745,7 @@ function CollapsedSelectSection({
           onClick={openSub}
           onPointerEnter={(event) => {
             hoverProps.onPointerEnter(event);
+            openedViaKeyboardRef.current = false;
             openSub();
           }}
           onKeyDown={(event) => {
@@ -756,6 +758,7 @@ function CollapsedSelectSection({
               event.key === "ArrowRight"
             ) {
               event.preventDefault();
+              openedViaKeyboardRef.current = true;
               openSub();
               focusFirstSubItem();
               return;
@@ -809,6 +812,7 @@ function CollapsedSelectSection({
                 onSelect={(value) => {
                   onSelect(value);
                   setOpen(false);
+                  triggerRef.current?.focus();
                 }}
               />
             ))}

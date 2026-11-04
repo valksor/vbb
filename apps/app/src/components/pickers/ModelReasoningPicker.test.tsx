@@ -1607,6 +1607,37 @@ describe("ModelReasoningPicker service tiers", () => {
       ).toHaveLength(6);
     });
 
+    it("keeps the submenu open when opened from the keyboard without a prior hover", async () => {
+      renderPicker({ agentSections: sectionsFor(69) });
+      openPicker();
+
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      fireEvent.keyDown(row, { key: "Enter" });
+      const items = await screen.findAllByRole("menuitemradio");
+      expect(items).toHaveLength(69);
+      expect(screen.getAllByRole("menuitemradio")).toHaveLength(69);
+      expect(row.getAttribute("aria-expanded")).toBe("true");
+    });
+
+    it("restores focus to the submenu row after selecting an item", async () => {
+      const { onAgentOptionChange } = renderPicker({
+        agentSections: sectionsFor(69),
+      });
+      openPicker();
+
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      fireEvent.pointerEnter(row);
+      fireEvent.click(
+        await screen.findByRole("menuitemradio", { name: "Agent 42" }),
+      );
+      expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-42");
+      expect(document.activeElement).toBe(row);
+    });
+
     it("reports the chosen item from the submenu and closes it", async () => {
       const { onAgentOptionChange } = renderPicker({
         agentSections: sectionsFor(69),
