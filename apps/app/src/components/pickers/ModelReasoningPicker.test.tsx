@@ -414,6 +414,7 @@ describe("ModelReasoningPicker", () => {
     fireEvent.pointerEnter(moreModels);
     fireEvent.keyDown(moreModels, { key: "ArrowDown" });
     expect(screen.queryByRole("button", { name: "Legacy" })).toBeNull();
+    expect(document.activeElement).toBe(moreModels);
   });
 
   it("leaves modified arrows and models without reasoning alone", () => {
@@ -1749,6 +1750,29 @@ describe("ModelReasoningPicker service tiers", () => {
       fireEvent.keyDown(item, { key: "ArrowRight" });
       expect(onReasoningChange).not.toHaveBeenCalled();
       expect(document.activeElement).toBe(item);
+    });
+
+    it("keeps a click-opened submenu open on hover-loss and closes it once the pointer takes over", async () => {
+      renderPicker({ agentSections: sectionsFor(69) });
+      openPicker();
+
+      const row = screen.getByRole("button", {
+        name: /Main-thread agent persona/,
+      });
+      fireEvent.click(row);
+      expect(
+        await screen.findByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+      fireEvent.keyDown(row, { key: "ArrowDown" });
+      expect(
+        screen.getByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeTruthy();
+
+      fireEvent.pointerEnter(row);
+      fireEvent.keyDown(row, { key: "ArrowDown" });
+      expect(
+        screen.queryByRole("menu", { name: "Main-thread agent persona" }),
+      ).toBeNull();
     });
 
     it("restores focus to the submenu row after selecting an item", async () => {

@@ -577,6 +577,7 @@ function MoreModelsSubmenu({
   const openedWithoutPointerRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const previousOpenRef = useRef(open);
   const focusFirstSubItem = useCallback(() => {
     window.setTimeout(() => {
       contentRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
@@ -588,6 +589,16 @@ function MoreModelsSubmenu({
       onOpenChange(false);
     }
   }, [open, isLastHovered, onOpenChange]);
+
+  useEffect(() => {
+    if (!open && previousOpenRef.current) {
+      openedWithoutPointerRef.current = false;
+      if (contentRef.current?.contains(document.activeElement)) {
+        triggerRef.current?.focus();
+      }
+    }
+    previousOpenRef.current = open;
+  }, [open]);
 
   return (
     <Popover
