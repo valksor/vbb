@@ -574,7 +574,7 @@ function MoreModelsSubmenu({
   onSelect: (value: string) => void;
 }) {
   const { isLastHovered, hoverProps } = useMenuItemHover();
-  const openedViaKeyboardRef = useRef(false);
+  const openedWithoutPointerRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const focusFirstSubItem = useCallback(() => {
@@ -584,7 +584,7 @@ function MoreModelsSubmenu({
   }, []);
 
   useEffect(() => {
-    if (open && !openedViaKeyboardRef.current && !isLastHovered) {
+    if (open && !openedWithoutPointerRef.current && !isLastHovered) {
       onOpenChange(false);
     }
   }, [open, isLastHovered, onOpenChange]);
@@ -594,7 +594,7 @@ function MoreModelsSubmenu({
       open={open}
       onOpenChange={(next) => {
         if (!next) {
-          openedViaKeyboardRef.current = false;
+          openedWithoutPointerRef.current = false;
         }
         onOpenChange(next);
       }}
@@ -607,13 +607,14 @@ function MoreModelsSubmenu({
           aria-expanded={open}
           onClick={() => {
             if (!open) {
+              openedWithoutPointerRef.current = true;
               openSub();
             }
           }}
           onPointerEnter={(event) => {
             hoverProps.onPointerEnter(event);
+            openedWithoutPointerRef.current = false;
             if (!open) {
-              openedViaKeyboardRef.current = false;
               openSub();
             }
           }}
@@ -627,7 +628,7 @@ function MoreModelsSubmenu({
               event.key === "ArrowRight"
             ) {
               event.preventDefault();
-              openedViaKeyboardRef.current = true;
+              openedWithoutPointerRef.current = true;
               openSub();
               focusFirstSubItem();
               return;
@@ -659,6 +660,11 @@ function MoreModelsSubmenu({
           MODEL_PICKER_MENU_WIDTH_CLASS_NAME,
         )}
         onKeyDown={(event) => {
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           if (event.key === "Escape" || event.key === "ArrowLeft") {
             event.preventDefault();
             onOpenChange(false);
@@ -737,7 +743,7 @@ function CollapsedSelectSection({
   onSelect: (value: SessionOptionChoice) => void;
 }) {
   const { isLastHovered, hoverProps } = useMenuItemHover();
-  const openedViaKeyboardRef = useRef(false);
+  const openedWithoutPointerRef = useRef(false);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const previousOpenRef = useRef(open);
@@ -748,14 +754,14 @@ function CollapsedSelectSection({
   }, []);
 
   useEffect(() => {
-    if (open && !openedViaKeyboardRef.current && !isLastHovered) {
+    if (open && !openedWithoutPointerRef.current && !isLastHovered) {
       onOpenChange(false);
     }
   }, [open, isLastHovered, onOpenChange]);
 
   useEffect(() => {
     if (!open && previousOpenRef.current) {
-      openedViaKeyboardRef.current = false;
+      openedWithoutPointerRef.current = false;
       if (contentRef.current?.contains(document.activeElement)) {
         triggerRef.current?.focus();
       }
@@ -798,13 +804,14 @@ function CollapsedSelectSection({
           title={section.description ?? undefined}
           onClick={() => {
             if (!open) {
+              openedWithoutPointerRef.current = true;
               onOpenChange(true);
             }
           }}
           onPointerEnter={(event) => {
             hoverProps.onPointerEnter(event);
+            openedWithoutPointerRef.current = false;
             if (!open) {
-              openedViaKeyboardRef.current = false;
               onOpenChange(true);
             }
           }}
@@ -818,7 +825,7 @@ function CollapsedSelectSection({
               event.key === "ArrowRight"
             ) {
               event.preventDefault();
-              openedViaKeyboardRef.current = true;
+              openedWithoutPointerRef.current = true;
               onOpenChange(true);
               focusFirstSubItem();
               return;
@@ -857,6 +864,11 @@ function CollapsedSelectSection({
           MODEL_PICKER_MENU_WIDTH_CLASS_NAME,
         )}
         onKeyDown={(event) => {
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
           if (event.key === "Escape" || event.key === "ArrowLeft") {
             event.preventDefault();
             onOpenChange(false);

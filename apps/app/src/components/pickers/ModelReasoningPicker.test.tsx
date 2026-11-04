@@ -399,6 +399,23 @@ describe("ModelReasoningPicker", () => {
     );
   });
 
+  it("closes a keyboard-opened more-models submenu after its row is hovered and navigation moves on", async () => {
+    renderPicker({ moreModelOptions: [{ value: "legacy", label: "Legacy" }] });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Provider, model and reasoning" }),
+    );
+
+    const moreModels = screen.getByRole("button", { name: "More models" });
+    fireEvent.keyDown(moreModels, { key: "Enter" });
+    expect(
+      await screen.findByRole("button", { name: "Legacy" }),
+    ).toBeTruthy();
+
+    fireEvent.pointerEnter(moreModels);
+    fireEvent.keyDown(moreModels, { key: "ArrowDown" });
+    expect(screen.queryByRole("button", { name: "Legacy" })).toBeNull();
+  });
+
   it("leaves modified arrows and models without reasoning alone", () => {
     const { onReasoningChange } = renderPicker();
     const trigger = screen.getByRole("button", {
@@ -1714,6 +1731,24 @@ describe("ModelReasoningPicker service tiers", () => {
       );
       expect(onAgentOptionChange).toHaveBeenLastCalledWith("agent", "agent-42");
       expect(document.activeElement).toBe(row);
+    });
+
+    it("does not change reasoning when ArrowRight is pressed inside the submenu", async () => {
+      const { onReasoningChange } = renderPicker({
+        agentSections: sectionsFor(69),
+      });
+      openPicker();
+
+      fireEvent.keyDown(
+        screen.getByRole("button", { name: /Main-thread agent persona/ }),
+        { key: "Enter" },
+      );
+      const item = await screen.findByRole("menuitemradio", {
+        name: "Agent 0",
+      });
+      fireEvent.keyDown(item, { key: "ArrowRight" });
+      expect(onReasoningChange).not.toHaveBeenCalled();
+      expect(document.activeElement).toBe(item);
     });
 
     it("restores focus to the submenu row after selecting an item", async () => {
