@@ -1,3 +1,5 @@
+import { isBareCode } from "./markdown-clipboard.fork";
+
 const omittedElements =
   "button, script, style, input, textarea, select, audio, video, canvas, embed, iframe, object, meta, link, [data-clipboard-ignore]";
 const blockTags = new Set([
@@ -150,6 +152,7 @@ const needsEscape: Record<
 
 function escapeText(value: string): string {
   return value.replace(/[\\`*_[\]<>]/g, (char, index: number) => {
+    if (char === "`" && isBareCode()) return char;
     const before = value[index - 1] ?? "";
     return needsEscape[char]!(
       before,
@@ -232,13 +235,17 @@ function nodeMarkdown(node: Node): string {
   if (tag === "PRE") {
     const code = node.querySelector("code");
     const text = (code ?? node).textContent ?? "";
+    if (isBareCode()) return `\n\n${text.replace(/\n$/, "")}\n\n`;
     const language = code?.className.match(/(?:^|\s)language-(\S+)/)?.[1] ?? "";
     const fence = "`".repeat(
       Math.max(2, ...(text.match(/`+/g) ?? []).map((run) => run.length)) + 1,
     );
     return `\n\n${fence}${language}\n${text.replace(/\n$/, "")}\n${fence}\n\n`;
   }
-  if (tag === "CODE") return codeSpan(node.textContent ?? "");
+  if (tag === "CODE")
+    return isBareCode()
+      ? (node.textContent ?? "")
+      : codeSpan(node.textContent ?? "");
   if (tag === "TABLE") return `\n\n${tableToMarkdown(node)}\n\n`;
   if (tag === "UL" || tag === "OL") {
     const start = Number(node.getAttribute("start") ?? 1);
@@ -262,7 +269,9 @@ function nodeMarkdown(node: Node): string {
   if (tag === "DEL" || tag === "S") return `~~${content}~~`;
   if (tag === "A") {
     if (node.hasAttribute("data-clipboard-inline-code"))
-      return codeSpan(node.textContent ?? "");
+      return isBareCode()
+        ? (node.textContent ?? "")
+        : codeSpan(node.textContent ?? "");
     if (node.hasAttribute("data-bare-url")) return node.textContent ?? "";
     const href = safeUrl(node.getAttribute("href") ?? "");
     return href

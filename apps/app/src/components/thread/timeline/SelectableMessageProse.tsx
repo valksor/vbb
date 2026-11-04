@@ -1,5 +1,6 @@
 import { isIOSWebKit } from "@/lib/ios-webkit";
 import { selectionClipboard } from "@/lib/markdown-clipboard";
+import { selectionClipboardBare } from "@/lib/markdown-clipboard.fork";
 import { useEffect, useRef, type ReactNode } from "react";
 
 export interface SelectionAnchorPoint {
@@ -585,7 +586,7 @@ function handleSharedCopy(event: ClipboardEvent): void {
         clipped.setStart(instance.node, 0);
       if (!instance.node.contains(range.endContainer))
         clipped.setEnd(instance.node, instance.node.childNodes.length);
-      return selectionClipboard(
+      return selectionClipboardBare(
         clipped,
         instance.node,
         instances.length === 1 ? "text" : "markdown",
@@ -609,7 +610,7 @@ function handleSharedCopy(event: ClipboardEvent): void {
         range,
       );
       if (clipped) {
-        const payload = selectionClipboard(clipped, instance.node, "text");
+        const payload = selectionClipboardBare(clipped, instance.node, "text");
         event.clipboardData.setData("text/plain", payload.text);
         event.clipboardData.setData("text/html", payload.html);
         event.preventDefault();
