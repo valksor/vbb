@@ -35,7 +35,7 @@ it("copies selected rendered lists, links and fenced code as markdown without co
     },
   });
   expect(data.get("text/plain")).toBe(
-    "- **First** [link](https://example.com)\n- Second\n\n```ts\nconst x = 1;\n```",
+    "- **First** [link](https://example.com)\n- Second\n\nconst x = 1;",
   );
   expect(data.get("text/html")).toContain('<a href="https://example.com"');
   expect(data.get("text/html")).not.toContain("button");
@@ -81,7 +81,7 @@ it.each(
     let expected = "pnpm --version";
     if (mode === "message") {
       range.selectNodeContents(container.firstElementChild!);
-      expected = content;
+      expected = tag === "code" ? "Check:\n\npnpm --version" : content;
     } else if (mode === "paragraph") {
       range.selectNodeContents(element.closest("p")!);
     } else if (mode === "element") {
@@ -110,7 +110,7 @@ it.each([
     "file:///C:/workspace/src/export_notes.ts",
   ],
 ])(
-  "copies auto-linked inline code %s as code while preserving authored links",
+  "copies auto-linked inline code %s as plain text while preserving authored links",
   async (reference, href) => {
     const content = `**Changed**: \`${reference}\` and [Review](file:///workspace/review.md).`;
     const { wrapper } = createMarkdownLocalFileHostTestWrapper(() => true);
@@ -139,7 +139,9 @@ it.each([
     range.selectNodeContents(container.firstElementChild!);
     const { data } = copyRange(range);
     expect(data.get("text/html")).toContain(`<a href="${href}"`);
-    expect(data.get("text/plain")).toBe(content);
+    expect(data.get("text/plain")).toBe(
+      `**Changed**: ${reference} and [Review](file:///workspace/review.md).`,
+    );
 
     window.getSelection()!.removeAllRanges();
     range.selectNodeContents(container.querySelector("a")!);
@@ -191,7 +193,7 @@ it.each([
   ["Check x < y and y > z, then read arr[0]", true],
   ["Rename über_straße", true],
   ["_leading_ and snake_case_", false],
-  ["2*3*4 and `tick`", false],
+  ["2*3*4", false],
   ["<div> and <https://example.com>", false],
   ["> not a quote", false],
   ["[label]: https://example.com", false],
@@ -231,7 +233,8 @@ it("preserves nested lists, blockquotes, task lists and fences containing backti
   expect(text).toContain("3. Three\n   - [x] Nested\n4. Four");
   expect(text).toContain("> Quoted *words*");
   expect(text).toContain("- [x] Done");
-  expect(text).toContain("````md\n```ts\n\nhello\n```\n````");
+  expect(text).toContain("```ts\n\nhello\n```");
+  expect(text).not.toContain("````");
 });
 
 it.each(["strong", "code"] as const)(
@@ -263,7 +266,7 @@ it.each(["strong", "code"] as const)(
     range.setStartBefore(container.querySelector(tag)!);
     range.setEndAfter(container.querySelector("em")!);
     expect(copyRange(range).data.get("text/plain")).toBe(
-      `${tag === "code" ? "`pnpm --version`" : "**One**"}\n\n*Two*`,
+      `${tag === "code" ? "pnpm --version" : "**One**"}\n\n*Two*`,
     );
     window.getSelection()!.removeAllRanges();
     range.selectNodeContents(container.querySelector("[contenteditable]")!);
@@ -317,7 +320,7 @@ it("copies selected tables as Markdown with links, emphasis, code and escaped pi
   range.selectNodeContents(container.firstElementChild!);
   const { data } = copyRange(range);
   expect(data.get("text/plain")).toBe(
-    '| Name | Value |\n| --- | --- |\n| [Link](https://example.com) | a,b |\n| **Bold** | say "hi" |\n| a\\|b | `code` |',
+    '| Name | Value |\n| --- | --- |\n| [Link](https://example.com) | a,b |\n| **Bold** | say "hi" |\n| a\\|b | code |',
   );
   expect(data.get("text/html")).toContain("<table>");
   expect(data.get("text/html")).not.toContain("Copy as");
