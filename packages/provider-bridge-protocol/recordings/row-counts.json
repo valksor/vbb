@@ -150,49 +150,49 @@
     "grammarDrops": 0
   },
   "codex/approval-allow": {
-    "events": 27,
+    "events": 28,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/approval-deny": {
-    "events": 31,
+    "events": 32,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/archived-resume": {
-    "events": 22,
+    "events": 24,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/auth-failure": {
-    "events": 16,
+    "events": 17,
     "rows": 3,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/compaction": {
-    "events": 87,
+    "events": 89,
     "rows": 3,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/empty-rollout": {
-    "events": 11,
+    "events": 12,
     "rows": 1,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/fork": {
-    "events": 13,
+    "events": 14,
     "rows": 1,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/missing-rollout": {
-    "events": 22,
+    "events": 24,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
@@ -204,49 +204,49 @@
     "grammarDrops": 0
   },
   "codex/plan-mode": {
-    "events": 46,
+    "events": 47,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/resume": {
-    "events": 22,
+    "events": 24,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/steer": {
-    "events": 87,
+    "events": 89,
     "rows": 3,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/stop-interrupt": {
-    "events": 28,
+    "events": 30,
     "rows": 3,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/subagent": {
-    "events": 42,
+    "events": 43,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/turn-tools": {
-    "events": 48,
+    "events": 49,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/user-question": {
-    "events": 18,
+    "events": 19,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0
   },
   "codex/web-search": {
-    "events": 17,
+    "events": 18,
     "rows": 2,
     "unhandled": 0,
     "grammarDrops": 0

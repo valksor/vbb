@@ -64,6 +64,23 @@ function firstInputText(input) {
   return first && first.type === "text" ? first.text : undefined;
 }
 
+function resolvedSessionSettings(params) {
+  return {
+    model: params.model ?? "fake-codex-model",
+    modelProvider: "openai",
+    serviceTier: params.serviceTier ?? null,
+    approvalPolicy: params.approvalPolicy ?? "on-request",
+    approvalsReviewer: params.approvalsReviewer ?? "user",
+    sandbox:
+      params.sandbox === "workspace-write"
+        ? { type: "workspaceWrite" }
+        : params.sandbox === "read-only"
+          ? { type: "readOnly" }
+          : { type: "dangerFullAccess" },
+    reasoningEffort: "medium",
+  };
+}
+
 const FIXED_TOKEN_USAGE = {
   total: {
     totalTokens: 39970,
@@ -503,7 +520,7 @@ async function handleRequest(message) {
       threadCounter += 1;
       const threadId = `codex-fx-${processInstanceId}-${threadCounter}`;
       notify("thread/started", { thread: { id: threadId } });
-      respond(id, { thread: { id: threadId } });
+      respond(id, { thread: { id: threadId }, ...resolvedSessionSettings(params) });
       if (script?.initialGoalStatus) {
         notify("thread/goal/updated", {
           threadId,
@@ -546,6 +563,7 @@ async function handleRequest(message) {
             ? {}
             : { daybreakEnabled: script.resumedDaybreakEnabled }),
         },
+        ...resolvedSessionSettings(params),
       });
       return;
     }
@@ -575,7 +593,7 @@ async function handleRequest(message) {
       const threadId = replaysUsage
         ? `usage-replay-fork-${processInstanceId}-${threadCounter}`
         : `codex-fx-${processInstanceId}-fork-${threadCounter}`;
-      respond(id, { thread: { id: threadId } });
+      respond(id, { thread: { id: threadId }, ...resolvedSessionSettings(params) });
 
       if (replaysUsage) {
         replayLastTurnUsage(threadId);
