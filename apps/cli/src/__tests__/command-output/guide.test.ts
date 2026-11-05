@@ -17,7 +17,7 @@ describe("bb guide command output", () => {
     const errorOutput = collectLogLines(vi.mocked(console.error)).join("\n");
     expect(errorOutput).toContain("Unknown guide chapter 'missing'");
     expect(errorOutput).toContain(
-      "Available: threads, thread-inspection, thread-messaging, thread-lifecycle, environments, agent-configuration, providers, projects, machines, terminals, browser, customization, plugins, json.",
+      "Available: threads, thread-inspection, thread-messaging, thread-lifecycle, environments, agent-configuration, providers, projects, machines, spend, terminals, browser, customization, plugins, json.",
     );
   });
 
@@ -56,7 +56,7 @@ describe("bb guide command output", () => {
 
     const errorOutput = collectLogLines(vi.mocked(console.error)).join("\n");
     expect(errorOutput).toContain("Unknown command group 'nope'.");
-    expect(errorOutput).toContain("Command groups: browser, status");
+    expect(errorOutput).toContain("Command groups: spend, browser, status");
   }, 30_000);
 
   it("bb guide terminals renders the terminals chapter", async () => {
@@ -66,4 +66,13 @@ describe("bb guide command output", () => {
       "bb terminal list --thread <thread-id>",
     );
   });
+
+  it("bb guide spend and its command group are discoverable", async () => {
+    await runCommand(["guide", "spend"], registerGuideCommand);
+    await runCommand(["guide", "commands", "spend"], registerGuideCommand);
+
+    const output = collectLogLines(vi.mocked(console.log)).join("\n");
+    expect(output).toContain("bb spend list");
+    expect(output).toContain("bb spend backfill");
+  }, 30_000);
 });

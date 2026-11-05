@@ -111,6 +111,22 @@ function createFetchQueue(
 }
 
 describe("@bb/sdk", () => {
+  it("routes spend rollup filters and backfill through HTTP with nullable cost and abort forwarding", async () => {
+    const controller = new AbortController();
+    let receivedSignal: AbortSignal | null | undefined;
+    const queue = createFetchQueue([
+      { body: { rows: [{ day: "*", threadId: "*", providerId: "codex", model: "*", inputTokens: 1, cachedInputTokens: 0, outputTokens: 0, reasoningOutputTokens: 0, totalTokens: 1, weightedUnits: 1, turns: 1, firstEventAt: 1, lastEventAt: 1, costUsd: null }], coverage: { threads: 1, historyComplete: 1, historyPartial: 0 } } },
+      { body: { threadsScanned: 1, usageEventsScanned: 1, contributionsApplied: 1, threadsHistoryComplete: 1, threadsHistoryPartial: 0 } },
+    ]);
+    const sdk = createBbSdk({ transport: createHttpTransport({ baseUrl: "http://bb.test", fetch: async (input, init) => { receivedSignal = init?.signal; return queue.fetch(input, init); }, runtime: "node" }) });
+    await expect(sdk.spend.rollup({ from: "2026-01-01", to: "2026-01-02", groupBy: "provider", providerId: "codex", threadId: "thr_1", signal: controller.signal })).resolves.toMatchObject({ rows: [{ costUsd: null }] });
+    await sdk.spend.backfill({ signal: controller.signal });
+    expect(receivedSignal).toBe(controller.signal);
+    expect(queue.requests.map((request) => [request.method, request.url])).toEqual([
+      ["GET", "http://bb.test/api/v1/spend/rollup?from=2026-01-01&to=2026-01-02&groupBy=provider&threadId=thr_1&providerId=codex"],
+      ["POST", "http://bb.test/api/v1/spend/backfill"],
+    ]);
+  });
   it("round-trips ordered quick replies through the UI preferences transport", async () => {
     const quickReplies = ["continue", "run the tests\nthen report", "continue"];
     const queue = createFetchQueue([

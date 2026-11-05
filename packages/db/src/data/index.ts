@@ -117,6 +117,7 @@ export {
   getThreadExecutionReport,
   upsertThreadExecutionReport,
 } from "./thread-execution-reports.js";
+export * from "./thread-spend.js";
 export type {
   ApplyThreadLifecycleEventArgs,
   ApplyThreadLifecycleEventOutcome,

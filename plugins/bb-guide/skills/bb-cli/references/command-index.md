@@ -320,6 +320,12 @@ terminal-permissions (TCC) and shell-history notes.
 
 ## guide
 
+## spend
+
+- `bb spend`
+- `bb spend list`
+- `bb spend backfill`
+
 - `bb guide`
 
 ## diagnostics
