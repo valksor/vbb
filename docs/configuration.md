@@ -573,6 +573,21 @@ every mapping for that server.
 }
 ```
 
+### Run Command Gate
+
+The boolean `runCommandEnabled` key in the local `~/.bb/client.json`
+(default `true`) controls whether `bb run-in-terminal` can launch shell
+commands in your local terminal. This client configuration is local to that
+daemon; the remote server does not read it. When disabled, the daemon suppresses
+advertised command capability and rejects command execution, while ordinary
+opens remain available. A malformed client configuration also denies command
+execution.
+
+```bash
+npx bb-app client run-command off
+npx bb-app client run-command on
+```
+
 ## Provider availability
 
 The core `disabledProviderIds` list disables individual providers by id. Change

@@ -2,6 +2,14 @@ import type { Hono } from "hono";
 import { hc } from "hono/client";
 import { z } from "zod";
 import type { EmptyInput, Endpoint } from "@bb/hono-typed-routes";
+import {
+  openTargetCommandLanguageSchema,
+  openTargetCommandSchema,
+  refineOpenInTargetCommand,
+  type OpenInTargetErrorResponse,
+} from "./local.fork.js";
+
+export * from "./local.fork.js";
 
 export const DEFAULT_HOST_DAEMON_LOCAL_HEALTH_PATH = "/health";
 export const DEFAULT_HOST_DAEMON_LOCAL_BIND_HOST = "127.0.0.1";
@@ -15,6 +23,7 @@ const workspaceOpenTargetCapabilitiesSchema = z.object({
   openFile: z.boolean(),
   openFileAtLine: z.boolean(),
   openFileAtColumn: z.boolean().optional(),
+  runCommand: z.boolean().optional(),
 });
 export type WorkspaceOpenTargetCapabilities = z.infer<
   typeof workspaceOpenTargetCapabilitiesSchema
@@ -110,13 +119,17 @@ const openInTargetContextSchema = z.discriminatedUnion("kind", [
 ]);
 export type OpenInTargetContext = z.infer<typeof openInTargetContextSchema>;
 
-export const openInTargetRequestSchema = z.object({
+const openInTargetBaseRequestSchema = z.object({
+  command: openTargetCommandSchema.optional(),
   context: openInTargetContextSchema.default({ kind: "local" }),
   columnNumber: openTargetColumnNumberSchema.default(null),
+  language: openTargetCommandLanguageSchema.optional(),
   lineNumber: openTargetLineNumberSchema,
   path: openTargetPathSchema,
   targetId: workspaceOpenTargetIdSchema,
 });
+export const openInTargetRequestSchema =
+  openInTargetBaseRequestSchema.superRefine(refineOpenInTargetCommand);
 export type OpenInTargetRequest = z.infer<typeof openInTargetRequestSchema>;
 
 export const pickFolderResponseSchema = z.object({
@@ -275,7 +288,11 @@ export type HostDaemonLocalSchema = {
     >;
   };
   "/open-in-target": {
-    $post: Endpoint<{ json: OpenInTargetRequest }, Record<string, never>>;
+    $post: Endpoint<
+      { json: OpenInTargetRequest },
+      Record<string, never> | OpenInTargetErrorResponse,
+      200 | 400
+    >;
   };
   "/status": {
     $get: Endpoint<EmptyInput, StatusResponse>;

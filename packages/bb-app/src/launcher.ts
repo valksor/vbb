@@ -16,6 +16,7 @@ import {
   type StartMovedResponderArgs,
 } from "./moved-responder.js";
 import { mutateManagedJsonFile } from "@bb/config/managed-json-file";
+import { runForkClientCommand } from "./launcher.fork.js";
 import { access, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join, resolve, win32 } from "node:path";
@@ -1295,7 +1296,7 @@ async function mutateManagedEnv(
   });
 }
 
-async function mutateClientConfig(
+export async function mutateClientConfig(
   dataDir: string,
   mutate: (current: ClientConfig) => ClientConfig,
 ): Promise<void> {
@@ -1603,6 +1604,7 @@ Usage:
   bb-app client ssh-target list [--json]
   bb-app client ssh-target set <server-origin> <ssh-target> [--host-id <id>]
   bb-app client ssh-target remove <server-origin> [--host-id <id>]
+  bb-app client run-command <on|off>
 
 Config file:
   ${formatClientConfigPath(dataDir)}
@@ -1772,6 +1774,7 @@ function setClientSshTarget(
 ): ClientConfig {
   const serverOrigin = normalizeClientServerOrigin(rawServerOrigin);
   const nextConfig: ClientConfig = {
+    runCommandEnabled: config.runCommandEnabled,
     servers: {
       ...config.servers,
     },
@@ -1795,12 +1798,12 @@ function removeClientSshTarget(
   const nextServers = { ...config.servers };
   if (hostId === undefined) {
     delete nextServers[serverOrigin];
-    return { servers: nextServers };
+    return { runCommandEnabled: config.runCommandEnabled, servers: nextServers };
   }
 
   const serverConfig = nextServers[serverOrigin];
   if (serverConfig === undefined) {
-    return { servers: nextServers };
+    return { runCommandEnabled: config.runCommandEnabled, servers: nextServers };
   }
   const nextHosts = { ...serverConfig.hosts };
   delete nextHosts[hostId];
@@ -1809,7 +1812,10 @@ function removeClientSshTarget(
   } else {
     nextServers[serverOrigin] = { hosts: nextHosts };
   }
-  return parseClientConfig({ servers: nextServers });
+  return parseClientConfig({
+    runCommandEnabled: config.runCommandEnabled,
+    servers: nextServers,
+  });
 }
 
 function formatClientSshTargets(config: ClientConfig, json: boolean): string {
@@ -2080,9 +2086,11 @@ async function runClientCommand(args: RunClientCommandArgs): Promise<void> {
     return;
   }
 
+  if (await runForkClientCommand(args, commandArgs)) return;
+
   if (commandArgs[0] !== CLIENT_SSH_TARGET_COMMAND) {
     throw new Error(
-      `Unsupported bb-app client command "${commandArgs[0]}". Use "ssh-target".`,
+      `Unsupported bb-app client command "${commandArgs[0]}". Use "run-command" or "ssh-target".`,
     );
   }
 

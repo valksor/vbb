@@ -36,6 +36,12 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { isFsErrorWithCode } from "./fs-errors.js";
 import type { HostDaemonLocalApiConfig } from "./local-api-config.js";
+import {
+  assertNoRemoteRunCommand,
+  createRunCommandGate,
+  startRunCommandMaintenance,
+} from "./local-api.fork.js";
+import type { HostDaemonLogger } from "./logger.js";
 import { resolveHostPlatform } from "./host-platform.js";
 import { userExecutableProcessOptions } from "./user-executable-env.js";
 
@@ -48,6 +54,7 @@ interface StartLocalApiServerOptions {
   dataDir?: string;
   hostId: string;
   localApiConfig: HostDaemonLocalApiConfig;
+  logger?: HostDaemonLogger;
   serverUrl: string;
   serverPort: number;
   devAppPort?: number;
@@ -140,12 +147,16 @@ async function resolveOpenPathInTargetArgs({
   if (request.context.kind === "local") {
     return {
       columnNumber: request.columnNumber,
+      command: request.command,
       context: { kind: "local" },
+      language: request.language,
       lineNumber: request.lineNumber,
       path: request.path,
       targetId: request.targetId,
     };
   }
+
+  assertNoRemoteRunCommand(request);
 
   const serverOrigin = normalizeClientServerOrigin(
     request.context.serverOrigin,
@@ -207,9 +218,14 @@ function createWorkspaceOpenTargetLoader(
 export async function startLocalApiServer(
   options: StartLocalApiServerOptions,
 ): Promise<LocalApiServer> {
+  startRunCommandMaintenance();
   const app = new Hono();
   const clientConfigLoader = createClientConfigLoader(options.dataDir);
   const listWorkspaceOpenTargets = createWorkspaceOpenTargetLoader(options);
+  const runCommand = createRunCommandGate({
+    configLoader: clientConfigLoader,
+    logger: options.logger,
+  });
   const originArgs: BuildLocalAppOriginsArgs = {
     serverPort: options.serverPort,
   };
@@ -293,11 +309,18 @@ export async function startLocalApiServer(
     workspaceOpenTargetsQuerySchema,
     async (c, query) =>
       c.json({
-        targets: await listWorkspaceOpenTargets(query),
+        targets: await runCommand.filterTargets(
+          await listWorkspaceOpenTargets(query),
+        ),
       }),
   );
 
   post("/open-in-target", openInTargetRequestSchema, async (c, payload) => {
+    const denied = await runCommand.admit(
+      payload,
+      c.req.header("origin") ?? null,
+    );
+    if (denied) return c.json(denied, 400);
     try {
       await (
         options.openInTarget ??
@@ -319,7 +342,7 @@ export async function startLocalApiServer(
       throw error;
     }
 
-    return c.json({});
+    return c.json({}, 200);
   });
 
   let boundServer: {

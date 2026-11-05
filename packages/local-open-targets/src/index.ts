@@ -18,8 +18,12 @@ import {
 import {
   BASIC_FILE_OPEN_CAPABILITIES,
   FILE_MANAGER_OPEN_CAPABILITIES,
-  TERMINAL_OPEN_CAPABILITIES,
 } from "./capabilities.js";
+import { TERMINAL_RUN_COMMAND_CAPABILITIES } from "./terminal-run-command-capabilities.fork.js";
+import {
+  tryRunCommandInTargetWithRuntime,
+  type OpenPathInTargetWithRuntimeOptions,
+} from "./terminal-run-command.fork.js";
 import { WorkspaceOpenTargetError } from "./errors.js";
 import { LAUNCH_ADAPTERS } from "./macos-launch-adapters.js";
 import {
@@ -67,6 +71,11 @@ interface ResolvedMacCommandExecutable {
 }
 
 export { WorkspaceOpenTargetError } from "./errors.js";
+export {
+  normalizeTerminalRunCommandText,
+  TERMINAL_RUN_COMMAND_TEMP_DIR_PREFIX,
+  type OpenPathInTargetWithRuntimeOptions,
+} from "./terminal-run-command.fork.js";
 export type {
   ListWorkspaceOpenTargetsOptions,
   OpenPathInTargetArgs,
@@ -399,7 +408,7 @@ async function listPlatformWorkspaceOpenTargets(
       label: "Terminal",
       kind: "terminal",
       icon: { kind: "symbol", name: "terminal" },
-      capabilities: TERMINAL_OPEN_CAPABILITIES,
+      capabilities: TERMINAL_RUN_COMMAND_CAPABILITIES,
     });
   }
 
@@ -1997,7 +2006,12 @@ async function resolvePlatformOpenInvocation(
 export async function openPathInTargetWithRuntime(
   args: OpenPathInTargetArgs,
   runtime: WorkspaceOpenTargetRuntime,
+  options: OpenPathInTargetWithRuntimeOptions = {},
 ): Promise<void> {
+  if (await tryRunCommandInTargetWithRuntime(args, runtime, options)) {
+    return;
+  }
+
   if (runtime.platform !== "darwin") {
     const invocation = await resolvePlatformOpenInvocation(args, runtime);
     await execInvocation(invocation, runtime);
@@ -2058,3 +2072,11 @@ export async function openPathInTargetWithRuntime(
   );
   await execInvocation(invocation, runtime);
 }
+
+export {
+  execInvocation,
+  getTerminalExecutable,
+  isMacTargetAvailable,
+  requireLaunchAdapter,
+  requireOpenablePath,
+};
