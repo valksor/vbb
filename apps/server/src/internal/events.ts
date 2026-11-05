@@ -48,6 +48,7 @@ import {
   partitionExecutionReports,
   recordExecutionReportsInTransaction,
 } from "./execution-reports.js";
+import { recordInsertedEventSpend } from "./spend-observations.js";
 import { queueChildThreadTurnNotificationBestEffort } from "../services/threads/child-thread-notifications.js";
 import { isParentNotifiableChildThread } from "../services/threads/thread-parent.js";
 import {
@@ -1223,6 +1224,7 @@ export function registerInternalEventRoutes(app: Hono, deps: AppDeps): void {
           (tx) => {
             const result = appendDaemonEventsInTransaction(tx, eventInputs);
             recordExecutionReportsInTransaction(tx, executionReports);
+            recordInsertedEventSpend(tx, { entries: labelledEntries, result });
             return result;
           },
           { behavior: "immediate" },

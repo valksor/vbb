@@ -11,6 +11,12 @@ import {
   type BackgroundTaskOutputQuery,
   type BackgroundTaskOutputResponse,
 } from "./api/background-task-output.js";
+import {
+  spendRollupQuerySchema,
+  type SpendBackfillResponse,
+  type SpendRollupQuery,
+  type SpendRollupResponse,
+} from "./api/spend.js";
 import type { ThreadExecutionProfileResponse } from "./api/execution-profile.js";
 import {
   machineEnvironmentReplaceSchema,
@@ -430,6 +436,10 @@ type PathThreadInteractionId = {
 };
 
 export const publicApiRoutes = {
+  spend: {
+    rollup: defineRoute({ path: "/spend/rollup", method: "get", request: optionalQueryRequest<EmptyInput, SpendRollupQuery>(spendRollupQuerySchema), response: jsonResponse<SpendRollupResponse>() }),
+    backfill: defineRoute({ path: "/spend/backfill", method: "post", request: noRequest(), response: jsonResponse<SpendBackfillResponse>() }),
+  },
   promptHistory: {
     list: defineRoute({
       path: "/prompt-history",

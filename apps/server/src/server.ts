@@ -42,6 +42,7 @@ import { registerEnvironmentRoutes } from "./routes/environments.js";
 import { registerFileRoutes } from "./routes/files.js";
 import { registerHostRoutes } from "./routes/hosts.js";
 import { registerProjectRoutes } from "./routes/projects.js";
+import { registerSpendRoutes } from "./routes/spend.js";
 import { registerThreadSectionRoutes } from "./routes/thread-sections.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import { registerUiPreferenceRoutes } from "./routes/ui-preferences.js";
@@ -927,6 +928,7 @@ export function createApp(
     warn: (message) => deps.logger.warn(message),
   });
   registerProjectRoutes(publicApi, deps);
+  registerSpendRoutes(publicApi, deps);
   registerPromptHistoryRoutes(publicApi, deps);
   registerThreadSectionRoutes(publicApi, deps);
   registerFileRoutes(publicApi, deps);
