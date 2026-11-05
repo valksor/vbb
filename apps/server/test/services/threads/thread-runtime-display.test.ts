@@ -237,6 +237,7 @@ function createThreadListEntry(
     environmentHostId: args.environmentHostId,
     environmentName: null,
     hasPendingInteraction: false,
+    pendingInteractionKind: null,
     startupContext: null,
   };
 }

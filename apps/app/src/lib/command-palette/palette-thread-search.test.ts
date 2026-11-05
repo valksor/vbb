@@ -42,6 +42,7 @@ function makeThread(
       activeGoalCount: 0,
     },
     hasPendingInteraction: false,
+    pendingInteractionKind: null,
     environmentHostId: null,
     environmentPath: null,
     environmentProviderId: null,

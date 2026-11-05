@@ -32,6 +32,7 @@ import type {
   PluginSidebarFooterActionRegistration,
   PluginSourceCodeRendererRegistration,
   ExperimentalThreadContextSegmentRegistration,
+  PluginComposerAsideRegistration,
   ExperimentalThreadInfoRowRegistration,
   ExperimentalThreadRowMetadataRegistration,
   ExperimentalThreadInfoSectionRegistration,
@@ -319,6 +320,7 @@ export interface CollectedPluginAppRegistrations {
   experimentalSidebarNavigations: CollectedSidebarNavigationRegistration[];
   threadHeaderActions: LegacyThreadHeaderActionRegistration[];
   threadContextSegments: ExperimentalThreadContextSegmentRegistration[];
+  composerAsides: PluginComposerAsideRegistration[];
   threadInfoRows: ExperimentalThreadInfoRowRegistration[];
   threadRowMetadata: ExperimentalThreadRowMetadataRegistration<unknown>[];
   threadInfoSections: ExperimentalThreadInfoSectionRegistration[];
@@ -462,6 +464,7 @@ export function collectPluginAppRegistrations(
     experimentalSidebarNavigations: [],
     threadHeaderActions: [],
     threadContextSegments: [],
+    composerAsides: [],
     threadInfoRows: [],
     threadRowMetadata: [],
     threadInfoSections: [],
@@ -502,6 +505,7 @@ export function collectPluginAppRegistrations(
     sidebarHeader: new Set<string>(),
     threadHeaderAction: new Set<string>(),
     threadContextSegment: new Set<string>(),
+    composerAside: new Set<string>(),
     threadInfoRow: new Set<string>(),
     threadRowMetadata: new Set<string>(),
     threadInfoSection: new Set<string>(),
@@ -1000,6 +1004,16 @@ export function collectPluginAppRegistrations(
           id,
           group: requireNonEmptyString(kind, "group", registration.group),
           ...requireOptionalOrder(kind, registration.order),
+          component: requireComponent(kind, registration.component),
+        });
+      },
+      experimental_composerAside(registration) {
+        const kind = "slots.experimental_composerAside";
+        const id = requireSlotId(kind, registration?.id);
+        requireUniqueId(kind, seenIds.composerAside, id);
+        collected.composerAsides.push({
+          id,
+          title: requireNonEmptyString(kind, "title", registration.title),
           component: requireComponent(kind, registration.component),
         });
       },

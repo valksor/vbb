@@ -12,6 +12,7 @@ import {
   type PluginAppSlots,
   type PluginContentScriptContext,
   type PluginContentScriptRegistration,
+  type PluginComposerAsideProps,
   type PluginDiffRendererProps,
   type ExperimentalComposerProps,
   type PluginFileOpenerProps,
@@ -289,6 +290,7 @@ type SlotPropsByName = {
   experimental_sidebarNavigation: ExperimentalSidebarNavigationProps;
   experimental_threadContextSegment: ExperimentalThreadContextSegmentProps;
   experimental_threadRowMetadata: ExperimentalThreadRowMetadataProps;
+  experimental_composerAside: PluginComposerAsideProps;
   experimental_threadInfoRow: ExperimentalThreadInfoProps;
   experimental_threadInfoSection: ExperimentalThreadInfoProps;
   experimental_threadContextCardRow: ExperimentalThreadContextCardProps;
@@ -389,6 +391,7 @@ const FRONTEND_SLOT_PROP_FIELDS = {
     "onToggle",
   ],
   experimental_threadInfoRow: ["threadId", "projectId", "environment"],
+  experimental_composerAside: ["threadId", "projectId"],
   experimental_threadInfoSection: ["threadId", "projectId", "environment"],
   experimental_threadContextCardRow: ["threadId", "projectId", "environment"],
   experimental_threadContextCardSection: [

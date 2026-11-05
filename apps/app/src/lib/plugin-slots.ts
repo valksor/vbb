@@ -27,6 +27,7 @@ import type {
   ExperimentalThreadInfoRowRegistration,
   ExperimentalThreadRowMetadataRegistration,
   ExperimentalThreadInfoSectionRegistration,
+  PluginComposerAsideRegistration,
   ExperimentalThreadContextCardRowRegistration,
   ExperimentalThreadContextCardSectionRegistration,
   PluginThreadActionRegistration,
@@ -67,6 +68,7 @@ export interface PluginRegistrationSet {
   threadInfoRows?: readonly ExperimentalThreadInfoRowRegistration[];
   threadRowMetadata?: readonly ExperimentalThreadRowMetadataRegistration<unknown>[];
   threadInfoSections?: readonly ExperimentalThreadInfoSectionRegistration[];
+  composerAsides?: readonly PluginComposerAsideRegistration[];
   threadContextCardRows?: readonly ExperimentalThreadContextCardRowRegistration[];
   threadContextCardSections?: readonly ExperimentalThreadContextCardSectionRegistration[];
   threadActions?: readonly PluginThreadActionRegistration<unknown>[];
@@ -144,6 +146,8 @@ export interface PluginThreadRowMetadataSlot
     PluginSlotBase {}
 export interface PluginThreadInfoSectionSlot
   extends ExperimentalThreadInfoSectionRegistration, PluginSlotBase {}
+interface PluginComposerAsideSlot
+  extends PluginComposerAsideRegistration, PluginSlotBase {}
 export interface PluginThreadContextCardRowSlot
   extends ExperimentalThreadContextCardRowRegistration, PluginSlotBase {}
 export interface PluginThreadContextCardSectionSlot
@@ -198,6 +202,7 @@ export interface PluginSlotSnapshot {
   threadInfoRows: readonly PluginThreadInfoRowSlot[];
   threadRowMetadata: readonly PluginThreadRowMetadataSlot[];
   threadInfoSections: readonly PluginThreadInfoSectionSlot[];
+  composerAsides: readonly PluginComposerAsideSlot[];
   threadContextCardRows: readonly PluginThreadContextCardRowSlot[];
   threadContextCardSections: readonly PluginThreadContextCardSectionSlot[];
   threadActions: readonly PluginThreadActionSlot[];
@@ -236,6 +241,7 @@ export const EMPTY_PLUGIN_SLOT_SNAPSHOT: PluginSlotSnapshot = {
   threadInfoRows: [],
   threadRowMetadata: [],
   threadInfoSections: [],
+  composerAsides: [],
   threadContextCardRows: [],
   threadContextCardSections: [],
   threadActions: [],
@@ -281,6 +287,7 @@ const SLOT_KINDS: readonly SlotKind[] = [
   "threadInfoRows",
   "threadRowMetadata",
   "threadInfoSections",
+  "composerAsides",
   "threadContextCardRows",
   "threadContextCardSections",
   "threadActions",
@@ -374,6 +381,7 @@ function flattenRegistrations(
     threadInfoRows: stamp(set.threadInfoRows),
     threadRowMetadata: stamp(set.threadRowMetadata),
     threadInfoSections: stamp(set.threadInfoSections),
+    composerAsides: stamp(set.composerAsides),
     threadContextCardRows: stamp(set.threadContextCardRows),
     threadContextCardSections: stamp(set.threadContextCardSections),
     threadActions: stamp(set.threadActions),

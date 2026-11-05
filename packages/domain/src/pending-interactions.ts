@@ -13,6 +13,7 @@ import {
   extensionKindSchema,
   isExtensionKind,
 } from "./provider-extension-kind.js";
+import { pendingInteractionApprovalDenyMessageSchema } from "./pending-interaction-kind.fork.js";
 
 export {
   PLUGIN_INTERACTION_MAX_PAYLOAD_BYTES,
@@ -422,6 +423,8 @@ export const approvalPendingInteractionResolutionSchema = z.discriminatedUnion(
     }),
     z.object({
       decision: z.literal("deny"),
+      /** honored only for plan approvals; the provider that raised the approval must deliver it as the agent-facing deny text */
+      message: pendingInteractionApprovalDenyMessageSchema.optional(),
     }),
   ],
   approvalDecisionDiscriminatorError,

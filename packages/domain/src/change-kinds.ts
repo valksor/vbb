@@ -10,6 +10,7 @@ import {
   threadRuntimeStateSchema,
   threadStatusSchema,
 } from "./thread.js";
+import { threadPendingInteractionKindSchema } from "./pending-interaction-kind.fork.js";
 
 export const THREAD_CHANGE_KINDS = [
   "thread-created",
@@ -301,6 +302,9 @@ export const threadChangeMetadataSchema = z
     eventTypes: z.array(threadEventTypeSchema).readonly().optional(),
     timelineSequence: z.number().int().nonnegative().optional(),
     hasPendingInteraction: z.boolean().optional(),
+    pendingInteractionKind: threadPendingInteractionKindSchema
+      .nullable()
+      .optional(),
     projectId: z.string().optional(),
     statusChange: threadStatusChangeMetadataSchema.optional(),
   })
@@ -401,6 +405,10 @@ const threadChangeMetadataLenientSchema = z.object({
     )
     .optional(),
   hasPendingInteraction: z.boolean().optional(),
+  pendingInteractionKind: threadPendingInteractionKindSchema
+    .nullable()
+    .optional()
+    .catch(null),
   projectId: z.string().optional(),
   statusChange: threadStatusChangeMetadataSchema.optional().catch(undefined),
 });

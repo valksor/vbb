@@ -6,12 +6,18 @@ import type {
   PluginThreadStatusInput,
   PluginThreadStatusThread,
 } from "../app-contract.js";
+import {
+  FORK_INDICATOR_LABELS,
+  FORK_INDICATORS_OVER_ROW_STATUS,
+  refinePendingIndicator,
+} from "./thread-status.fork.js";
 
 type IndicatorLabelKind = Exclude<PluginSidebarThreadIndicator, "none">;
 
 const INDICATOR_LABELS: Record<IndicatorLabelKind, string> = {
   "unread-error": "Unread thread failed",
   "waiting-for-input": "Thread needs user input",
+  ...FORK_INDICATOR_LABELS,
   "working-draft": "Thread working with unsubmitted draft",
   workflow: "Workflow running",
   "background-agent": "Background agent running",
@@ -49,7 +55,12 @@ const DONE_THREAD_STATUSES: Record<PluginSidebarThread["status"], boolean> = {
 };
 
 const INDICATORS_OVER_ROW_STATUS: ReadonlySet<PluginSidebarThreadIndicator> =
-  new Set(["runtime", "unread-error", "waiting-for-input"]);
+  new Set([
+    "runtime",
+    "unread-error",
+    "waiting-for-input",
+    ...FORK_INDICATORS_OVER_ROW_STATUS,
+  ]);
 
 interface IndicatorFlags {
   pending: boolean;
@@ -62,6 +73,11 @@ interface IndicatorFlags {
   planMode: boolean;
   goal: boolean;
 }
+
+export {
+  sharedPendingInteractionKind,
+  waitingIndicatorForPendingInteraction,
+} from "./thread-status.fork.js";
 
 export function threadIndicatorLabel(
   indicator: PluginSidebarThreadIndicator,
@@ -148,11 +164,15 @@ export function experimental_resolveThreadStatus({
     flags.backgroundCommand ||
     flags.planMode ||
     flags.goal;
-  const indicator = resolveIndicator(
-    flags,
-    thread?.queuedWork ?? "none",
-    hasUnsubmittedDraft,
-    isThreadWorking,
+  const indicator = refinePendingIndicator(
+    resolveIndicator(
+      flags,
+      thread?.queuedWork ?? "none",
+      hasUnsubmittedDraft,
+      isThreadWorking,
+    ),
+    thread,
+    hiddenThreads,
   );
   const shownRowStatus = visibleThreadRowStatus(indicator, rowStatus);
   return {
