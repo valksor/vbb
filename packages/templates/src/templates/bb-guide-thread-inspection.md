@@ -111,7 +111,8 @@ Inspecting:
   `threads.events.list({threadId})`, and `threads.events.wait`.
   Existing timeline preview and output retention limits apply.
   File following stops on the tool result, task settlement, backgrounding,
-  or session cleanup. ACP Claude file following is a separate feature.
+  or session cleanup. ACP Claude-agent sessions also follow an unambiguous
+  foreground Bash task file; overlapping calls or multiple fresh files suppress matching.
 
   bb thread output [id]                    Get the final output of a thread
     --self                                 Target current thread
