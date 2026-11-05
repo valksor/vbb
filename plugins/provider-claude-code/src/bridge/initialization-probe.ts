@@ -20,6 +20,7 @@ async function* promptWithoutMessages(
 export async function probeClaudeInitialization(args: {
   env: NodeJS.ProcessEnv;
   cwd: string;
+  settingsFile: string | null;
 }): Promise<SDKControlInitializeResponse> {
   const pathToClaudeCodeExecutable = resolveClaudeCodeExecutable({
     env: args.env,
@@ -34,6 +35,7 @@ export async function probeClaudeInitialization(args: {
         env: args.env,
         persistSession: false,
         settingSources: ["user", "project", "local"],
+        ...(args.settingsFile === null ? {} : { settings: args.settingsFile }),
         ...(pathToClaudeCodeExecutable ? { pathToClaudeCodeExecutable } : {}),
       },
     });

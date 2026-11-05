@@ -136,7 +136,11 @@ export async function listClaudeCodeBridgeCommands(
   cwd: string,
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<ClaudeProviderCommandsState> {
-  const initialization = await probeClaudeInitialization({ env, cwd });
+  const initialization = await probeClaudeInitialization({
+    env,
+    cwd,
+    settingsFile: null,
+  });
   return toProviderCommandsState(initialization.commands);
 }
 

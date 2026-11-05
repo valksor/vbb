@@ -1,6 +1,10 @@
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
-import { parseClaudeConfigDir } from "../config-dir.js";
+import { parseClaudeConfigDir, parseProfilePath } from "../config-dir.js";
+import {
+  AUTH_TOKEN_FILE_LABEL,
+  tokenProfileBridgeOptionsSchema,
+} from "../token-profile-rules.js";
 
 const STRIPPED_EXACT_KEYS: ReadonlySet<string> = new Set([
   "CLAUDE_CODE_SESSION_ACCESS_TOKEN",
@@ -93,17 +97,45 @@ export function isProfileStrippedEnvKey(name: string): boolean {
   );
 }
 
-export type ActiveProfile = { kind: "login"; configDir: string };
+export type ActiveProfile =
+  | { kind: "login"; configDir: string }
+  | {
+      kind: "token";
+      authTokenFile: string;
+      env: Readonly<Record<string, string>>;
+    };
+
+export type ActiveTokenProfile = Extract<ActiveProfile, { kind: "token" }>;
 
 export function applyProfileSessionEnv(
   env: NodeJS.ProcessEnv,
   profile: ActiveProfile | null,
 ): void {
   if (profile === null) return;
+  const isToken = profile.kind === "token";
   for (const key of Object.keys(env)) {
-    if (isProfileStrippedEnvKey(key)) delete env[key];
+    if (
+      isProfileStrippedEnvKey(key) ||
+      (isToken && key.startsWith("ANTHROPIC_"))
+    ) {
+      delete env[key];
+    }
   }
-  env.CLAUDE_CONFIG_DIR = profile.configDir;
+  if (isToken) {
+    delete env.CLAUDE_CONFIG_DIR;
+  } else {
+    env.CLAUDE_CONFIG_DIR = profile.configDir;
+  }
+}
+
+export function applyTokenProfileSessionEnv(
+  env: NodeJS.ProcessEnv,
+  profile: ActiveTokenProfile,
+  token: string,
+): void {
+  applyProfileSessionEnv(env, profile);
+  Object.assign(env, profile.env);
+  env.ANTHROPIC_AUTH_TOKEN = token;
 }
 
 const providerOptionsRecordSchema = z.record(z.string(), z.unknown());
@@ -120,6 +152,8 @@ const requestParamsSchema = z
 
 const profileOptionSchema = z.object({
   claudeConfigDir: z.string().optional(),
+  claudeAuthTokenFile: z.unknown().optional(),
+  claudeEnv: z.unknown().optional(),
 });
 
 function requestedProfile(params: unknown): ActiveProfile | undefined {
@@ -129,11 +163,38 @@ function requestedProfile(params: unknown): ActiveProfile | undefined {
     parsed.data.providerOptions ?? parsed.data.options?.providerOptions;
   if (providerOptions === undefined) return undefined;
   const option = profileOptionSchema.parse(providerOptions);
-  if (option.claudeConfigDir === undefined) return undefined;
+  const hasToken =
+    option.claudeAuthTokenFile !== undefined || option.claudeEnv !== undefined;
+  if (option.claudeConfigDir !== undefined) {
+    if (hasToken) {
+      throw new Error(
+        "claudeConfigDir cannot be combined with claudeAuthTokenFile or claudeEnv",
+      );
+    }
+    return {
+      kind: "login",
+      configDir: parseClaudeConfigDir(option.claudeConfigDir),
+    };
+  }
+  if (!hasToken) return undefined;
+  const tokenOptions = tokenProfileBridgeOptionsSchema.parse({
+    claudeAuthTokenFile: option.claudeAuthTokenFile,
+    claudeEnv: option.claudeEnv,
+  });
   return {
-    kind: "login",
-    configDir: parseClaudeConfigDir(option.claudeConfigDir),
+    kind: "token",
+    authTokenFile: parseProfilePath(
+      tokenOptions.claudeAuthTokenFile,
+      AUTH_TOKEN_FILE_LABEL,
+    ),
+    env: tokenOptions.claudeEnv,
   };
+}
+
+function describeProfile(profile: ActiveProfile): string {
+  return profile.kind === "login"
+    ? profile.configDir
+    : `the token profile for ${profile.authTokenFile}`;
 }
 
 export function applyProfileEnv(
@@ -148,8 +209,17 @@ export function applyProfileEnv(
     return requested;
   }
   if (!isDeepStrictEqual(requested, active)) {
+    if (
+      requested.kind === "token" &&
+      active.kind === "token" &&
+      requested.authTokenFile === active.authTokenFile
+    ) {
+      throw new Error(
+        `This Claude Code bridge is bound to ${describeProfile(active)} with different env settings and cannot switch to the changed profile; a changed profile runs in a new bridge process, so start a new thread on it`,
+      );
+    }
     throw new Error(
-      `This Claude Code bridge is bound to ${active.configDir} and cannot switch to ${requested.configDir}`,
+      `This Claude Code bridge is bound to ${describeProfile(active)} and cannot switch to ${describeProfile(requested)}`,
     );
   }
   return active;

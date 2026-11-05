@@ -28,6 +28,8 @@ import {
   claudeConfigDirLoginCommand,
 } from "../config-dir.js";
 import type { ActiveProfile } from "./profile-env.js";
+import { tokenProfileHealth } from "./provider-maintenance-token.js";
+import { zaiTokenProfileUsage } from "./provider-maintenance-zai.js";
 
 const execFileAsync = experimental_execHostFile;
 const USAGE_FETCH_TIMEOUT_MS = 15_000;
@@ -343,7 +345,9 @@ async function readAccount(configDir: string | null) {
   }
 }
 
-async function readAccountEmail(configDir: string | null): Promise<string | null> {
+async function readAccountEmail(
+  configDir: string | null,
+): Promise<string | null> {
   return (await readAccount(configDir))?.emailAddress ?? null;
 }
 
@@ -374,6 +378,7 @@ function healthResult(
     installedVersion?: string | null;
     statusMessage?: string | null;
     configDir?: string | null;
+    loginCommand?: string | null;
   } = {},
 ): ProviderHealthResult {
   return {
@@ -388,9 +393,11 @@ function healthResult(
       canInstall: true,
       canUpdate: status !== "not_installed",
       loginCommand:
-        args.configDir == null
-          ? "claude auth login"
-          : claudeConfigDirLoginCommand(args.configDir),
+        args.loginCommand !== undefined
+          ? args.loginCommand
+          : args.configDir == null
+            ? "claude auth login"
+            : claudeConfigDirLoginCommand(args.configDir),
     },
   };
 }
@@ -398,12 +405,18 @@ function healthResult(
 export async function getClaudeProviderHealth(
   profile: ActiveProfile | null = null,
 ): Promise<ProviderHealthResult> {
-  const configDir = profile?.configDir ?? null;
+  const configDir = profile?.kind === "login" ? profile.configDir : null;
   const command = await claudeExecutable();
   if ((await resolveExecutablePath(command)) === null) {
-    return healthResult("not_installed", { configDir });
+    return healthResult("not_installed", {
+      configDir,
+      ...(profile?.kind === "token" ? { loginCommand: null } : {}),
+    });
   }
   const version = await readCliVersion(command);
+  if (profile?.kind === "token") {
+    return tokenProfileHealth(profile, version, healthResult);
+  }
   try {
     const [credentials, email] = await Promise.all([
       readCredentials(configDir),
@@ -548,6 +561,7 @@ function normalizeUsage(
 export async function getClaudeProviderUsage(
   profile: ActiveProfile | null = null,
 ): Promise<ProviderUsageResult> {
+  if (profile?.kind === "token") return zaiTokenProfileUsage(profile);
   const configDir = profile?.configDir ?? null;
   const command = await claudeExecutable();
   if ((await resolveExecutablePath(command)) === null) {
