@@ -6,7 +6,11 @@ import {
   pendingInteractions as pendingInteractionTable,
   setPendingInteractionResolving,
 } from "@bb/db";
-import { turnScope, type PendingInteractionCreate } from "@bb/domain";
+import {
+  threadChangeMetadataSchema,
+  turnScope,
+  type PendingInteractionCreate,
+} from "@bb/domain";
 import {
   handleDaemonSocketClosed,
   handleHostSessionOpened,
@@ -15,6 +19,7 @@ import { onDaemonSocketOpen } from "../../src/ws/daemon-protocol.js";
 import { toPendingInteraction } from "../../src/services/interactions/pending-interaction-serialization.js";
 import { PendingInteractionLifecycle } from "../../src/services/interactions/pending-interactions.js";
 import type { AppDeps } from "../../src/types.js";
+import type { NotificationHub } from "../../src/ws/hub.js";
 import {
   seedEnvironment,
   seedHostSession,
@@ -64,6 +69,37 @@ function registerPendingInteraction(
   return lifecycle.registerPendingInteraction({
     interaction,
   });
+}
+
+function requireRegisteredInteraction(
+  outcome: ReturnType<
+    PendingInteractionLifecycle["registerPendingInteraction"]
+  >,
+) {
+  if (outcome.outcome === "rejected") {
+    throw new Error(
+      `Expected interaction registration to succeed: ${outcome.reason}`,
+    );
+  }
+  return outcome.interaction;
+}
+
+type NotifyThreadCall = Parameters<NotificationHub["notifyThread"]>;
+
+function lastInteractionChangeCall(
+  calls: NotifyThreadCall[],
+): NotifyThreadCall {
+  const interactionCalls = calls.filter(
+    (call) => call[1].length === 1 && call[1][0] === "interactions-changed",
+  );
+  expect(interactionCalls).not.toHaveLength(0);
+  return interactionCalls[interactionCalls.length - 1]!;
+}
+
+function countInteractionChangeCalls(calls: NotifyThreadCall[]): number {
+  return calls.filter(
+    (call) => call[1].length === 1 && call[1][0] === "interactions-changed",
+  ).length;
 }
 
 function createPlanApprovalPayload(): PendingInteractionCreate["payload"] {
@@ -512,23 +548,28 @@ describe("pending interaction lifecycle", () => {
           }),
         },
       );
-      if (created.outcome === "rejected") {
-        throw new Error(
-          `Expected interaction registration to succeed: ${created.reason}`,
-        );
-      }
+      const interaction = requireRegisteredInteraction(created);
 
       expect(notifyThread).toHaveBeenCalledWith(
         thread.id,
         ["interactions-changed"],
-        { hasPendingInteraction: true, projectId: project.id },
+        {
+          hasPendingInteraction: true,
+          pendingInteractionKind: "approval",
+          projectId: project.id,
+        },
       );
+      expect(lastInteractionChangeCall(notifyThread.mock.calls)[2]).toEqual({
+        hasPendingInteraction: true,
+        pendingInteractionKind: "approval",
+        projectId: project.id,
+      });
 
       harness.db.transaction((tx) =>
         harness.deps.pendingInteractions.completeResolvingInteractionInTransaction(
           { db: tx, hub: harness.deps.hub },
           {
-            interactionId: created.interaction.id,
+            interactionId: interaction.id,
             resolution: createAllowOnceResolution(),
           },
         ),
@@ -537,8 +578,22 @@ describe("pending interaction lifecycle", () => {
       expect(notifyThread).toHaveBeenCalledWith(
         thread.id,
         ["interactions-changed"],
-        { hasPendingInteraction: false, projectId: project.id },
+        {
+          hasPendingInteraction: false,
+          pendingInteractionKind: null,
+          projectId: project.id,
+        },
       );
+      expect(countInteractionChangeCalls(notifyThread.mock.calls)).toBe(2);
+      expect(
+        threadChangeMetadataSchema.parse(
+          lastInteractionChangeCall(notifyThread.mock.calls)[2],
+        ),
+      ).toEqual({
+        hasPendingInteraction: false,
+        pendingInteractionKind: null,
+        projectId: project.id,
+      });
     });
   });
 
