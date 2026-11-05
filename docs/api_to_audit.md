@@ -1008,7 +1008,7 @@ two declarations or become one list of typed roots; confirm that a flat
 ## `PluginProviderDeclaration.experimental_resolvesNativeRoots`
 
 Declares that the plugin's `bb.host` entry serves
-`resolveNativeRoots({ providerId, cwd })`. bb scans the answer beside the
+`resolveNativeRoots({ providerId, cwd, bridgeOptions? })`. bb scans the answer beside the
 declared roots (cached ten seconds). A failed answer yields no resolved roots
 and never fails the listing.
 
@@ -1030,7 +1030,9 @@ Docs: `providers.md`.
 **Audit before stabilizing.** Confirm the shape vocabulary covers a
 third-party agent's layouts; decide whether the contract should accept a
 relative path the daemon resolves (so a plugin need not know the host home)
-and whether the 256-root cap per side is right.
+and whether the 256-root cap per side is right. Confirm that optional registered
+bridge options remain sufficient to distinguish profile providers without
+exposing unrelated registration data.
 
 ## `experimental_filterResolvedNativeRoots` (`@get-bb/plugin-sdk/host`)
 

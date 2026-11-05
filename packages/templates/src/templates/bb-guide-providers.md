@@ -127,6 +127,13 @@ Cursor.
 ACP agents (acp-*), including custom agents set in the ACP providers plugin's
 customAgents setting, are documented in the acp-provider skill.
 
+For a second native Claude account, set the Claude Code plugin `profiles`
+setting. Each login profile registers `claude-code-<id>` and uses only its
+`configDir` login and native user roots. Inspect it with `bb provider list` and
+`bb provider models claude-code-<id>`. Select it with `bb thread spawn
+--provider claude-code-<id>`. The default `claude-code` provider remains the
+path for CLI installation and updates. Existing threads cannot switch providers.
+
 Top-level customModels in the app data-dir config.json adds extra picker
 entries. Each entry has a providerId (a built-in provider id or any acp-*
 provider id), a model id, and an optional displayName. bb skips an invalid

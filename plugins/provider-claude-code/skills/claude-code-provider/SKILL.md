@@ -70,6 +70,31 @@ with `bb plugin config provider-claude-code set <key> <value>`.
   corresponding `bb thread` commands. Unlisted model IDs are accepted by the
   provider; verify actual availability on the target host.
 
+## Profiles
+
+Set `profiles` to a JSON array with `id`, `displayName`, and `configDir`.
+Each entry registers `claude-code-<id>`. List it with `bb provider list` and
+its models with `bb provider models claude-code-<id>`. Select it with
+`bb thread spawn --provider claude-code-<id>` or the SDK thread spawn provider
+selection. For example:
+
+```sh
+bb plugin config provider-claude-code set profiles \
+  '[{"id":"work","displayName":"Claude Work","configDir":"~/.claude-work"}]'
+CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login
+```
+
+`configDir` is `~/<subdirectory>` or a canonical absolute POSIX path. It cannot
+be the home directory, the filesystem root, or contain shell, control, bidi, or
+invisible characters. The profile uses only credentials and account data in that
+directory. It never falls back to the default `~/.claude` login.
+
+The profile bridge removes ambient credential, routing, and account variables.
+It keeps ordinary model, feature, proxy URL, and Chrome variables. Profiles share
+the plugin settings for memory, sandbox, 1M context, and Chrome. Existing threads
+cannot change providers. Changing a directory or removing a profile leaves old
+threads unavailable and preserves their old transcripts.
+
 Inspect the thread and provider state after a change; do not restart unrelated
 threads or change settings merely to answer a question.
 

@@ -15,9 +15,13 @@ Start a thread, pick Claude Code, and let it work in your repository from bb. Th
 - `Disable provider subagents`: hide native Agent, Task, and ListAgents tools so the agent delegates through bb. Changes restart Claude before the next turn, preserving the conversation.
 - `Disable Workflow tool`: hide the native Workflow tool.
 - `Claude in Chrome`: start Claude Code with the browser tools.
+- `Profiles`: add native Claude Code login providers beside the default. Each
+  entry has an `id`, `displayName`, and `configDir`. A profile provider uses
+  `claude-code-<id>`, its own stored `claude auth login`, and its own native
+  user skills. It does not offer CLI installation or updates.
 
 ## Requirements
 
 - Install the Claude Code CLI (`claude`) on the host machine. The plugin can run the installer for you.
-- Sign in with `claude` on that machine. bb reads the sign-in state to show account and plan.
+- Sign in with `claude` on that machine. bb reads the sign-in state to show account and plan. For a profile, run `CLAUDE_CONFIG_DIR="$HOME/<subdirectory>" claude auth login` on the host.
 - `Claude in Chrome` needs the Chrome extension and a claude.ai login on the host.

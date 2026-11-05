@@ -58,8 +58,7 @@ export function registerUsageSource(bb: BbPluginApi) {
       !providers.some(
         (provider) =>
           provider.id === providerId &&
-          provider.pluginId === "provider-claude-code" &&
-          provider.id === "claude-code",
+          provider.pluginId === "provider-claude-code",
       )
     )
       throw new Error("Usage resource no longer exists.");
@@ -139,9 +138,7 @@ export function registerUsageSource(bb: BbPluginApi) {
               });
               return providers
                 .filter(
-                  (provider) =>
-                    provider.pluginId === "provider-claude-code" &&
-                    provider.id === "claude-code",
+                  (provider) => provider.pluginId === "provider-claude-code",
                 )
                 .map((provider) => {
                   const id = JSON.stringify([host.id, provider.id]);

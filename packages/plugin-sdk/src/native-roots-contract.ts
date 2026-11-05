@@ -42,6 +42,12 @@ export const experimental_nativeRootsResolveInputSchema = z
     providerId: z.string().min(1),
     /** The workspace, or null when bb lists without one (user roots only). */
     cwd: z.string().min(1).nullable(),
+    /**
+     * The provider's `experimental_bridgeOptions` as registered. Absent when
+     * the provider declares none, so a plugin that registers several
+     * providers can tell them apart by launch facts.
+     */
+    bridgeOptions: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 export type ExperimentalNativeRootsResolveInput = z.infer<

@@ -5,6 +5,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import {
   experimental_filterResolvedNativeRoots,
+  experimental_nativeRootsResolveInputSchema,
   experimental_nativeRootsResolveOutputSchema,
 } from "../native-roots-contract.js";
 
@@ -17,6 +18,24 @@ function roots(count: number, side: string) {
     origin: "user" as const,
   }));
 }
+
+describe("experimental_nativeRootsResolveInputSchema", () => {
+  it("accepts omitted and registered bridge options", () => {
+    expect(
+      experimental_nativeRootsResolveInputSchema.parse({
+        providerId: "claude-code",
+        cwd: null,
+      }),
+    ).not.toHaveProperty("bridgeOptions");
+    expect(
+      experimental_nativeRootsResolveInputSchema.parse({
+        providerId: "claude-code-work",
+        cwd: "/workspace",
+        bridgeOptions: { claudeConfigDir: "/profiles/work" },
+      }),
+    ).toMatchObject({ bridgeOptions: { claudeConfigDir: "/profiles/work" } });
+  });
+});
 
 describe("experimental_filterResolvedNativeRoots", () => {
   it("drops a root with an unknown key so the kept answer passes the strict output schema", () => {

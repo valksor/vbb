@@ -1,10 +1,14 @@
 import { registerUsageSource } from "./src/usage-source.js";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
-import { CLAUDE_NATIVE_ROOTS_DECLARATION } from "./src/native-roots.js";
+import { claudeCodeProviderDeclaration } from "./src/declaration.js";
+import {
+  CLAUDE_CODE_PROFILES_SETTING,
+  registerClaudeCodeProfiles,
+} from "./src/server-profiles.js";
 
-export default function plugin(bb: BbPluginApi) {
+export default async function plugin(bb: BbPluginApi): Promise<void> {
   registerUsageSource(bb);
-  bb.settings.define({
+  const settings = bb.settings.define({
     memoryEnabled: {
       type: "boolean",
       label: "Claude Code memory",
@@ -67,77 +71,10 @@ export default function plugin(bb: BbPluginApi) {
         "Title Bash command rows with Claude's short description of the command instead of the command itself. Approval prompts still show the command. Takes effect from each thread's next message; existing rows keep their titles.",
       default: false,
     },
+    ...CLAUDE_CODE_PROFILES_SETTING,
   });
 
-  bb.providers.register({
-    id: "claude-code",
-    displayName: "Claude Code",
-    icon: "./icons/claude-code.svg",
-    strings: {
-      signInHint: "Run `claude` on the machine to sign in.",
-      expiredHint: "Your Claude session expired. Run `claude`, then reload.",
-      installUrl: "https://claude.com/claude-code",
-      brandPrefix: "Claude ",
-      planModeCopy:
-        "Claude Code will plan without normal full-access execution.",
-      iconTint: { light: "#D97757", dark: "#D97757" },
-    },
-    ...CLAUDE_NATIVE_ROOTS_DECLARATION,
-    maintenance: { health: true, usage: true, installation: true },
-    capabilities: {
-      supportsServiceTier: true,
-      supportsNativeUserQuestion: true,
-      fork: "checkpoint",
-      supportsManualCompaction: true,
-      supportsThreadArchive: false,
-      supportsThreadRename: false,
-      permissionModes: ["accept-edits", "auto", "full"],
-      reasoningLevels: ["low", "medium", "high", "xhigh", "ultracode", "max"],
-    },
-    reasoningLevels: [
-      { id: "low", label: "Low" },
-      { id: "medium", label: "Medium" },
-      { id: "high", label: "High" },
-      { id: "xhigh", label: "Extra High" },
-      {
-        id: "ultracode",
-        label: "Ultracode",
-        description: "Extra-high effort plus standing workflow orchestration.",
-      },
-      { id: "max", label: "Max" },
-    ],
-    serviceTiers: [
-      { id: "default", label: "Default" },
-      {
-        id: "fast",
-        label: "Fast",
-        description:
-          "Faster responses on supported Opus models at a higher cost per token.",
-      },
-    ],
-    composerActions: ["plan"],
-    completedTurnDisplay: "flat",
-    env: {
-      passthrough: ["BB_CLAUDE_CODE_EXECUTABLE", "CLAUDE_CODE_OAUTH_TOKEN"],
-    },
-    models: { scope: "host" },
-    deriveProviderOptions(context) {
-      return {
-        memoryEnabled: context.settings.memoryEnabled !== false,
-        providerSubagentsEnabled: context.settings.subagentsDisabled !== true,
-        workflowsEnabled: context.settings.workflowsDisabled !== true,
-        chromeEnabled: context.settings.chromeEnabled === true,
-        disable1MContext: context.settings.disable1MContext === true,
-        artifactsEnabled: context.settings.artifactsEnabled === true,
-        sandboxEnabled: context.settings.sandboxEnabled !== false,
-        fullAccessApprovalsEnabled:
-          context.settings.fullAccessApprovalsEnabled === true,
-        commandDescriptionsEnabled:
-          context.settings.commandDescriptionsEnabled === true,
-        ...(context.promptMode === "plan"
-          ? { claudeCodePermissionMode: "plan" }
-          : {}),
-      };
-    },
-  });
+  bb.providers.register(claudeCodeProviderDeclaration());
+
+  await registerClaudeCodeProfiles(bb, settings);
 }
