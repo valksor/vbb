@@ -4,7 +4,8 @@ import {
   interactionResponseSchema,
   toolInputSchema,
 } from "./contracts.js";
-import { TOOL_DESCRIPTION, buildTimeoutMessage } from "./tool-definition.js";
+import { cancelledResult, okText } from "./server.fork.js";
+import { TOOL_DESCRIPTION } from "./tool-definition.js";
 import {
   assertInteractionPayloadFits,
   buildInteractionPayload,
@@ -96,7 +97,7 @@ export default function plugin(bb: BbPluginApi) {
               );
             },
           },
-          { signal: ctx.signal },
+          { signal: ctx.signal, experimental_holdToolCall: true },
         );
       } catch (error) {
         return errorResult(
@@ -105,22 +106,18 @@ export default function plugin(bb: BbPluginApi) {
       }
 
       if (result.outcome === "cancelled") {
-        return errorResult(
-          result.reason === "timeout"
-            ? buildTimeoutMessage(Date.now() - askedAt)
-            : "The user dismissed the question without answering. Proceed with your best judgement, or ask again in your reply.",
-        );
+        return cancelledResult(result.reason, Date.now() - askedAt);
       }
 
       const parsed = interactionResponseSchema.safeParse(result.value);
       if (!parsed.success) {
-        return errorResult(
+        return okText(
           "The answer could not be read. Ask the question again in your reply instead.",
         );
       }
       const toolResult = buildToolResult(payload, parsed.data);
       if (Object.keys(toolResult.answers).length === 0) {
-        return errorResult(
+        return okText(
           "The user submitted no answers. Proceed with your best judgement, or ask again in your reply.",
         );
       }

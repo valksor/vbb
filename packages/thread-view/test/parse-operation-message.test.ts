@@ -172,6 +172,9 @@ describe("parseOperationMessage operation titles", () => {
       expect(interruptedTitle("host-daemon-restarted", THREAD_NAME)).toBe(
         "Stopped — host daemon restarted",
       );
+      expect(interruptedTitle("question-unanswered", THREAD_NAME)).toBe(
+        "Stopped — question unanswered, waiting for you",
+      );
       expect(
         interruptedTitle(
           "host-daemon-restarted",

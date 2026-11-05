@@ -398,6 +398,7 @@ function lifecycleEventForInterruptedThread(
   switch (reason) {
     case "host-removed":
     case "manual-stop":
+    case "question-unanswered":
       return { type: "stop.settled" };
     case "host-daemon-restarted":
     case "host-connection-lost":
@@ -422,6 +423,8 @@ function pendingInteractionStopReason(
       return "Connection to host was lost while awaiting user interaction";
     case "provider-turn-idle":
       return "Thread stopped after the provider stopped sending progress";
+    case "question-unanswered":
+      return "Thread stopped after a question went unanswered";
     default:
       return assertNever(reason);
   }
@@ -433,6 +436,7 @@ function threadCommandFailureMessageForInterruption(
   switch (reason) {
     case "host-removed":
     case "manual-stop":
+    case "question-unanswered":
       return null;
     case "host-daemon-restarted":
       return "Thread interrupted because the host daemon disconnected";
@@ -453,6 +457,8 @@ function threadCommandFailureDetailForInterruption(
       return "Thread stopped because the machine was removed";
     case "manual-stop":
       return "Thread stopped by user request";
+    case "question-unanswered":
+      return "Thread stopped because a question went unanswered";
     case "host-daemon-restarted":
     case "host-connection-lost":
       return "Please retry the thread to continue.";

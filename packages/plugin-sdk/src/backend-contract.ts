@@ -1893,10 +1893,16 @@ export interface PluginUi {
    * reaches the agent as a message; see {@link PluginAgentToolContext.signal}.
    * The form leaves a timeline row described by `presentation` and
    * `describeSubmission`.
+   *
+   * `experimental_holdToolCall` reverses that default inside a native tool's
+   * `execute`: the tool call stays blocked until the form settles (the agent
+   * does not keep working), and the interaction is bound to the active turn so
+   * a direct start while it is open is rejected; queued sends can wait until
+   * it resolves.
    */
   requestInput(
     request: PluginInteractionRequest,
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; experimental_holdToolCall?: boolean },
   ): Promise<PluginInteractionResult>;
   /**
    * Register a mention provider for the shipped app's composer (design §4.9).
