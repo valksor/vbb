@@ -578,6 +578,7 @@ export function createRealtimeCacheEffects({
           if (message.id) {
             applyRealtimeThreadPatches(message.changes, {
               hasPendingInteraction: message.metadata?.hasPendingInteraction,
+              pendingInteractionKind: message.metadata?.pendingInteractionKind,
               queryClient,
               statusChange: message.metadata?.statusChange,
               threadId: message.id,

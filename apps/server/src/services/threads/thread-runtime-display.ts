@@ -615,6 +615,7 @@ function toThreadListEntryResponseFromLatestSession(
       isWorktree: args.thread.environmentIsWorktree,
     }),
     hasPendingInteraction: args.thread.hasPendingInteraction,
+    pendingInteractionKind: args.thread.pendingInteractionKind,
     runtime: resolveThreadRuntimeStateFromLatestSession({
       environmentHostId: args.thread.environmentHostId,
       hostConnected: args.hostConnected,

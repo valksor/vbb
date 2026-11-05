@@ -1,3 +1,9 @@
+import type { ForkPluginAppSlots } from "./app-contract.fork.js";
+export type {
+  PluginComposerAsideProps,
+  PluginComposerAsideRegistration,
+  PluginThreadHeaderActionProps,
+} from "./app-contract.fork.js";
 import type {
   ExperimentalRpcKeyedMethod,
   ExperimentalRpcKeyedValue,
@@ -25,6 +31,7 @@ import type {
   SessionOptionSelections,
   EnvironmentWorkspaceDisplayKind,
   ThreadParentNotifications,
+  ThreadPendingInteractionKind,
   ThreadQueuedWork,
   ThreadRuntimeDisplayStatus,
   ThreadStatus,
@@ -1286,8 +1293,11 @@ export interface ExperimentalSidebarFooter {
  * or resolve a row that folds in more through
  * {@link PluginSdkApp.experimental_resolveThreadStatus}.
  *
- * Treat an unrecognized value as "none": bb adds kinds over time, and an
- * older plugin must degrade to drawing nothing rather than throwing.
+ * Every "waiting-for-*" value means the agent is blocked on the user, and
+ * `hasPendingInteraction` is true for all of them; treat an unrecognized
+ * "waiting-for-*" value as "waiting-for-input". Treat any other unrecognized
+ * value as "none": bb adds kinds over time, and an older plugin must degrade
+ * to drawing nothing rather than throwing.
  *
  * "draft" and "working-draft" are never reported here: an unsubmitted composer
  * draft is per-client state the host reads per row, which an array-wide view
@@ -1299,6 +1309,8 @@ export interface ExperimentalSidebarFooter {
 export type PluginSidebarThreadIndicator =
   | "unread-error"
   | "waiting-for-input"
+  | "waiting-for-plan-approval"
+  | "waiting-for-answer"
   | "working-draft"
   | "workflow"
   | "background-agent"
@@ -1383,6 +1395,13 @@ export interface PluginSidebarThread {
   queuedWork: ThreadQueuedWork;
   /** The agent is blocked on the user: an approval or a question. */
   hasPendingInteraction: boolean;
+  /**
+   * What the thread is blocked on while `hasPendingInteraction` is true:
+   * "plan_approval", "question", or "approval"; null when it is false or the
+   * host could not classify the interaction. bb resolves it to a waiting
+   * indicator (see {@link PluginSidebarThreadIndicator}).
+   */
+  pendingInteractionKind: ThreadPendingInteractionKind | null;
   activity: PluginSidebarThreadActivity;
   indicator: PluginSidebarThreadIndicator;
   /**
@@ -1643,6 +1662,7 @@ export type PluginThreadStatusThread = Pick<
   | "runtimeStatus"
   | "queuedWork"
   | "hasPendingInteraction"
+  | "pendingInteractionKind"
   | "activity"
   | "isUnread"
   | "parentThreadId"
@@ -1709,7 +1729,9 @@ export interface PluginThreadStatusGlyphProps {
   /**
    * A status another plugin set on the row (see
    * {@link PluginSdkApp.useSidebarThreadRowStatus}). It replaces every
-   * indicator except "runtime", "unread-error", and "waiting-for-input".
+   * indicator except "runtime", "unread-error", and every waiting kind:
+   * "waiting-for-input", "waiting-for-plan-approval", and
+   * "waiting-for-answer".
    */
   rowStatus?: PluginSidebarThreadRowStatus | null;
   /** Hides the idle draft glyph from assistive technology. */
@@ -1817,9 +1839,9 @@ export interface PluginSidebarThreadActions {
   setRead(threadId: string, read: boolean): Promise<void>;
   /** Silent rename — no dialog. For inline editing in your own row. */
   rename(threadId: string, title: string): Promise<void>;
-  /** Confirms before including child threads unless archive confirmation is disabled in Settings → General. */
+  /** Confirms before including child threads unless archive confirmation is disabled in Settings → General; archiving a thread that appears to be running work prompts first. */
   archive(threadId: string): void;
-  /** Archives an environment's active thread trees with bb's optimistic updates, pane cleanup, and one Undo toast. Rejects after bb shows an error toast on failure. */
+  /** Archives an environment's active thread trees with bb's optimistic updates, pane cleanup, and one Undo toast. When any thread in the environment is running work, bb opens a confirmation dialog and the call resolves once it is shown, without archiving. The archive runs only if the user confirms. A direct call resolves silently when the environment has no threads left to archive. Failures show the error toast in both paths; only the direct archive attempt also rejects. */
   experimental_archiveEnvironmentThreads(environmentId: string): Promise<void>;
   /**
    * Opens bb's delete confirmation, which counts child threads first. Deletion
@@ -3757,7 +3779,7 @@ export interface PluginMachineProviderInputsRegistration {
 // definePluginApp
 // ---------------------------------------------------------------------------
 
-export interface PluginAppSlots {
+export interface PluginAppSlots extends ForkPluginAppSlots {
   homepageSection(registration: PluginHomepageSectionRegistration): void;
   settingsSection(registration: PluginSettingsSectionRegistration): void;
   /**

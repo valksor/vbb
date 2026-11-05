@@ -144,6 +144,8 @@ Read the installed SDK declarations for the exact current signatures.
 - `PluginMachineProviderInputsRegistration`
 - `PluginSidebarFooterActionProps`
 - `ExperimentalSidebarFooterDisclosureProps`
+- `PluginComposerAsideProps`
+- `PluginThreadHeaderActionProps`
 - `PluginThreadListProps`
 - `ExperimentalThreadInfoProps`
 - `ExperimentalThreadEnvironment`

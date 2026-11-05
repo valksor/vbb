@@ -1,5 +1,6 @@
 import { prepareCachedQuery } from "../connection.js";
 import { markThreadPruningPolicyWork } from "./thread-pruning-work.js";
+import { forkThreadPendingKindState, oldestPendingInteractionKindColumns } from "./pending-interactions.fork.js";
 import { copyProjectAttachmentOwnership } from "./project-attachments.js";
 import {
   and,
@@ -25,6 +26,7 @@ import type {
   ThreadLifecycleNoopReason,
   ThreadOriginKind,
   ThreadParentNotifications,
+  ThreadPendingInteractionKind,
   ThreadSearchSourceKind,
   ThreadStatus,
   ThreadVisibility,
@@ -594,6 +596,7 @@ function threadWithPendingInteractionBaseQuery(db: DbConnection) {
       environmentPath: environments.path,
       environmentProviderId: environments.environmentProviderId,
       hasPendingInteraction: sql<number>`EXISTS (SELECT 1 FROM ${pendingInteractions} WHERE ${pendingInteractions.threadId} = ${threads.id} AND ${pendingInteractions.status} = 'pending')`,
+      ...oldestPendingInteractionKindColumns(threads.id),
     })
     .from(threads)
     .leftJoin(environments, eq(threads.environmentId, environments.id));
@@ -635,6 +638,7 @@ export interface ThreadWithPendingInteractionState extends ThreadRow {
   environmentPath: string | null;
   environmentProviderId: string | null;
   hasPendingInteraction: boolean;
+  pendingInteractionKind: ThreadPendingInteractionKind | null;
 }
 
 interface ThreadWithPendingInteractionStateRow extends ThreadRow {
@@ -645,6 +649,8 @@ interface ThreadWithPendingInteractionStateRow extends ThreadRow {
   environmentPath: string | null;
   environmentProviderId: string | null;
   hasPendingInteraction: number;
+  pendingInteractionPayloadKind: string | null;
+  pendingInteractionApprovalSubjectKind: string | null;
 }
 
 export interface ListLiveThreadsInEnvironmentArgs {
@@ -793,6 +799,7 @@ function toThreadWithPendingInteractionState(
     environmentPath,
     environmentProviderId,
     hasPendingInteraction: hasPendingInteraction > 0,
+    ...forkThreadPendingKindState(row),
   };
 }
 

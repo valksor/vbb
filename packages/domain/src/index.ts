@@ -25,6 +25,7 @@ export * from "./legacy-image-generation.js";
 export * from "./lifecycle-diagram.js";
 export * from "./number-utils.js";
 export * from "./pending-interactions.js";
+export * from "./pending-interaction-kind.fork.js";
 export * from "./legacy-thread-events.js";
 export * from "./plugin-icon.js";
 export * from "./plugin-metadata.js";

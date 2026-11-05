@@ -218,6 +218,7 @@ Check imports here, behavior in the Plugin Guide, and signatures in the installe
 - `ExperimentalVoiceInputButtonProps`
 - `ExperimentalVoiceRecordingBarProps`
 - `PluginComposerApi`
+- `PluginComposerAsideProps`, `PluginComposerAsideRegistration`
 - `PluginComposerMention`
 - `PluginComposerScope`
 - `PluginComposerTextEffect`

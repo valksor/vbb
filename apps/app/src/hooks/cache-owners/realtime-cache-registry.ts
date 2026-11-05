@@ -6,6 +6,7 @@ import type {
   SystemChangeKind,
   ThreadChangeKind,
   ThreadEventType,
+  ThreadPendingInteractionKind,
   ThreadStatusChangeMetadata,
   ThreadWithRuntime,
 } from "@bb/domain";
@@ -635,6 +636,7 @@ interface ExecuteRealtimeDirtyHandlersArgs<
 
 interface ThreadRealtimePatchContext {
   hasPendingInteraction: boolean | undefined;
+  pendingInteractionKind: ThreadPendingInteractionKind | null | undefined;
   queryClient: QueryClient;
   statusChange: ThreadStatusChangeMetadata | undefined;
   threadId: string;
@@ -1004,6 +1006,7 @@ function markThreadDetailQueryStale({
 
 function patchThreadListPendingInteractionState({
   hasPendingInteraction,
+  pendingInteractionKind,
   queryClient,
   threadId,
 }: ThreadRealtimePatchContext): void {
@@ -1014,6 +1017,7 @@ function patchThreadListPendingInteractionState({
     queryClient,
     threadId,
     hasPendingInteraction,
+    pendingInteractionKind ?? null,
   );
 }
 

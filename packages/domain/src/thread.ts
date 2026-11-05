@@ -14,6 +14,7 @@ import {
   serviceTierSchema,
 } from "./shared-types.js";
 import { threadStatusSchema, threadStatusValues } from "./thread-status.js";
+import { threadPendingInteractionKindSchema } from "./pending-interaction-kind.fork.js";
 import { threadOriginKindSchema } from "./thread-origin-kind.js";
 import { threadParentNotificationsSchema } from "./thread-parent-notifications.js";
 import { threadVisibilitySchema } from "./thread-visibility.js";
@@ -158,6 +159,7 @@ export const threadListEntrySchema = threadWithRuntimeSchema.extend({
   queuedWork: threadQueuedWorkSchema,
   pinSortKey: z.string().nullable(),
   hasPendingInteraction: z.boolean(),
+  pendingInteractionKind: threadPendingInteractionKindSchema.nullable(),
   environmentHostId: z.string().nullable(),
   environmentName: z.string().nullable(),
   environmentBranchName: z.string().nullable(),

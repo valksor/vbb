@@ -2,6 +2,7 @@ import type { QueryClient, QueryKey } from "@tanstack/react-query";
 import type {
   Thread,
   ThreadListEntry,
+  ThreadPendingInteractionKind,
   ThreadStatusChangeMetadata,
 } from "@bb/domain";
 import {
@@ -413,6 +414,7 @@ export function optimisticallyInsertThread(
     environmentWorkspaceDisplayKind: "other",
     runtime: thread.runtime,
     hasPendingInteraction: false,
+    pendingInteractionKind: null,
     pinSortKey: null,
     queuedWork,
   };
@@ -546,8 +548,12 @@ export function updateCachedThreadListPendingInteractionState(
   queryClient: QueryClient,
   threadId: string,
   hasPendingInteraction: boolean,
+  pendingInteractionKind: ThreadPendingInteractionKind | null,
 ): void {
-  patchThreadEntity(queryClient, threadId, { hasPendingInteraction });
+  patchThreadEntity(queryClient, threadId, {
+    hasPendingInteraction,
+    pendingInteractionKind,
+  });
 }
 
 export function updateCachedThreadListStatusState(

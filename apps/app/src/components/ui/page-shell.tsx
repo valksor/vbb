@@ -40,6 +40,7 @@ const STATIC_FOOTER_BOTTOM_PADDING_CLASS =
   "pb-[calc(1rem+max(1rem,var(--bb-content-bottom-inset,0px)))] md:pb-[calc(1.25rem+max(1rem,var(--bb-content-bottom-inset,0px)))]";
 const ANCHORED_FOOTER_BOTTOM_PADDING_CLASS =
   "pb-[max(0px,calc(1rem-var(--bb-content-bottom-inset,0px)))]";
+export const PAGE_CONTENT_MAX_WIDTH_PX = 760;
 const DEFAULT_MAX_WIDTH_CLASS = "max-w-[760px]";
 
 function renderStaticFooter(
