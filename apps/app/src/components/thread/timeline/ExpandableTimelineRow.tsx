@@ -27,6 +27,7 @@ import {
   timelineRowHorizontalPaddingClassName,
   type TimelineRowHorizontalPadding,
 } from "./TimelineRowHeader.js";
+import { TimelineRowTime } from "./TimelineRowTime.js";
 import {
   TimelineTitleView,
   type TimelineTitleActionResolver,
@@ -38,6 +39,7 @@ interface ExpandableTimelineRowProps {
   forceExpanded?: boolean;
   terminalAutoExpanded?: boolean;
   renderBody: () => ReactNode;
+  startedAt?: number;
   title: TimelineTitle;
   titleContent?: ReactNode;
   collapsedPreview?: ReactNode;
@@ -137,6 +139,7 @@ function ExpandableTimelineRowComponent({
   onTitleAction,
   renderBody,
   reasoningExpansionKey,
+  startedAt,
   summaryClassName,
   terminalAutoExpanded = false,
   title,
@@ -254,6 +257,9 @@ function ExpandableTimelineRowComponent({
             summaryClassName,
           )}
         >
+          {startedAt !== undefined ? (
+            <TimelineRowTime timestamp={startedAt} />
+          ) : null}
           <TimelineLeadingIcon
             icon={leadingIcon}
             fallback={leadingIconFallback}
