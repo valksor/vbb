@@ -18,6 +18,7 @@ import type {
 } from "../thread-delta.js";
 import { THREAD_DELTA_KEY_SEPARATOR } from "../thread-delta.js";
 import { THREAD_DELTA_GRAMMAR_V3 } from "../version.js";
+import { executionReportedEvent } from "./execution-reported-event.js";
 
 export const ASSEMBLER_GRAMMAR_VERSIONS: BridgeGrammarVersions = [
   THREAD_DELTA_GRAMMAR_V3,
@@ -1980,6 +1981,10 @@ export function createDeltaAssembler(
         });
         return;
       }
+
+      case "thread.execution":
+        events.push(executionReportedEvent(delta, UNSTAMPED_THREAD_ID));
+        return;
 
       case "provider.warning": {
         const turnId =

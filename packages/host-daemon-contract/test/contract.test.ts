@@ -1062,7 +1062,7 @@ describe("host-daemon command schemas", () => {
   });
 
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(262);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(265);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 
@@ -1084,7 +1084,7 @@ describe("host-daemon command schemas", () => {
     expect(contract.isCompatibleHostDaemonProtocolVersion(259)).toBe(false);
     expect(contract.isCompatibleHostDaemonProtocolVersion(260)).toBe(false);
     expect(contract.isCompatibleHostDaemonProtocolVersion(261)).toBe(false);
-    expect(contract.isCompatibleHostDaemonProtocolVersion(262)).toBe(true);
+    expect(contract.isCompatibleHostDaemonProtocolVersion(265)).toBe(true);
     expect(contract.hostDaemonSupportsConnectNext(246)).toBe(false);
     expect(contract.hostDaemonSupportsConnectNext(247)).toBe(true);
     expect(contract.hostDaemonSupportsDesktopBrokerProof(247)).toBe(false);
@@ -3020,6 +3020,58 @@ describe("host-daemon session schemas", () => {
         },
       ],
     });
+
+    expect(
+      hostDaemonEventBatchRequestSchema.parse({
+        sessionId: "session_123",
+        eventGroups: [
+          {
+            threadId: "thr_123",
+            events: [
+              {
+                type: "thread/execution/reported",
+                threadId: "thr_123",
+                providerThreadId: "provider-thread-123",
+                scope: threadScope(),
+                execution: {
+                  model: "claude-opus-4-6",
+                  reasoningLevel: null,
+                  permissionMode: null,
+                  serviceTier: null,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toMatchObject({
+      eventGroups: [{ events: [{ type: "thread/execution/reported" }] }],
+    });
+
+    expect(() =>
+      hostDaemonEventBatchRequestSchema.parse({
+        sessionId: "session_123",
+        eventGroups: [
+          {
+            threadId: "thr_123",
+            events: [
+              {
+                type: "thread/execution/reported",
+                threadId: "thr_123",
+                providerThreadId: "provider-thread-123",
+                scope: threadScope(),
+                execution: {
+                  model: "",
+                  reasoningLevel: null,
+                  permissionMode: null,
+                  serviceTier: null,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toThrow();
 
     expect(
       hostDaemonEventBatchRequestSchema.parse({

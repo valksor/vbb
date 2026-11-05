@@ -20,6 +20,7 @@ export const systemEventTypeValues = [
 const providerEventTypeValues = [
   "thread/started",
   "thread/identity",
+  "thread/execution/reported",
   "turn/started",
   "turn/completed",
   "turn/input/accepted",

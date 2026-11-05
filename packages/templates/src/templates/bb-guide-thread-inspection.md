@@ -67,6 +67,9 @@ Inspecting:
     --self                                 Target current thread
 
   Shows pull request status for the attached environment branch when available.
+  It also shows last requested, override, next-turn, and provider-reported execution values.
+  `--json` includes these values as `execution`. An older server that returns
+  404 omits the execution section.
   Read the thread's git status and diff with `bb git status|diff
   <environment-id>`; `--json` prints the environment ID as `environment.id`.
   The deprecated `--work-status`, `--git-diff`, `--diff-target`, `--diff-sha`

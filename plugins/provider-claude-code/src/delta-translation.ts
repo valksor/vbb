@@ -45,6 +45,7 @@ import {
   type ClaudeResultMessage,
 } from "./schemas.js";
 import { buildClaudeProviderErrorInfo } from "./error-info.js";
+import { translateClaudeExecution } from "./execution-report.js";
 import { forkedSkillPresentation } from "./presentation.js";
 import {
   foldClaudeTaskToolResult,
@@ -715,6 +716,11 @@ export function createClaudeDeltaTranslator(
           noTurnFallback: noTurnFallbackFor(event, context),
         },
       ];
+    }
+
+    const execution = translateClaudeExecution(event);
+    if (execution !== null) {
+      return execution;
     }
 
     const modelFallbackMessage =

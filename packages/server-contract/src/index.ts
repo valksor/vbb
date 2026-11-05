@@ -23,4 +23,5 @@ export type {
 } from "@bb/domain";
 
 export * from "./api/machine-environment.js";
+export * from "./api/execution-profile.js";
 export * from "./api/background-task-output.js";

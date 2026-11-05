@@ -11,6 +11,7 @@ import {
   type BackgroundTaskOutputQuery,
   type BackgroundTaskOutputResponse,
 } from "./api/background-task-output.js";
+import type { ThreadExecutionProfileResponse } from "./api/execution-profile.js";
 import {
   machineEnvironmentReplaceSchema,
   recordTelemetryEventRequestSchema,
@@ -1267,6 +1268,12 @@ export const publicApiRoutes = {
         BackgroundTaskOutputQuery
       >(backgroundTaskOutputQuerySchema),
       response: jsonResponse<BackgroundTaskOutputResponse>(),
+    }),
+    executionProfile: defineRoute({
+      path: "/threads/:id/execution-profile",
+      method: "get",
+      request: noRequest<PathId>(),
+      response: jsonResponse<ThreadExecutionProfileResponse>(),
     }),
     list: defineRoute({
       path: "/threads",

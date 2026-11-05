@@ -113,6 +113,10 @@ export {
   THREAD_SEARCH_LIMIT_PER_GROUP_DEFAULT,
   THREAD_SEARCH_LIMIT_PER_GROUP_MAX,
 } from "./threads.js";
+export {
+  getThreadExecutionReport,
+  upsertThreadExecutionReport,
+} from "./thread-execution-reports.js";
 export type {
   ApplyThreadLifecycleEventArgs,
   ApplyThreadLifecycleEventOutcome,

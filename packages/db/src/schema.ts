@@ -698,6 +698,17 @@ export const threads = sqliteTable(
   ],
 );
 
+export const threadExecutionReports = sqliteTable("thread_execution_reports", {
+  threadId: text("thread_id")
+    .primaryKey()
+    .references(() => threads.id, { onDelete: "cascade" }),
+  model: text("model").notNull(),
+  reasoningLevel: text("reasoning_level"),
+  permissionMode: text("permission_mode"),
+  serviceTier: text("service_tier"),
+  reportedAt: integer("reported_at").notNull(),
+});
+
 export const threadPluginMetadata = sqliteTable(
   "thread_plugin_metadata",
   {
