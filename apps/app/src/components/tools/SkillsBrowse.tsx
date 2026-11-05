@@ -19,28 +19,43 @@ import {
 } from "@/lib/skills-registry";
 import type { RegistrySkill, RegistrySkillDetail } from "@/lib/skills-registry";
 import { cn } from "@bb/shared-ui/lib/utils";
+import { RegistrySkillInstallActions } from "./SkillsBrowse.fork";
 import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
 import { SkillDetailView } from "@/components/tools/SkillDetailView";
 import { TOOLS_PAGE_BAND_CLASSES } from "@/components/tools/tools-navigation";
 
 function RegistrySkillActions({
   skillName,
+  installed,
+  installing,
+  onInstall,
   onFork,
   presentation = "label",
 }: {
   skillName: string;
+  installed: boolean;
+  installing: boolean;
+  onInstall: () => void;
   onFork: () => void;
   presentation?: "label" | "icon";
 }) {
   return (
-    <ResourceInstallControl
-      accessibleLabel={`Fork ${skillName} into a new bb skill`}
-      label="Fork"
-      icon="Fork"
+    <RegistrySkillInstallActions
+      skillName={skillName}
+      installed={installed}
+      installing={installing}
+      onInstall={onInstall}
       presentation={presentation}
-      tooltip={`Fork ${skillName}`}
-      onAction={onFork}
-    />
+    >
+      <ResourceInstallControl
+        accessibleLabel={`Fork ${skillName} into a new bb skill`}
+        label="Fork"
+        icon="Fork"
+        presentation={presentation}
+        tooltip={`Fork ${skillName}`}
+        onAction={onFork}
+      />
+    </RegistrySkillInstallActions>
   );
 }
 
@@ -80,11 +95,17 @@ function RegistrySkillSocialProof({
 function RegistrySkillSourceItem({
   skill,
   installsKnown,
+  installed,
+  installing,
+  onInstall,
   onFork,
   onSelect,
 }: {
   skill: RegistrySkill;
   installsKnown: boolean;
+  installed: boolean;
+  installing: boolean;
+  onInstall: (skill: RegistrySkill) => void;
   onFork: (skill: RegistrySkill) => void;
   onSelect: (skill: RegistrySkill) => void;
 }) {
@@ -98,6 +119,9 @@ function RegistrySkillSourceItem({
       headerAction={
         <RegistrySkillActions
           skillName={skill.name}
+          installed={installed}
+          installing={installing}
+          onInstall={() => onInstall(skill)}
           onFork={() => onFork(skill)}
           presentation="icon"
         />
@@ -133,6 +157,8 @@ export function RegistrySkillsBrowsePage({
   skills,
   pendingSkillIds,
   unknownInstallSkillIds,
+  installedSkillIds,
+  installingSkillIds,
   isLoading,
   loadingMore,
   hasMore,
@@ -142,12 +168,15 @@ export function RegistrySkillsBrowsePage({
   onRetry,
   onQueryChange,
   onLoadMore,
+  onInstall,
   onFork,
   onSelect,
 }: {
   skills: readonly RegistrySkill[];
   pendingSkillIds: ReadonlySet<string>;
   unknownInstallSkillIds: ReadonlySet<string>;
+  installedSkillIds: ReadonlySet<string>;
+  installingSkillIds: ReadonlySet<string>;
   isLoading: boolean;
   loadingMore: boolean;
   hasMore: boolean;
@@ -157,6 +186,7 @@ export function RegistrySkillsBrowsePage({
   onRetry?: () => void;
   onQueryChange: (query: string) => void;
   onLoadMore: () => void;
+  onInstall: (skill: RegistrySkill) => void;
   onFork: (skill: RegistrySkill) => void;
   onSelect: (skill: RegistrySkill) => void;
 }) {
@@ -209,6 +239,9 @@ export function RegistrySkillsBrowsePage({
                     key={skill.id}
                     skill={skill}
                     installsKnown={!unknownInstallSkillIds.has(skill.id)}
+                    installed={installedSkillIds.has(skill.id)}
+                    installing={installingSkillIds.has(skill.id)}
+                    onInstall={onInstall}
                     onFork={onFork}
                     onSelect={onSelect}
                   />
@@ -242,7 +275,9 @@ export function RegistrySkillDetailView({
   detail,
   localSkill,
   localPath,
+  installing,
   onRetry,
+  onInstall,
   onFork,
   onEditLocalSkill,
 }: {
@@ -250,7 +285,9 @@ export function RegistrySkillDetailView({
   detail: RegistrySkillDetail;
   localSkill: SkillSummary | null;
   localPath: string | null;
+  installing: boolean;
   onRetry: () => void;
+  onInstall: (skill: RegistrySkill) => void;
   onFork: (skill: RegistrySkill) => void;
   onEditLocalSkill: (skill: SkillSummary) => void;
 }) {
@@ -270,6 +307,9 @@ export function RegistrySkillDetailView({
       headerActions={
         <RegistrySkillActions
           skillName={skill.name}
+          installed={localSkill !== null}
+          installing={installing}
+          onInstall={() => onInstall(skill)}
           onFork={() => onFork(skill)}
         />
       }

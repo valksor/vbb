@@ -59,6 +59,7 @@ import {
   useSkillContent,
   useSkillFiles,
 } from "@/hooks/queries/skills-queries";
+import { useRegistrySkillInstall } from "./SkillsLibrary.fork";
 import { CreateWithTemplatesButton } from "@/components/create-via-prompt-examples";
 import { useLocalOpenTargets } from "@/hooks/useLocalOpenTargets";
 
@@ -484,6 +485,11 @@ export function SkillsLibrary() {
     },
     [navigate],
   );
+  const {
+    installRegistrySkill,
+    installedRegistrySkillIds,
+    installingRegistrySkillIds,
+  } = useRegistrySkillInstall(registrySkills, findLocalRegistrySkill);
   const registryDetail = registryDetailQuery.data ?? null;
   const selectedLocalRegistrySkill = selectedRegistrySkill
     ? findLocalRegistrySkill(selectedRegistrySkill)
@@ -548,7 +554,9 @@ export function SkillsLibrary() {
           detail={registryDetail}
           localSkill={selectedLocalRegistrySkill}
           localPath={selectedLocalRegistrySkill?.filePath ?? null}
+          installing={installingRegistrySkillIds.has(selectedRegistrySkill.id)}
           onRetry={() => void registryDetailQuery.refetch()}
+          onInstall={installRegistrySkill}
           onFork={forkRegistrySkill}
           onEditLocalSkill={editSkillViaThread}
         />
@@ -572,6 +580,8 @@ export function SkillsLibrary() {
               }
               pendingSkillIds={pendingRegistrySkillIds}
               unknownInstallSkillIds={unknownInstallSkillIds}
+              installedSkillIds={installedRegistrySkillIds}
+              installingSkillIds={installingRegistrySkillIds}
               isLoading={
                 registryQuery.isFetching && loadedRegistrySkills.length === 0
               }
@@ -591,6 +601,7 @@ export function SkillsLibrary() {
                   setRegistryPage((current) => current + 1);
                 }
               }}
+              onInstall={installRegistrySkill}
               onFork={forkRegistrySkill}
               onSelect={openRegistrySkill}
             />
