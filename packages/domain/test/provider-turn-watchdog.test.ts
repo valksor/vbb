@@ -5,10 +5,12 @@ import {
 } from "../src/index.js";
 
 describe("provider turn watchdog activity event types", () => {
-  it("restricts thread-scoped watchdog activity to the background task family", () => {
+  it("includes thread-scoped background and delegation activity", () => {
     expect(providerTurnWatchdogThreadScopedActivityEventTypeValues).toEqual([
       "item/backgroundTask/progress",
       "item/backgroundTask/completed",
+      "item/delegation/progress",
+      "item/delegation/completed",
     ]);
   });
 

@@ -54,6 +54,7 @@ function latestTurnStartedSql(column: LatestTurnStartedColumn): SQL {
     WHERE latest_started.thread_id = ${threads.id}
       AND latest_started.type = 'turn/started'
       AND latest_started.turn_id IS NOT NULL
+      AND latest_started.parent_tool_call_id IS NULL
     ORDER BY latest_started.sequence DESC
     LIMIT 1
   )`;

@@ -691,12 +691,15 @@ request.
 **What it does.** Core produces this event in `runProviderTurnWatchdogSweep` when
 the watchdog acts on the active turn. `action: "notify"` fires when idle time first crosses
 `providerTurnIdleNotifyMs` and the turn is still running. `action: "interrupt"`
-fires when the turn crosses `providerTurnIdleInterruptMs` and core stops it. The
+fires when the turn crosses `providerTurnIdleInterruptMs`. Core emits it before
+requesting the stop, so the payload thread status is still `active`. The
 push-notifications plugin consumes this event. The payload includes the standard
 `ThreadResponse` DTO, which can contain a user-written title or fallback, plus
 `elapsedMs`, `thresholdMs`, and `action`. The additional watchdog fields contain
 no prompt or output snapshots. Consumers must apply their existing privacy policy
 before forwarding the DTO.
+
+**Docs.** [Backend events](../plugins/bb-guide/skills/bb-plugin-authoring/references/backend-events.md).
 
 **Audit before stabilizing.** Confirm the payload answers what a notifier needs
 without replaying the event log. Decide whether `notify` and `interrupt` should

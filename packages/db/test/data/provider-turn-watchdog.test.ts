@@ -53,6 +53,7 @@ interface EventInput {
   sequence: number;
   type: string;
   createdAt: number;
+  parentToolCallId?: string;
   turnId?: string;
 }
 
@@ -73,6 +74,7 @@ function seed(
       environmentId: null,
       providerThreadId: null,
       ...emptyItemFields,
+      parentToolCallId: event.parentToolCallId ?? null,
       data: JSON.stringify({}),
     })),
   );
@@ -136,6 +138,16 @@ describe("listProviderTurnIdleWatchdogCandidates", () => {
       },
       expected: 0,
       name: "recent qualifying activity",
+    },
+    {
+      event: { type: "item/delegation/progress", turnId: undefined },
+      expected: 0,
+      name: "recent delegation progress",
+    },
+    {
+      event: { type: "item/delegation/completed", turnId: undefined },
+      expected: 0,
+      name: "recent delegation completion",
     },
     {
       event: { type: "system/notice", turnId: undefined },
@@ -255,6 +267,55 @@ describe("listProviderTurnIdleWatchdogCandidates", () => {
     ]);
 
     expect(listCandidates(db)).toHaveLength(0);
+  });
+
+  it("keeps the open root turn when a nested turn later completes", () => {
+    const { db, thread } = setup();
+    seed(db, thread.id, [
+      {
+        sequence: 1,
+        type: "turn/started",
+        createdAt: NOW - 2_000,
+        turnId: "root",
+      },
+      {
+        sequence: 2,
+        type: "turn/started",
+        createdAt: NOW - 1_500,
+        turnId: "nested",
+        parentToolCallId: "tool-1",
+      },
+      {
+        sequence: 3,
+        type: "turn/completed",
+        createdAt: NOW - 1_400,
+        turnId: "nested",
+        parentToolCallId: "tool-1",
+      },
+    ]);
+
+    expect(listCandidates(db)).toMatchObject([
+      {
+        activeTurnId: "root",
+        activeTurnStartedAt: NOW - 2_000,
+        threadId: thread.id,
+      },
+    ]);
+  });
+
+  it("does not treat a nested-only turn as an active root turn", () => {
+    const { db, thread } = setup();
+    seed(db, thread.id, [
+      {
+        sequence: 1,
+        type: "turn/started",
+        createdAt: NOW - 2_000,
+        turnId: "nested",
+        parentToolCallId: "tool-1",
+      },
+    ]);
+
+    expect(listCandidates(db)).toEqual([]);
   });
 
   it("marks hasPriorWatchdogEvent once a watchdog event exists in the turn", () => {
