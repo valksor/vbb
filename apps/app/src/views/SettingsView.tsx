@@ -59,6 +59,7 @@ import { SidebarThreadListSetting } from "@/components/settings/SidebarThreadLis
 import { SidebarNavigationProviderSetting } from "@/components/settings/SidebarNavigationProviderSetting";
 import { SidebarFooterSettings } from "@/components/settings/SidebarFooterSettings";
 import { SplitDimmingSetting } from "@/components/settings/SplitDimmingSetting";
+import { QuickRepliesSetting } from "@/components/settings/QuickRepliesSetting";
 import { useSettingsNavState } from "@/components/settings/settings-nav";
 import { useRevealSettingsSearchTarget } from "@/components/settings/useRevealSettingsSearchTarget";
 import { PluginsOverview } from "@/components/plugin/PluginsOverview";
@@ -950,6 +951,8 @@ export function GeneralSettingsSection({
               </DropdownMenuContent>
             </DropdownMenu>
           </SettingsWithControl>
+
+          <QuickRepliesSetting />
 
           <SettingsWithControl
             label="Thread archive confirmation"

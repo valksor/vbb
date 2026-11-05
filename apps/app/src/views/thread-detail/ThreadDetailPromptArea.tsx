@@ -68,6 +68,7 @@ import { ThreadTodoCard } from "@/components/promptbox/banner/ThreadTodoCard";
 import { ThreadPromptModeCard } from "@/components/promptbox/banner/ThreadPromptModeCard";
 import { ThreadWorkflowStack } from "@/components/promptbox/banner/ThreadWorkflowStack";
 import { ThreadBackgroundCommandsCard } from "@/components/promptbox/banner/ThreadBackgroundCommandsCard";
+import { useQuickRepliesCard } from "./ThreadDetailPromptArea.quick-replies.fork";
 import { ThreadModelFallbackCard } from "@/components/promptbox/banner/ThreadModelFallbackCard";
 import { InlineMessageEditorFrame } from "@/components/promptbox/InlineMessageEditorFrame";
 import type { ModelReasoningPickerHandoffSelection } from "@/components/pickers/ModelReasoningPicker";
@@ -1329,6 +1330,24 @@ export function ThreadDetailPromptArea({
       submitDraft(() => submitFollowUpDraft(extras)),
     [submitDraft, submitFollowUpDraft],
   );
+  const quickRepliesCard = useQuickRepliesCard({
+    compactFirst,
+    environmentId: thread.environmentId,
+    focusBottomPluginComposer,
+    followUpExecutionSelection,
+    isFollowUpSubmitting,
+    isHandoffSelection,
+    isQueueMutationPending,
+    queuedMessageCount,
+    queuedMessagesLength: queuedMessages.length,
+    runtimeDisplayStatus,
+    sendMessage,
+    sentMessageEditIsUndefined: sentMessageEdit === undefined,
+    setFullHistoryThreadId,
+    shouldHideComposer,
+    submitMode,
+    threadId: thread.id,
+  });
   const handleModifierSubmit = useCallback(
     async ({ sendAt, pluginSubmission }: ComposerSubmitExtras = {}) => {
       if (!canSubmitModifierShortcut) {
@@ -2205,6 +2224,7 @@ export function ThreadDetailPromptArea({
             threadId={thread.id}
           />
         ) : null}
+        {quickRepliesCard}
         {shouldHideComposer ? null : queuedMessagesPending ? (
           <QueuedMessagesPendingCard queuedMessageCount={queuedMessageCount} />
         ) : (
@@ -2275,6 +2295,7 @@ export function ThreadDetailPromptArea({
       childThreadsSection,
       pendingTodos,
       displayedProcessingQueuedMessage,
+      quickRepliesCard,
       queuedMessageCount,
       queuedMessages,
       queuedMessagesPending,
