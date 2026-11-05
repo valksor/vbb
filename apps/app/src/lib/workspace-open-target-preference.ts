@@ -198,7 +198,7 @@ function isStoredWorkspaceOpenTargetPreference(
   return workspaceOpenTargetIdSchema.safeParse(value).success;
 }
 
-const workspaceOpenTargetPreferenceStorage =
+export const workspaceOpenTargetPreferenceStorage =
   createNullableLocalStorageEnumStorage<WorkspaceOpenTargetId>(
     isStoredWorkspaceOpenTargetPreference,
   );

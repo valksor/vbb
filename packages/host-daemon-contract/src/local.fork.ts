@@ -8,6 +8,11 @@ export const OPEN_IN_TARGET_RUN_COMMAND_DISABLED_ERROR_CODE =
 const OPEN_IN_TARGET_COMMAND_INVISIBLE_CHARACTERS =
   "\\u061c\\u200b\\u200e-\\u200f\\u202a-\\u202e\\u2060-\\u2064\\u2066-\\u2069\\ufeff";
 
+export const OPEN_IN_TARGET_COMMAND_INVISIBLE_CHARACTER_PATTERN = new RegExp(
+  `[${OPEN_IN_TARGET_COMMAND_INVISIBLE_CHARACTERS}]`,
+  "gu",
+);
+
 const openInTargetCommandRejectedCharacterPattern = new RegExp(
   `[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f${OPEN_IN_TARGET_COMMAND_INVISIBLE_CHARACTERS}]`,
   "u",

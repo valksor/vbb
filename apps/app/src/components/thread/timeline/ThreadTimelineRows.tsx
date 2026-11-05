@@ -66,6 +66,7 @@ import type {
   UserAttachmentImageSrcResolver,
 } from "./types.js";
 import { ConversationMessageContent } from "./ConversationMessageContent.js";
+import { DelegationOutputMessageContent } from "./DelegationOutputMessageContent.fork.js";
 import {
   MessageColumnWidthContext,
   useMeasuredWidth,
@@ -1518,7 +1519,7 @@ function DelegationRowBody({ row }: { row: TimelineViewDelegationWorkRow }) {
           />
         ) : null}
         {row.output.trim().length > 0 ? (
-          <ConversationMessageContent
+          <DelegationOutputMessageContent
             attachments={null}
             id={row.id}
             projectId={projectId}

@@ -2,6 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Pill } from "@bb/shared-ui/pill";
 import { useRouteAnchorDelegate } from "@/components/ui/app-route-anchor";
 import { usePluginCss } from "@/lib/plugin-css";
+import { ShellCommandRunnerScopeReset } from "@/components/ui/markdown-shell-command-run.fork";
 import {
   PluginContext,
   PluginSlotOwnershipContext,
@@ -215,6 +216,9 @@ export function PluginSlotMount({
 }: PluginSlotMountProps) {
   const onRouteAnchorClick = useRouteAnchorDelegate();
   usePluginCss(pluginId);
+  const scopedChildren = (
+    <ShellCommandRunnerScopeReset>{children}</ShellCommandRunnerScopeReset>
+  );
   return (
     <PluginContext.Provider value={pluginId}>
       <PluginSlotBoundary
@@ -236,10 +240,10 @@ export function PluginSlotMount({
             className="contents"
             onClick={onRouteAnchorClick}
           >
-            {children}
+            {scopedChildren}
           </div>
         ) : (
-          children
+          scopedChildren
         )}
       </PluginSlotBoundary>
     </PluginContext.Provider>

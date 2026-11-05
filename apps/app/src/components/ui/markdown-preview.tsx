@@ -71,6 +71,10 @@ import {
 } from "./markdown-code-block.js";
 import { highlightMarkdownCode } from "./markdown-code-highlight.js";
 import "./markdown-code-highlight.css";
+import {
+  ShellCommandRunButton,
+  usePinShellCommandRunner,
+} from "./markdown-shell-command-run.fork.js";
 import { normalizeLocalFileMarkdownLinks } from "./markdown-local-file-link-normalize.js";
 import {
   buildLocalFileAnchorHref,
@@ -780,6 +784,7 @@ function MarkdownCodeBlock({
           {language ?? ""}
         </span>
         <div className="flex items-center gap-0.5">
+          <ShellCommandRunButton code={codeText} language={language} />
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -841,6 +846,7 @@ function MarkdownCode({
   "data-code-fence-closed": codeFenceClosed,
   ...props
 }: MarkdownCodeRendererProps) {
+  const pinShellCommandRunner = usePinShellCommandRunner();
   const codeText =
     typeof children === "string" ? children.replace(/\n$/, "") : "";
   const language = getMarkdownCodeLanguage({ className: codeClassName });
@@ -863,7 +869,7 @@ function MarkdownCode({
         code={codeText}
         language={language}
         offset={codeFenceSourceOffset + Number(codeFenceOffset)}
-        original={original}
+        original={pinShellCommandRunner(original)}
       />
     );
   }

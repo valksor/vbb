@@ -43,6 +43,7 @@ import {
 import { useSystemEnvironmentProviders } from "@/hooks/queries/environment-provider-queries";
 import { useSystemMachineProviders } from "@/hooks/queries/machine-provider-queries";
 import { BbHttpError } from "@/lib/sdk";
+import { ShellCommandRunnerScopeReset } from "@/components/ui/markdown-shell-command-run.fork";
 import { ThreadChatLoadingBody } from "@/components/thread/timeline/ThreadChatLoading";
 import {
   getProjectComposeRoutePath,
@@ -71,15 +72,17 @@ export function PluginThreadChat({
   );
   return (
     <div className={containerClassName}>
-      <PluginThreadChatBody
-        threadId={threadId}
-        variant={variant}
-        layout={layout}
-        focusRequest={focusRequest}
-        permissionPolicy={permissionPolicy}
-        leadingContent={leadingContent}
-        messageActions={messageActions}
-      />
+      <ShellCommandRunnerScopeReset>
+        <PluginThreadChatBody
+          threadId={threadId}
+          variant={variant}
+          layout={layout}
+          focusRequest={focusRequest}
+          permissionPolicy={permissionPolicy}
+          leadingContent={leadingContent}
+          messageActions={messageActions}
+        />
+      </ShellCommandRunnerScopeReset>
     </div>
   );
 }
