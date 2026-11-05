@@ -180,6 +180,8 @@ function renderRegistryBrowse(
       skills={[makeRegistrySkill()]}
       pendingSkillIds={new Set()}
       unknownInstallSkillIds={new Set()}
+      installedSkillIds={new Set()}
+      installingSkillIds={new Set()}
       isLoading={false}
       loadingMore={false}
       hasMore={false}
@@ -187,6 +189,7 @@ function renderRegistryBrowse(
       query=""
       onQueryChange={() => {}}
       onLoadMore={() => {}}
+      onInstall={() => {}}
       onFork={() => {}}
       onSelect={() => {}}
       {...overrides}
@@ -531,6 +534,8 @@ describe("SkillsOverview", () => {
             skills={[registrySkill]}
             pendingSkillIds={new Set()}
             unknownInstallSkillIds={new Set()}
+            installedSkillIds={new Set()}
+            installingSkillIds={new Set()}
             isLoading={false}
             loadingMore={false}
             hasMore={false}
@@ -538,6 +543,7 @@ describe("SkillsOverview", () => {
             query=""
             onQueryChange={() => {}}
             onLoadMore={() => {}}
+            onInstall={() => {}}
             onFork={() => {}}
             onSelect={() => {}}
           />
@@ -1381,7 +1387,9 @@ describe("RegistrySkillDetailView reference creation", () => {
       },
       localSkill: null,
       localPath: null,
+      installing: false,
       onRetry: () => {},
+      onInstall: () => {},
       onFork,
       onEditLocalSkill: () => {},
     };
@@ -1407,6 +1415,11 @@ describe("RegistrySkillDetailView reference creation", () => {
         localPath="/home/u/.bb/skills/useful-skill/SKILL.md"
       />,
     );
+    expect(
+      screen
+        .getByRole("button", { name: "Useful skill is installed in bb" })
+        .hasAttribute("disabled"),
+    ).toBe(true);
     fireEvent.click(
       screen.getByRole("button", {
         name: "Fork Useful skill into a new bb skill",
