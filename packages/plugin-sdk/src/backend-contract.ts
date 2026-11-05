@@ -18,6 +18,7 @@ import type {
   WorkspaceProvisionType,
 } from "@bb/domain";
 import type { MachineBootstrapApi } from "./machine-bootstrap.js";
+import type { ForkPluginThreadEventPayloads } from "./backend-contract.fork.js";
 import type Database from "better-sqlite3";
 import type { Context } from "hono";
 import type * as z from "zod";
@@ -277,7 +278,7 @@ export interface PluginTurnFailedEvent {
  * `thread` is the same public DTO GET /threads/:id serves and `entry` is the
  * queued row GET /threads/:id/queued-messages serves.
  */
-export interface PluginThreadEventPayloads {
+export interface PluginThreadEventPayloads extends ForkPluginThreadEventPayloads {
   "experimental_environment.removed": { removal: EnvironmentRemoval };
 
   /** Debounced per thread (at most once per second), with the latest sequence and current thread DTO. Reading history does not emit this event. */

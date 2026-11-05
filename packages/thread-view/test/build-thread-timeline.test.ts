@@ -152,6 +152,7 @@ interface SystemErrorEventArgs {
 }
 
 interface SystemProviderTurnWatchdogEventArgs {
+  action?: "notify" | "interrupt";
   activeTurnId?: string;
   activeTurnStartedAt?: number;
   elapsedMs?: number;
@@ -569,6 +570,7 @@ function systemErrorEvent({
 }
 
 function systemProviderTurnWatchdogEvent({
+  action = "notify",
   activeTurnId = "turn-1",
   activeTurnStartedAt = 1,
   elapsedMs = 901_000,
@@ -587,6 +589,7 @@ function systemProviderTurnWatchdogEvent({
       threadId: "thread-1",
       scope: threadScope(),
       reason: "provider-turn-idle",
+      action,
       thresholdMs,
       elapsedMs,
       activeTurnId,
@@ -2201,7 +2204,7 @@ describe("buildThreadTimelineFromEvents", () => {
     ]);
   });
 
-  it("renders provider turn watchdog diagnostics as an error operation row", () => {
+  it("renders notify watchdog diagnostics as completed operation rows", () => {
     const rows = buildTimelineRows([
       systemProviderTurnWatchdogEvent({ seq: 1 }),
     ]);
@@ -2210,8 +2213,24 @@ describe("buildThreadTimelineFromEvents", () => {
       expect.objectContaining({
         systemKind: "operation",
         operationKind: "generic",
-        status: "error",
+        status: "completed",
         title: "Provider turn stopped responding",
+        detail: "No provider activity for 901s after turn/input/accepted",
+      }),
+    ]);
+  });
+
+  it("renders interrupt watchdog diagnostics as error operation rows", () => {
+    const rows = buildTimelineRows([
+      systemProviderTurnWatchdogEvent({ action: "interrupt", seq: 1 }),
+    ]);
+
+    expect(collectSystemRows(rows)).toEqual([
+      expect.objectContaining({
+        systemKind: "operation",
+        operationKind: "generic",
+        status: "error",
+        title: "Provider turn stopped responding, interrupting turn",
         detail: "No provider activity for 901s after turn/input/accepted",
       }),
     ]);

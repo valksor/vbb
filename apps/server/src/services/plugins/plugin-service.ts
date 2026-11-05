@@ -177,6 +177,7 @@ import {
   raceTimeout,
   settledWithin,
 } from "./plugin-time-box.js";
+import { forkThreadEventEmitters } from "./plugin-thread-events.fork.js";
 import {
   createPluginUpdates,
   parsePersistedUpdateEntry,
@@ -1465,6 +1466,7 @@ export function createPluginService(deps: PluginServiceDeps): PluginService {
           interaction,
         }));
       },
+      ...forkThreadEventEmitters({ emitThreadEvent, buildThreadDto }),
       emitMessageQueued: buildQueuedMessageEventEmitter("message.queued"),
       emitMessageDispatched:
         buildQueuedMessageEventEmitter("message.dispatched"),

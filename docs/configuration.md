@@ -1057,6 +1057,42 @@ Timeline builds slower than 150 ms log `Thread timeline build blocked the event
 loop`, and event-loop stalls over 500 ms log `Event loop stalled`, both at
 `info`.
 
+## Provider Turn Stall Watchdog
+
+A background sweep watches every active provider turn for a stall: no provider
+activity on the running operation for a configured time. Idle is measured on the
+single active operation, from its last activity event. A turn that streams output
+does not trip the watchdog. Pending active-turn interactions are excluded.
+
+- Stage 1 (`providerTurnIdleNotifyMs`, default `21600000` = 6 hours): writes a
+  "Provider turn stopped responding" marker into the thread timeline and, if the
+  push-notifications plugin is enabled, sends an OS, desktop, or mobile
+  notification. Notifications do not stop the turn.
+- Stage 2 (`providerTurnIdleInterruptMs`, default `43200000` = 12 hours): writes
+  the marker again, interrupts the stuck turn through the standard stop path
+  (the same interrupt as `bb thread stop`, with reason "provider turn stopped
+  responding"), and notifies again.
+
+Settings (global, via `bb settings general <key> <value>`):
+
+- `providerTurnIdleWatchdogEnabled` (default `true`) — set `false` to disable both
+  stages entirely.
+- `providerTurnIdleNotifyMs` (default `21600000`, i.e. 6h) — stage-1 idle
+  threshold in milliseconds.
+- `providerTurnIdleInterruptMs` (default `43200000`, i.e. 12h) — stage-2 idle
+  threshold in milliseconds. Must be greater than `providerTurnIdleNotifyMs`.
+
+Both thresholds have a floor of 5 minutes (`300000` ms), and the interrupt
+threshold must remain greater than the notify threshold. The service runs a
+sweep every `60000` ms and processes up to 25 actionable turns in each sweep.
+Scheduler delays or a full batch can postpone an action beyond the next sweep.
+
+Use the existing `bb settings general <key> <value>` command to update these
+settings. If you raise the notify threshold past the current interrupt threshold,
+raise the interrupt threshold first. If you lower the interrupt threshold below
+the current notify threshold, lower the notify threshold first. The SDK uses the
+existing general settings update.
+
 ## Plugins
 
 Plugins are on by default. Builtin plugins ship with bb; the official plugins

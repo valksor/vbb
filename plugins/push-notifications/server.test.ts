@@ -470,6 +470,79 @@ describe("push subscription RPC and CLI", () => {
 });
 
 describe("push sender", () => {
+  it.each([
+    {
+      action: "notify",
+      body: "Turn stalled — no activity for 6 hours",
+      thresholdMs: 6 * 60 * 60_000,
+    },
+    {
+      action: "interrupt",
+      body: "bb stopped a stalled turn after 12 hours",
+      thresholdMs: 12 * 60 * 60_000,
+    },
+  ] as const)(
+    "delivers the $action watchdog action only to all and input-only threads",
+    async ({ action, body, thresholdMs }) => {
+      const host = await setup();
+      try {
+        await host.addSubscription();
+        const all = host.setThread({
+          id: `watchdog-all-${action}`,
+          status: "active",
+        });
+        const inputOnly = host.setThread({
+          id: `watchdog-input-${action}`,
+          status: "active",
+        });
+        const muted = host.setThread({
+          id: `watchdog-muted-${action}`,
+          status: "active",
+        });
+        await host.setLevel(inputOnly.id, "input-only");
+        await host.setLevel(muted.id, "muted");
+
+        for (const thread of [all, inputOnly, muted]) {
+          await host.harness.behavior.emitThreadEvent(
+            "experimental_thread.turnWatchdog",
+            {
+              thread,
+              action,
+              elapsedMs: thresholdMs,
+              thresholdMs,
+            },
+          );
+        }
+
+        await vi.waitFor(() => expect(host.expo.requests).toHaveLength(2));
+        const messages = host.expo.requests.flat().map(alertMessage);
+        expect(messages).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              body,
+              data: expect.objectContaining({
+                kind: "turn-watchdog",
+                threadId: all.id,
+              }),
+            }),
+            expect.objectContaining({
+              body,
+              data: expect.objectContaining({
+                kind: "turn-watchdog",
+                threadId: inputOnly.id,
+              }),
+            }),
+          ]),
+        );
+        expect(messages.map((message) => message.data.threadId)).not.toContain(
+          muted.id,
+        );
+      } finally {
+        await host.cleanup();
+      }
+    },
+  );
+
   it("sends a root idle preview to each device and reads the relay setting at flush", async () => {
     const host = await setup();
     try {

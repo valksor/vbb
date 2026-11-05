@@ -1,5 +1,10 @@
-import { getLatestThreadSequence } from "@bb/db";
+import {
+  getAppSettings,
+  getLatestThreadSequence,
+  setAppSettings,
+} from "@bb/db";
 import { emitPluginThreadEvents } from "../../../src/services/plugins/plugin-thread-events.js";
+import { runProviderTurnWatchdogSweep } from "../../../src/services/threads/provider-turn-watchdog.js";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,6 +47,12 @@ interface RecordedInteractionPayload extends RecordedThreadPayload {
     status: string;
     threadId: string;
   };
+}
+
+interface RecordedTurnWatchdogPayload extends RecordedThreadPayload {
+  action: "interrupt" | "notify";
+  elapsedMs: number;
+  thresholdMs: number;
 }
 
 const globals = globalThis as Record<string, unknown>;
@@ -184,6 +195,126 @@ describe("plugin thread lifecycle events", () => {
       expect(entry?.handlerStats.errorCount).toBe(0);
     } finally {
       delete globals.__idleEvents;
+      await cleanup();
+    }
+  });
+
+  it("delivers provider turn watchdog actions from the production sweep", async () => {
+    const recorded: RecordedTurnWatchdogPayload[] = [];
+    globals.__watchdogEvents = recorded;
+    const { harness, cleanup } = await setUpPluginHarness(`
+      export default function plugin(bb: any) {
+        bb.events.on("experimental_thread.turnWatchdog", (payload: any) => {
+          (globalThis as any).__watchdogEvents.push(payload);
+        });
+      }
+    `);
+    try {
+      const notifyMs = 5 * 60_000;
+      const interruptMs = 10 * 60_000;
+      const startedAt = 1_000_000;
+      const { environment, thread } = seedThreadFixture(harness, {
+        thread: { status: "active" },
+      });
+      seedEvent(harness.deps, {
+        createdAt: startedAt,
+        data: { providerThreadId: "provider-thread-watchdog" },
+        environmentId: environment.id,
+        providerThreadId: "provider-thread-watchdog",
+        scope: turnScope("turn-watchdog"),
+        sequence: 1,
+        threadId: thread.id,
+        type: "turn/started",
+      });
+      setAppSettings(harness.db, {
+        ...getAppSettings(harness.db),
+        providerTurnIdleNotifyMs: notifyMs,
+        providerTurnIdleInterruptMs: interruptMs,
+      });
+
+      expect(
+        runProviderTurnWatchdogSweep(harness.deps, {
+          now: startedAt + notifyMs,
+        }),
+      ).toEqual({ notifiedThreadIds: [thread.id], interruptedThreadIds: [] });
+      await vi.waitFor(() => expect(recorded).toHaveLength(1));
+
+      expect(
+        runProviderTurnWatchdogSweep(harness.deps, {
+          now: startedAt + interruptMs,
+        }),
+      ).toEqual({ notifiedThreadIds: [], interruptedThreadIds: [thread.id] });
+      await vi.waitFor(() => expect(recorded).toHaveLength(2));
+      expect(recorded).toEqual([
+        expect.objectContaining({
+          action: "notify",
+          elapsedMs: notifyMs,
+          thresholdMs: notifyMs,
+          thread: expect.objectContaining({ id: thread.id, status: "active" }),
+        }),
+        expect.objectContaining({
+          action: "interrupt",
+          elapsedMs: interruptMs,
+          thresholdMs: interruptMs,
+          thread: expect.objectContaining({ id: thread.id, status: "active" }),
+        }),
+      ]);
+
+      setAppSettings(harness.db, {
+        ...getAppSettings(harness.db),
+        providerTurnIdleWatchdogEnabled: false,
+      });
+      const {
+        environment: policyDisabledEnvironment,
+        thread: policyDisabledThread,
+      } = seedThreadFixture(harness, { thread: { status: "active" } });
+      seedEvent(harness.deps, {
+        createdAt: startedAt,
+        data: { providerThreadId: "provider-thread-policy-disabled" },
+        environmentId: policyDisabledEnvironment.id,
+        providerThreadId: "provider-thread-policy-disabled",
+        scope: turnScope("turn-watchdog-policy-disabled"),
+        sequence: 1,
+        threadId: policyDisabledThread.id,
+        type: "turn/started",
+      });
+      expect(
+        runProviderTurnWatchdogSweep(harness.deps, {
+          now: startedAt + interruptMs,
+        }),
+      ).toEqual({ notifiedThreadIds: [], interruptedThreadIds: [] });
+      await Promise.resolve();
+      expect(recorded).toHaveLength(2);
+
+      setAppSettings(harness.db, {
+        ...getAppSettings(harness.db),
+        providerTurnIdleWatchdogEnabled: true,
+      });
+      await harness.pluginService.setEnabled("observer", false);
+      const { environment: disabledEnvironment, thread: disabledThread } =
+        seedThreadFixture(harness, { thread: { status: "active" } });
+      seedEvent(harness.deps, {
+        createdAt: startedAt,
+        data: { providerThreadId: "provider-thread-disabled" },
+        environmentId: disabledEnvironment.id,
+        providerThreadId: "provider-thread-disabled",
+        scope: turnScope("turn-watchdog-disabled"),
+        sequence: 1,
+        threadId: disabledThread.id,
+        type: "turn/started",
+      });
+      const disabledListenerResult = runProviderTurnWatchdogSweep(
+        harness.deps,
+        { now: startedAt + notifyMs },
+      );
+      expect(disabledListenerResult.interruptedThreadIds).toEqual([]);
+      expect(new Set(disabledListenerResult.notifiedThreadIds)).toEqual(
+        new Set([policyDisabledThread.id, disabledThread.id]),
+      );
+      await Promise.resolve();
+      expect(recorded).toHaveLength(2);
+    } finally {
+      delete globals.__watchdogEvents;
       await cleanup();
     }
   });

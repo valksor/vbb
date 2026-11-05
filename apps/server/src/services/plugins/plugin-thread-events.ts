@@ -16,6 +16,10 @@ export function setPluginThreadEventEmitter(
   emitter = next;
 }
 
+export function getPluginThreadEventEmitter(): PluginThreadEventEmitter | undefined {
+  return emitter;
+}
+
 export function emitPluginThreadCreated(thread: Thread): void {
   emitter?.emitThreadCreated(thread);
 }

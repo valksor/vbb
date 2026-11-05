@@ -385,6 +385,10 @@ type ExpectedSystemKey =
 
 type ExpectedSystemUiPreferencesKey = "list" | "reset" | "set";
 
+type SystemUpdateGeneralSettingsArgs = Parameters<
+  RootBbSdk["system"]["updateGeneralSettings"]
+>[0];
+
 type ExpectedThemeKey = "catalog" | "get" | "resolve" | "set";
 
 type ExpectedThreadSectionsKey = "create" | "delete" | "list" | "update";
@@ -531,6 +535,18 @@ describe("SDK public type entrypoints", () => {
     expectTypeOf<{
       environmentId: string;
     }>().toMatchTypeOf<RootProjectWorkspaceRoutingArgs>();
+  });
+
+  it("exposes watchdog settings through general settings updates", () => {
+    expectTypeOf<
+      SystemUpdateGeneralSettingsArgs["providerTurnIdleWatchdogEnabled"]
+    >().toEqualTypeOf<boolean | undefined>();
+    expectTypeOf<
+      SystemUpdateGeneralSettingsArgs["providerTurnIdleNotifyMs"]
+    >().toEqualTypeOf<number | undefined>();
+    expectTypeOf<
+      SystemUpdateGeneralSettingsArgs["providerTurnIdleInterruptMs"]
+    >().toEqualTypeOf<number | undefined>();
   });
 
   it("uses explicit mutually exclusive terminal scopes", () => {

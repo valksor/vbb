@@ -21,6 +21,10 @@ bb.events.on("message.queued", ({ entry }) => { ... });                    // en
 bb.events.on("message.dispatched", ({ entry }) => { ... });
 bb.events.on("turn.failed", (event) => { ... });                           // ids + failure facts
 bb.events.on("message.cancelled", ({ entry }) => { ... });                 // row deleted before dispatch
+bb.events.on("experimental_thread.turnWatchdog", ({ thread, elapsedMs, thresholdMs, action }) => {
+  if (action === "notify") { ... }
+  if (action === "interrupt") { ... }
+});
 ```
 
 **Events are announcements core makes.** Something already happened, your
@@ -30,7 +34,7 @@ caught, logged, and counted in the plugin's handler stats (`bb plugin list`;
 stats survive reloads and reset on remove). The surface that asks is
 `bb.experimental_hooks`, below, where core acts on your answer.
 
-Eighteen events. The seven `thread.*` ones are thread lifecycle.
+Nineteen events. The seven `thread.*` ones are thread lifecycle.
 `interaction.pending` fires after core commits a pending interaction row. The
 three `message.*` ones fire when a dispatch is queued behind a wait (again when
 its wait or `sendAt` is rewritten), when a queued row's waits all clear and it

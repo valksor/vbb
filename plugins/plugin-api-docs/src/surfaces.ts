@@ -1221,7 +1221,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         bullets: [
           "React when threads start, finish, fail, change parent, or are read, archived, unarchived, or deleted",
           "Follow queued messages, including ones cancelled before dispatch",
-          "Get the provider's error and rate-limit windows when a turn fails",
+          "Get a failed turn's error and rate limits, or learn when the stall watchdog flags or stops a turn",
           "Observe successful environment removal with its previous machine and path",
         ],
         apiSymbols: [
