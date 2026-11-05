@@ -7,6 +7,7 @@ import { ConversationTimeline } from "@/components/ui/conversation.js";
 import { HeightTransition } from "@/components/ui/height-transition.js";
 import { Icon } from "@bb/shared-ui/icon";
 import { isRouteLoadingSkeletonMounted } from "@/components/ui/route-loading-skeleton";
+import { resolveOngoingIndicatorStartedAt } from "./TimelineRowTime.js";
 import { toUserAttachmentImageSrc } from "@/lib/user-attachment-images";
 import {
   SHORT_LIVED_STATUS_DELAY_MS,
@@ -180,6 +181,11 @@ export function ThreadTimelineSurface({
     showActiveThinking && activeThinking
       ? activeThinking.id
       : (ongoingIndicatorLabel ?? "working");
+  const ongoingIndicatorStartedAt = resolveOngoingIndicatorStartedAt(
+    showActiveThinking,
+    activeThinking,
+    timelineRows,
+  );
   const timelineRowsWithPendingStop = useTimelineRowsWithPendingStop({
     rows: timelineRows,
     isStopping,
@@ -259,6 +265,7 @@ export function ThreadTimelineSurface({
                 key={ongoingIndicatorKey}
                 details={activeThinkingDetails}
                 reasoningId={activeThinking?.id}
+                startedAt={ongoingIndicatorStartedAt}
                 isThinking={showActiveThinking}
                 label={ongoingIndicatorLabel}
               />
