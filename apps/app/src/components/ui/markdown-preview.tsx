@@ -47,6 +47,7 @@ import { ImageLightbox } from "./image-lightbox.js";
 import { getWrappedImageIndex } from "@bb/shared-ui/lib/image-preview";
 import { InlineImageGalleryContext } from "./inline-image-gallery-context.js";
 import { remarkInlineDollarMath } from "./markdown-inline-dollar-math.js";
+import { remarkSourceListNumbers } from "./markdown-source-list-numbers.js";
 import { normalizeMathFences } from "./markdown-math-fences.js";
 import { MARKDOWN_TABLE_START_OFFSET_VARIABLE } from "./markdown-table-breakout.js";
 import {
@@ -157,6 +158,7 @@ interface MarkdownPreviewProps {
   sourcePrefix?: string;
   imagePolicy?: MarkdownImagePolicy;
   incrementalBlocks?: boolean;
+  orderedListNumbering?: "markdown" | "source";
   tableLayout?: "breakout" | "contained";
   linkRouting?: MarkdownLinkRouting;
   threadMentions?: MarkdownThreadMentions;
@@ -470,6 +472,8 @@ const areMarkdownPreviewPropsEqual: MarkdownPreviewPropsEqual = (
   (previous.sourcePrefix ?? "") === (next.sourcePrefix ?? "") &&
   (previous.imagePolicy ?? "render") === (next.imagePolicy ?? "render") &&
   (previous.incrementalBlocks ?? false) === (next.incrementalBlocks ?? false) &&
+  (previous.orderedListNumbering ?? "markdown") ===
+    (next.orderedListNumbering ?? "markdown") &&
   previous.urlTransform === next.urlTransform &&
   (previous.tableLayout ?? "breakout") === (next.tableLayout ?? "breakout") &&
   areMarkdownThreadMentionsEqual({
@@ -1028,10 +1032,26 @@ function MarkdownOrderedList({
       (child) => child.type === "element" && child.tagName === "li",
     ).length ?? Children.toArray(children).filter(isValidElement).length;
   const start = orderedListProps.start ?? 1;
-  const markerDigits = Math.max(
-    String(start).length,
-    String(start + Math.max(0, itemCount - 1)).length,
-  );
+  let sourceValueDigits = 0;
+  for (const child of node?.children ?? []) {
+    if (
+      child.type === "element" &&
+      child.tagName === "li" &&
+      typeof child.properties.value === "number"
+    ) {
+      sourceValueDigits = Math.max(
+        sourceValueDigits,
+        String(child.properties.value).length,
+      );
+    }
+  }
+  const markerDigits =
+    sourceValueDigits > 0
+      ? sourceValueDigits
+      : Math.max(
+          String(start).length,
+          String(start + Math.max(0, itemCount - 1)).length,
+        );
   const style: CSSProperties & { "--markdown-list-marker-digits": number } = {
     "--markdown-list-marker-digits": markerDigits,
     paddingInlineStart:
@@ -1048,8 +1068,12 @@ function MarkdownOrderedList({
   );
 }
 
-function MarkdownListItem({ children }: MarkdownListItemProps) {
-  return <li className="mb-1 text-foreground">{children}</li>;
+function MarkdownListItem({ children, value }: MarkdownListItemProps) {
+  return (
+    <li className="mb-1 text-foreground" value={value}>
+      {children}
+    </li>
+  );
 }
 
 function MarkdownBlockquote({ children }: MarkdownBlockquoteProps) {
@@ -1808,6 +1832,7 @@ function MarkdownPreviewComponent({
   sourcePrefix = "",
   imagePolicy = "render",
   incrementalBlocks = false,
+  orderedListNumbering = "markdown",
   tableLayout = "breakout",
   linkRouting,
   threadMentions,
@@ -1944,8 +1969,17 @@ function MarkdownPreviewComponent({
     if (hasMessageDirectives) {
       plugins.push(remarkDirective);
     }
+    if (orderedListNumbering === "source") {
+      plugins.push(remarkSourceListNumbers);
+    }
     return plugins;
-  }, [headingAnchors, threadMentions, promptMentions, hasMessageDirectives]);
+  }, [
+    headingAnchors,
+    threadMentions,
+    promptMentions,
+    hasMessageDirectives,
+    orderedListNumbering,
+  ]);
   const codeFenceRegistry = useCodeFenceLanguages();
   const remarkPlugins = useMemo((): MarkdownRemarkPlugins => {
     const plugins: MarkdownRemarkPlugins = [...baseRemarkPlugins];
