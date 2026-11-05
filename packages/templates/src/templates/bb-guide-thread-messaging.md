@@ -110,6 +110,10 @@ Interactions:
   `show` prints a plugin form's `Data` so you can shape the `--value` JSON.
   A provider's plugin-defined request cannot be cancelled; stop the thread to
   back out of it.
+  For a timed-out bundled AskUserQuestion, use `respond` with its known
+  interaction ID and the stored question and option IDs. bb queues one ordinary
+  follow-up message; retries return the recovered interaction and preserve the
+  first queued answer.
 
 Queued messages:
 

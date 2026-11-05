@@ -60,6 +60,11 @@ import {
 } from "./pending-interaction-serialization.js";
 import { heldToolCallTurnId } from "./pending-interactions-halt.fork.js";
 import {
+  lateAnswerOrConflict,
+  recoverLateAnswer,
+  type UnclaimedPluginAnswerDeliverer,
+} from "./pending-interactions-late-answer.fork.js";
+import {
   LIVE_DAEMON_COMMAND_TIMEOUT_MS,
   startLiveHostCommand,
 } from "../hosts/live-command.js";
@@ -252,7 +257,9 @@ interface InterruptPendingInteractionsForThreadIdsLifecycleArgs {
 type CreateLifecycleDeps = LoggedWorkSessionDeps &
   Pick<AppDeps, "terminalSessions">;
 
-function buildResolveConflictError(interaction: PendingInteraction): ApiError {
+export function buildResolveConflictError(
+  interaction: PendingInteraction,
+): ApiError {
   return new ApiError(
     409,
     "invalid_request",
@@ -347,6 +354,8 @@ export class PendingInteractionLifecycle {
   private started = false;
   private interactionSettledListener: ThreadInteractionSettledListener | null =
     null;
+  private unclaimedPluginAnswerDeliverer: UnclaimedPluginAnswerDeliverer | null =
+    null;
 
   constructor(args: PendingInteractionLifecycleArgs) {
     this.deps = {
@@ -389,6 +398,12 @@ export class PendingInteractionLifecycle {
     listener: ThreadInteractionSettledListener,
   ): void {
     this.interactionSettledListener = listener;
+  }
+
+  setUnclaimedPluginAnswerDeliverer(
+    deliverer: UnclaimedPluginAnswerDeliverer,
+  ): void {
+    this.unclaimedPluginAnswerDeliverer = deliverer;
   }
 
   listPendingThreadInteractions(threadId: string): PendingInteraction[] {
@@ -654,7 +669,9 @@ export class PendingInteractionLifecycle {
     if (!isPluginPendingInteraction(current)) {
       throw new ApiError(400, "invalid_request", "Plugin interaction expected");
     }
-    if (current.status !== "pending") throw buildResolveConflictError(current);
+    if (current.status !== "pending") {
+      return recoverLateAnswer(this.lateAnswerHost(), current, args.value);
+    }
     const waiter = this.pluginWaiters.get(current.id);
     if (waiter === undefined) {
       const interrupted = this.cancelPluginInteraction({
@@ -679,7 +696,11 @@ export class PendingInteractionLifecycle {
       logger: this.deps.logger,
     });
     if (this.pluginWaiters.get(current.id) !== waiter) {
-      throw buildResolveConflictError(this.requireInteraction(current.id));
+      return lateAnswerOrConflict(
+        this.lateAnswerHost(),
+        this.requireInteraction(current.id),
+        args.value,
+      );
     }
     const updated = setPendingInteractionResolved(this.deps.db, {
       id: current.id,
@@ -1178,6 +1199,17 @@ export class PendingInteractionLifecycle {
         "Pending interaction settled listener failed",
       );
     }
+  }
+
+  private lateAnswerHost() {
+    return {
+      deliverer: this.unclaimedPluginAnswerDeliverer,
+      logger: this.deps.logger,
+      requireInteraction: (interactionId: string) =>
+        this.requireInteraction(interactionId),
+      settle: (interaction: PendingInteraction) =>
+        this.settlePluginInteractionTerminalSideEffects(interaction),
+    };
   }
 
   private cancelPluginInteractionFromCallback(args: {
