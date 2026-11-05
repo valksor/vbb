@@ -9,6 +9,7 @@ import {
 } from "../../.ladle/story-fixtures";
 import { RootComposeMobileRecents } from "./RootComposeMobileRecents";
 import { ThreadActionsProvider } from "@/components/thread/ThreadActionsProvider";
+import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
 
 export default {
   title: "views/Mobile Recents",
@@ -32,7 +33,9 @@ function MobileStage({ children }: MobileStageProps) {
           }
         }
       `}</style>
-      <ThreadActionsProvider>{children}</ThreadActionsProvider>
+      <SidebarThreadEntriesProvider navigation={undefined}>
+        <ThreadActionsProvider>{children}</ThreadActionsProvider>
+      </SidebarThreadEntriesProvider>
     </div>
   );
 }

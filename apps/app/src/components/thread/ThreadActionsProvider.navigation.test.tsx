@@ -15,6 +15,7 @@ import {
   RouteNavigationProvider,
   useRouteNavigate,
 } from "@/components/ui/app-route-anchor";
+import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
 import {
   ThreadActionsProvider,
   useThreadActions,
@@ -101,9 +102,11 @@ describe("ThreadActionsProvider across navigations", () => {
   it("keeps the context value and memoized consumers stable when the route changes", () => {
     consumerRenders.length = 0;
     renderTree(
-      <ThreadActionsProvider>
-        <ActionsConsumer />
-      </ThreadActionsProvider>,
+      <SidebarThreadEntriesProvider navigation={undefined}>
+        <ThreadActionsProvider>
+          <ActionsConsumer />
+        </ThreadActionsProvider>
+      </SidebarThreadEntriesProvider>,
     );
     expect(consumerRenders).toHaveLength(1);
 

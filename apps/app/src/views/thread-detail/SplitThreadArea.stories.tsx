@@ -21,6 +21,7 @@ import { maximizedPaneIdAtom, splitLayoutAtom } from "@/lib/split-layout/atoms";
 import type { SplitLayout } from "@/lib/split-layout";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ThreadActionsProvider } from "@/components/thread/ThreadActionsProvider";
+import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
 import { SplitThreadArea } from "./SplitThreadArea";
 
 export default {
@@ -200,19 +201,21 @@ function SplitWorkspaceStory({ maximized = false }: { maximized?: boolean }) {
   return (
     <QueryClientProvider client={queryClient}>
       <JotaiProvider store={store}>
-        <ThreadActionsProvider>
-          <SidebarProvider>
-            <div className="flex h-screen min-h-[640px] w-full flex-col bg-background p-4 md:p-5">
-              <SplitThreadArea
-                routeContent={{
-                  kind: "thread",
-                  projectId: PROJECT_ID,
-                  threadId: ACTIVE_THREAD_ID,
-                }}
-              />
-            </div>
-          </SidebarProvider>
-        </ThreadActionsProvider>
+        <SidebarThreadEntriesProvider navigation={undefined}>
+          <ThreadActionsProvider>
+            <SidebarProvider>
+              <div className="flex h-screen min-h-[640px] w-full flex-col bg-background p-4 md:p-5">
+                <SplitThreadArea
+                  routeContent={{
+                    kind: "thread",
+                    projectId: PROJECT_ID,
+                    threadId: ACTIVE_THREAD_ID,
+                  }}
+                />
+              </div>
+            </SidebarProvider>
+          </ThreadActionsProvider>
+        </SidebarThreadEntriesProvider>
       </JotaiProvider>
     </QueryClientProvider>
   );

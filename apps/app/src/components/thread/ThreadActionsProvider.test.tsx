@@ -28,6 +28,7 @@ import {
 import { getCachedSidebarNavigationThreads } from "@/hooks/cache-owners/query-cache";
 import { appToast } from "@/components/ui/app-toast";
 import { sdk } from "@/lib/sdk";
+import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
 import { useDefaultRequestRename } from "@/lib/thread-actions/thread-action-registry";
 import {
   ThreadActionsProvider,
@@ -216,7 +217,9 @@ function ArchiveEnvironmentButton() {
 function renderProvider(children: ReactNode) {
   return render(
     <QueryClientProvider client={queryClient}>
-      <ThreadActionsProvider>{children}</ThreadActionsProvider>
+      <SidebarThreadEntriesProvider navigation={undefined}>
+        <ThreadActionsProvider>{children}</ThreadActionsProvider>
+      </SidebarThreadEntriesProvider>
     </QueryClientProvider>,
   );
 }
@@ -647,9 +650,11 @@ describe("ThreadActionsProvider archive feedback", () => {
     mocks.viewedThreadId = undefined;
     view.rerender(
       <QueryClientProvider client={queryClient}>
-        <ThreadActionsProvider>
-          <ArchiveButton thread={thread} />
-        </ThreadActionsProvider>
+        <SidebarThreadEntriesProvider navigation={undefined}>
+          <ThreadActionsProvider>
+            <ArchiveButton thread={thread} />
+          </ThreadActionsProvider>
+        </SidebarThreadEntriesProvider>
       </QueryClientProvider>,
     );
 
@@ -687,9 +692,11 @@ describe("ThreadActionsProvider archive feedback", () => {
     mocks.viewedThreadId = undefined;
     view.rerender(
       <QueryClientProvider client={queryClient}>
-        <ThreadActionsProvider>
-          <ArchiveButton thread={thread} />
-        </ThreadActionsProvider>
+        <SidebarThreadEntriesProvider navigation={undefined}>
+          <ThreadActionsProvider>
+            <ArchiveButton thread={thread} />
+          </ThreadActionsProvider>
+        </SidebarThreadEntriesProvider>
       </QueryClientProvider>,
     );
 
@@ -893,7 +900,9 @@ describe("default thread rename", () => {
     const input = within(dialog).getByRole("textbox", { name: "Thread name" });
     expect(input).toHaveProperty("value", "Investigate archive behavior");
     fireEvent.change(input, { target: { value: "  Renamed  " } });
-    const submit = within(dialog).getByRole("button", { name: "Rename thread" });
+    const submit = within(dialog).getByRole("button", {
+      name: "Rename thread",
+    });
     fireEvent.click(submit);
 
     expect((await within(dialog).findByRole("alert")).textContent).toBe(

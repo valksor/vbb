@@ -27,6 +27,7 @@ import {
 import { RootComposeHome } from "./RootComposeHome";
 import { RootComposeMobileRecents } from "./RootComposeMobileRecents";
 import { ThreadActionsProvider } from "@/components/thread/ThreadActionsProvider";
+import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
 
 export const projectNamesById = new Map<string, string>([
   [PROJECT_IDS.bb, PROJECT_NAMES.bb],
@@ -197,15 +198,17 @@ export function StoryComposer({
 
 export function HomeRecents({ threads }: { threads: ThreadListEntry[] }) {
   return (
-    <ThreadActionsProvider>
-      <RootComposeMobileRecents
-        highlightedThreadId={null}
-        projectNamesById={projectNamesById}
-        providersById={STORY_PROVIDERS_BY_ID}
-        showCreatingRow={false}
-        threads={threads}
-      />
-    </ThreadActionsProvider>
+    <SidebarThreadEntriesProvider navigation={undefined}>
+      <ThreadActionsProvider>
+        <RootComposeMobileRecents
+          highlightedThreadId={null}
+          projectNamesById={projectNamesById}
+          providersById={STORY_PROVIDERS_BY_ID}
+          showCreatingRow={false}
+          threads={threads}
+        />
+      </ThreadActionsProvider>
+    </SidebarThreadEntriesProvider>
   );
 }
 
