@@ -2650,7 +2650,22 @@ describe("bridge", () => {
     }
   });
 
-  it("forwards ExitPlanMode for user approval in plan mode", async () => {
+  it.each([
+    {
+      label: "a custom denial message",
+      result: {
+        decision: "deny",
+        grantedPermissions: null,
+        message: "Revise the migration step.",
+      },
+      expectedMessage: "Revise the migration step.",
+    },
+    {
+      label: "the default denial message",
+      result: { decision: "deny", grantedPermissions: null },
+      expectedMessage: expect.stringContaining("The user rejected this plan."),
+    },
+  ])("forwards ExitPlanMode for $label in plan mode", async (testCase) => {
     const bridge = createBridgeJsonRpcTestHarness(handleLine);
     const queries: ControlledClaudeQuery[] = [];
     queryMock.mockImplementation(() => {
@@ -2711,16 +2726,13 @@ describe("bridge", () => {
         JSON.stringify({
           jsonrpc: "2.0",
           id: approvalRequest.id,
-          result: {
-            decision: "deny",
-            grantedPermissions: null,
-          },
+          result: testCase.result,
         }),
       );
 
       await expect(resultPromise).resolves.toMatchObject({
         behavior: "deny",
-        message: expect.stringContaining("The user rejected this plan."),
+        message: testCase.expectedMessage,
       });
 
       await stopBridgeThread({ bridge, queries, threadId });

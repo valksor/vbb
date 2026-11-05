@@ -1062,7 +1062,7 @@ describe("host-daemon command schemas", () => {
   });
 
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(261);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(262);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 
@@ -1083,7 +1083,8 @@ describe("host-daemon command schemas", () => {
     expect(contract.isCompatibleHostDaemonProtocolVersion(258)).toBe(false);
     expect(contract.isCompatibleHostDaemonProtocolVersion(259)).toBe(false);
     expect(contract.isCompatibleHostDaemonProtocolVersion(260)).toBe(false);
-    expect(contract.isCompatibleHostDaemonProtocolVersion(261)).toBe(true);
+    expect(contract.isCompatibleHostDaemonProtocolVersion(261)).toBe(false);
+    expect(contract.isCompatibleHostDaemonProtocolVersion(262)).toBe(true);
     expect(contract.hostDaemonSupportsConnectNext(246)).toBe(false);
     expect(contract.hostDaemonSupportsConnectNext(247)).toBe(true);
     expect(contract.hostDaemonSupportsDesktopBrokerProof(247)).toBe(false);
@@ -1602,6 +1603,29 @@ describe("host-daemon command schemas", () => {
       interactionId: "pint_123",
       resolution: {
         decision: "allow_for_session",
+      },
+    });
+
+    expect(
+      hostDaemonCommandSchema.parse({
+        type: "interactive.resolve",
+        environmentId: "env_123",
+        threadId: "thr_123",
+        interactionId: "pint_124",
+        providerId: "codex",
+        providerThreadId: "provider-thread-123",
+        providerRequestId: "request-124",
+        resolution: {
+          decision: "deny",
+          message: "held for review",
+        },
+      }),
+    ).toMatchObject({
+      type: "interactive.resolve",
+      interactionId: "pint_124",
+      resolution: {
+        decision: "deny",
+        message: "held for review",
       },
     });
   });

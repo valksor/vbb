@@ -35,6 +35,13 @@ import { action } from "../../action.js";
 import { createCliBbSdk } from "../../client.js";
 import { printBorderlessTable } from "../../table.js";
 import {
+  addDenyMessageOption,
+  assertDenyMessageAccepted,
+  denyMessageResolution,
+  printDenyMessage,
+  type ThreadInteractionDenyOptions,
+} from "./interactions.fork.js";
+import {
   collectOption,
   outputJson,
   prependErrorContext,
@@ -274,6 +281,7 @@ function printApprovalInteraction(
     } else if (interaction.resolution.decision === "allow_once") {
       console.log("  Scope: turn");
     }
+    printDenyMessage(interaction.resolution);
   }
 }
 
@@ -618,6 +626,7 @@ function pickApprovalDecision(
 function buildBinaryResolution(
   interaction: PendingInteraction,
   action: "approve" | "deny",
+  message: string | undefined,
 ): PendingInteractionResolution {
   const approvalInteraction = requireApprovalInteraction(interaction);
   if (
@@ -629,6 +638,9 @@ function buildBinaryResolution(
     );
   }
   const decision = pickApprovalDecision(approvalInteraction, action);
+  assertDenyMessageAccepted(approvalInteraction, action, message);
+  const custom = denyMessageResolution(message);
+  if (custom) return custom;
   return buildPendingInteractionApprovalResolution(
     approvalInteraction,
     decision,
@@ -699,12 +711,12 @@ function registerBinaryResolutionCommand(
         async (
           interactionId: string,
           id: string | undefined,
-          opts: ThreadInteractionTargetOptions,
+          opts: ThreadInteractionTargetOptions & ThreadInteractionDenyOptions,
         ) => {
           const threadId = requireThreadIdOrSelf(id, opts);
           await resolveInteraction({
             buildResolution: (interaction) =>
-              buildBinaryResolution(interaction, name),
+              buildBinaryResolution(interaction, name, opts.message),
             failureAction: name,
             getUrl,
             interactionId,
@@ -919,4 +931,5 @@ export function registerInteractionCommands(
     "deny",
     "Deny a command, file-change, plan, or permission interaction",
   );
+  addDenyMessageOption(interactions);
 }
