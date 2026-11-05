@@ -17,7 +17,6 @@ import {
 } from "@get-bb/plugin-sdk/app";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +37,6 @@ import {
 import {
   providerUsageTone,
   selectUsageMachine,
-  usageRpcSuccessSchema,
   type UsageMachine,
   type UsageProvider,
   type UsageSnapshot,
@@ -50,6 +48,25 @@ import {
   offlineUsageMessage,
   usageFeedbackMessages,
 } from "./usage-feedback.js";
+import {
+  UsageSkeleton,
+  accountStatusMessage,
+  formatResetCountdown,
+  shortWindowLabel,
+  usageToneTextClass,
+} from "./usage-shared.fork.js";
+import {
+  CARD_MAX_AGE_MS,
+  FOCUS_MAX_AGE_MS,
+  fetchUsageSnapshot,
+} from "./usage-client.fork.js";
+
+import {
+  clearAsideFailures,
+  noteAsideCardSnapshot,
+  registerComposerAside,
+  setAsideCardSnapshotSource,
+} from "./composer-aside.fork.js";
 
 import { UsageSettings } from "./settings.js";
 
@@ -60,8 +77,6 @@ export interface UsageStoreSnapshot {
 }
 
 const ALL_PROVIDERS_TAB_ID = "all";
-const CARD_MAX_AGE_MS = 2 * 60_000;
-const FOCUS_MAX_AGE_MS = 5 * 60_000;
 const SAFETY_REFRESH_INTERVAL_MS = 30 * 60_000;
 const storeListeners = new Set<() => void>();
 let storeSnapshot: UsageStoreSnapshot = {
@@ -69,6 +84,7 @@ let storeSnapshot: UsageStoreSnapshot = {
   error: null,
   isRefreshing: false,
 };
+setAsideCardSnapshotSource(() => storeSnapshot.data);
 let activeRefreshCount = 0;
 let queuedRefresh: Promise<void> = Promise.resolve();
 let lastMachineId: string | null = null;
@@ -99,15 +115,6 @@ function getStoreSnapshot(): UsageStoreSnapshot {
   return storeSnapshot;
 }
 
-function rpcErrorMessage(body: unknown): string | null {
-  if (typeof body !== "object" || body === null) return null;
-  const error = Reflect.get(body, "error");
-  if (typeof error === "string") return error;
-  if (typeof error !== "object" || error === null) return null;
-  const message = Reflect.get(error, "message");
-  return typeof message === "string" ? message : null;
-}
-
 function refreshUsage({
   pluginId,
   force,
@@ -127,32 +134,21 @@ function refreshUsage({
   updateStore({ ...storeSnapshot, error: null, isRefreshing: true });
   queuedRefresh = queuedRefresh.then(async () => {
     try {
-      const response = await fetch(
-        `/api/v1/plugins/${encodeURIComponent(pluginId)}/rpc/getUsage`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ force, machineIds, maxAgeMs, providerIds }),
-          signal:
-            signal === undefined
-              ? AbortSignal.timeout(60_000)
-              : AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
-        },
-      );
-      if (!response.ok)
-        throw new Error(`Usage request returned HTTP ${response.status}.`);
-      const body: unknown = await response.json();
-      const parsed = usageRpcSuccessSchema.safeParse(body);
-      if (!parsed.success) {
-        throw new Error(
-          rpcErrorMessage(body) ?? "Provider usage could not be loaded.",
-        );
-      }
+      const result = await fetchUsageSnapshot({
+        pluginId,
+        force,
+        machineIds,
+        maxAgeMs,
+        providerIds,
+        signal,
+      });
       updateStore({
-        data: parsed.data.result,
+        data: result,
         error: null,
         isRefreshing: activeRefreshCount > 1,
       });
+      noteAsideCardSnapshot(result);
+      clearAsideFailures(machineIds);
     } catch (cause) {
       if (signal?.aborted === true) {
         return;
@@ -172,32 +168,6 @@ function refreshUsage({
   return queuedRefresh;
 }
 
-function formatResetCountdown(resetsAt: string | null): string | null {
-  if (resetsAt === null) return null;
-  const remaining = new Date(resetsAt).getTime() - Date.now();
-  if (!Number.isFinite(remaining)) return null;
-  if (remaining <= 0) return "now";
-  const minutes = Math.ceil(remaining / 60_000);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24)
-    return minutes % 60 === 0 ? `${hours}h` : `${hours}h ${minutes % 60}m`;
-  const days = Math.floor(hours / 24);
-  return hours % 24 === 0 ? `${days}d` : `${days}d ${hours % 24}h`;
-}
-function shortWindowLabel(label: string): string {
-  return label
-    .replace(/^Five-hour limit$|^5 hours$/u, "5h")
-    .replace(/^Weekly limit$|^Weekly/u, "7d")
-    .replace(/^Daily limit$/u, "1d");
-}
-
-function usageToneTextClass(usedPercent: number): string {
-  if (usedPercent >= 95) return "text-destructive";
-  if (usedPercent >= 80) return "text-warning";
-  return "text-sidebar-foreground";
-}
-
 type MessageNotice = {
   kind: "stale" | "empty";
   icon: "CloudOff" | "AlertTriangle" | "AlertCircle" | "Info";
@@ -206,24 +176,6 @@ type MessageNotice = {
 };
 
 type CardNotice = { kind: "loading" } | MessageNotice;
-
-function UsageSkeleton({ rows }: { rows: number }) {
-  return (
-    <div role="status" aria-label={usageFeedbackMessages.loading}>
-      {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className="flex h-6 items-center gap-2">
-          <Skeleton className="size-3.5 rounded-full" />
-          <Skeleton
-            className={cn("h-2", index % 2 === 0 ? "w-2/5" : "w-1/3")}
-          />
-          <span className="flex-1" />
-          <Skeleton className="h-2 w-9" />
-          <Skeleton className="h-2 w-9" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function UsageNotice({
   notice,
@@ -304,7 +256,7 @@ function UsageWindow({ window }: { window: UsageWindowValue }) {
         <span
           className={cn(
             "text-right tabular-nums",
-            usageToneTextClass(window.usedPercent),
+            usageToneTextClass(window.usedPercent, "text-sidebar-foreground"),
           )}
         >
           {Math.round(window.usedPercent)}%
@@ -324,26 +276,6 @@ function UsageWindow({ window }: { window: UsageWindowValue }) {
       ) : null}
     </button>
   );
-}
-
-function accountStatusMessage(account: UsageProvider): string | null {
-  const usage = account.usage;
-  switch (usage?.status) {
-    case undefined:
-      return "Usage not reported.";
-    case "ok":
-      return usage.windows.length === 0
-        ? "No usage limits reported for this plan."
-        : null;
-    case "not_installed":
-      return "Not installed on this machine.";
-    case "unauthenticated":
-      return account.signInHint;
-    case "expired":
-      return account.expiredHint;
-    case "error":
-      return usage.message;
-  }
 }
 
 function AccountUsage({
@@ -942,6 +874,7 @@ function ProviderUsageStatus(props: ExperimentalSidebarFooterDisclosureProps) {
 
 export default definePluginApp((app) => {
   app.slots.settingsSection({ id: "usage", component: UsageSettings });
+  registerComposerAside(app);
   app.experimental_sidebarFooter.register({
     kind: "disclosure",
     id: "usage",

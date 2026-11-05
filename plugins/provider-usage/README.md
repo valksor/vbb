@@ -27,6 +27,9 @@ to inspect their published contracts. RPC calls accept JSON through
 `bb settings usage --json` and `bb.sdk.system.usageLimits()` remain the
 host-local provider-maintenance view; they do not aggregate shared pool accounts.
 
+See [Composer aside](README.fork.md) for the thread-aware display, request scope,
+refresh policy, privacy details, and existing SDK and CLI access.
+
 Codex, Claude Code, and ACP provider plugins explicitly implement the usage contract
 for their own providers. Account Pooler implements it for shared accounts. The
 contract is owned here and copied into each source; no additional adapter plugin,
