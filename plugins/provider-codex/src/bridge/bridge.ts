@@ -64,6 +64,11 @@ import {
   type CodexMacOsPermissionRequest,
 } from "../interactive-requests.js";
 import {
+  reportSessionExecution,
+  reportTurnExecution,
+  type ThreadExecution,
+} from "../execution-report.js";
+import {
   CODEX_DAYBREAK_OPTION_ID,
   codexDaybreakOption,
   cyberProgramForTurn,
@@ -492,6 +497,7 @@ interface CodexBridgeSession {
   daybreakEnabled: boolean | null;
   modelCatalog: Promise<CodexModelCatalog | null> | null;
   publishedSessionOptions: string | null;
+  lastReportedExecution: ThreadExecution | null;
   closing: boolean;
   previousChildExit: Promise<void> | null;
   releasePromise: Promise<void> | null;
@@ -1275,6 +1281,7 @@ async function constructThreadSession(
     daybreakEnabled: null,
     modelCatalog: null,
     publishedSessionOptions: existing?.publishedSessionOptions ?? null,
+    lastReportedExecution: null,
     closing: false,
     previousChildExit: null,
     releasePromise: null,
@@ -1446,6 +1453,7 @@ async function constructThreadSession(
       }
       publishDaybreakState(session, catalog);
     });
+    reportSessionExecution(session, result, sendThreadDeltas);
     return { session, codexThreadId };
   } catch (error) {
     const released = session.closing;
@@ -1497,6 +1505,7 @@ function registerResumableSession(session: CodexBridgeSession): void {
     daybreakEnabled: session.daybreakEnabled,
     modelCatalog: null,
     publishedSessionOptions: session.publishedSessionOptions,
+    lastReportedExecution: null,
     closing: false,
     previousChildExit: null,
     releasePromise: null,
@@ -2107,6 +2116,12 @@ async function handleTurnStart(
           }
           throw error;
         });
+      reportTurnExecution(
+        session,
+        decoded.sessionOptions,
+        permissionSettings,
+        sendThreadDeltas,
+      );
     }
     sendResult(id, { threadId: params.threadId });
     settleAcceptedDispatch({
