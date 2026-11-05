@@ -60,10 +60,6 @@ export function resolveTerminalRunCommandInterpreter(
   return { executable: "/bin/sh", fallbackNotice: true };
 }
 
-export function normalizeTerminalRunCommandText(command: string): string {
-  return command.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-}
-
 export interface TerminalRunCommandScriptPaths {
   scriptDir: string;
   scriptPath: string;
@@ -305,7 +301,7 @@ export async function tryRunCommandInTargetWithRuntime(
   try {
     await fs.writeFile(
       scriptPath,
-      normalizeTerminalRunCommandText(args.command),
+      args.command,
       { mode: 0o600 },
     );
     await execInvocation(

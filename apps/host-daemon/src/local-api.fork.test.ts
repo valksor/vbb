@@ -167,6 +167,123 @@ describe("local API server", () => {
     }
   });
 
+  it("reads each run-command admission from the current client config", async () => {
+    const dataDir = await mkdtemp(path.join(tmpdir(), "bb-run-command-config-"));
+    const configPath = path.join(dataDir, "client.json");
+    const targets: WorkspaceOpenTarget[] = [
+      {
+        capabilities: {
+          openDirectory: true,
+          openFile: true,
+          openFileAtLine: true,
+          runCommand: true,
+        },
+        id: "terminal",
+        label: "Terminal",
+      },
+    ];
+    const listWorkspaceOpenTargets = vi.fn(async () => targets);
+    const openInTarget = vi.fn(async () => undefined);
+    const command = {
+      context: { kind: "local" } as const,
+      columnNumber: null,
+      command: "echo hi",
+      lineNumber: null,
+      path: tmpdir(),
+      targetId: "terminal" as const,
+    };
+    const open = {
+      context: { kind: "local" } as const,
+      columnNumber: null,
+      lineNumber: null,
+      path: tmpdir(),
+      targetId: "terminal" as const,
+    };
+
+    await writeFile(
+      configPath,
+      JSON.stringify({ runCommandEnabled: true, servers: {} }),
+      "utf8",
+    );
+
+    try {
+      server = await startLocalApiServer({
+        dataDir,
+        hostId: "host-1",
+        localApiConfig: createLocalApiConfig(),
+        serverUrl: "http://server.test",
+        serverPort: 3334,
+        devAppPort: 5173,
+        getConnected: () => true,
+        listWorkspaceOpenTargets,
+        openInTarget,
+      });
+      const client = createHostDaemonLocalClient(
+        `http://localhost:${server.port}`,
+      );
+
+      const targetsResponse = await client["workspace-open-targets"].$get({
+        query: {},
+      });
+      expect((await targetsResponse.json()).targets[0]?.capabilities).toEqual(
+        targets[0]?.capabilities,
+      );
+
+      await writeFile(
+        configPath,
+        JSON.stringify({ runCommandEnabled: false, servers: {} }),
+        "utf8",
+      );
+      const disabledResponse = await client["open-in-target"].$post({
+        json: command,
+      });
+      expect(disabledResponse.status).toBe(400);
+      expect(await disabledResponse.json()).toMatchObject({
+        code: OPEN_IN_TARGET_RUN_COMMAND_DISABLED_ERROR_CODE,
+      });
+      expect(openInTarget).not.toHaveBeenCalled();
+
+      const ordinaryResponse = await client["open-in-target"].$post({
+        json: open,
+      });
+      expect(ordinaryResponse.ok).toBe(true);
+      expect(openInTarget).toHaveBeenCalledTimes(1);
+
+      await writeFile(
+        configPath,
+        JSON.stringify({ runCommandEnabled: true, servers: {} }),
+        "utf8",
+      );
+      const enabledResponse = await client["open-in-target"].$post({
+        json: command,
+      });
+      expect(enabledResponse.ok).toBe(true);
+      expect(openInTarget).toHaveBeenCalledTimes(2);
+
+      await writeFile(
+        configPath,
+        JSON.stringify({ runCommandEnabled: "yes", servers: {} }),
+        "utf8",
+      );
+      const malformedResponse = await client["open-in-target"].$post({
+        json: command,
+      });
+      expect(malformedResponse.status).toBe(400);
+      expect(await malformedResponse.json()).toMatchObject({
+        code: OPEN_IN_TARGET_RUN_COMMAND_DISABLED_ERROR_CODE,
+      });
+      expect(openInTarget).toHaveBeenCalledTimes(2);
+
+      const ordinaryAfterMalformedResponse = await client["open-in-target"].$post({
+        json: open,
+      });
+      expect(ordinaryAfterMalformedResponse.ok).toBe(true);
+      expect(openInTarget).toHaveBeenCalledTimes(3);
+    } finally {
+      await rm(dataDir, { recursive: true, force: true });
+    }
+  });
+
   it("fails the run-command gate closed when the client config cannot be parsed", async () => {
     const dataDir = await mkdtemp(path.join(tmpdir(), "bb-run-command-bad-"));
     await writeFile(
