@@ -72,7 +72,6 @@ interface ResolvedMacCommandExecutable {
 
 export { WorkspaceOpenTargetError } from "./errors.js";
 export {
-  normalizeTerminalRunCommandText,
   TERMINAL_RUN_COMMAND_TEMP_DIR_PREFIX,
   type OpenPathInTargetWithRuntimeOptions,
 } from "./terminal-run-command.fork.js";

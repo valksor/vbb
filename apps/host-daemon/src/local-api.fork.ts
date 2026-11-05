@@ -9,7 +9,6 @@ import {
   type WorkspaceOpenTarget,
 } from "@bb/host-daemon-contract";
 import {
-  normalizeTerminalRunCommandText,
   TERMINAL_RUN_COMMAND_TEMP_DIR_PREFIX,
   WorkspaceOpenTargetError,
 } from "@bb/local-open-targets";
@@ -118,7 +117,7 @@ export function createRunCommandGate(args: CreateRunCommandGateArgs): {
         {
           origin,
           scriptSha256: createHash("sha256")
-            .update(normalizeTerminalRunCommandText(request.command), "utf8")
+            .update(request.command, "utf8")
             .digest("hex"),
           targetId: request.targetId,
         },

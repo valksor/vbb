@@ -223,7 +223,12 @@ export async function startLocalApiServer(
   const clientConfigLoader = createClientConfigLoader(options.dataDir);
   const listWorkspaceOpenTargets = createWorkspaceOpenTargetLoader(options);
   const runCommand = createRunCommandGate({
-    configLoader: clientConfigLoader,
+    configLoader: {
+      load: async () =>
+        options.dataDir === undefined
+          ? EMPTY_CLIENT_CONFIG
+          : readClientConfig(options.dataDir),
+    },
     logger: options.logger,
   });
   const originArgs: BuildLocalAppOriginsArgs = {

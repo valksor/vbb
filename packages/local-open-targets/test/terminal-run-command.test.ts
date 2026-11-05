@@ -12,7 +12,6 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   listWorkspaceOpenTargetsWithRuntime,
-  normalizeTerminalRunCommandText,
   openPathInTargetWithRuntime,
   TERMINAL_RUN_COMMAND_TEMP_DIR_PREFIX,
   WorkspaceOpenTargetError,
@@ -412,23 +411,30 @@ describe("terminal run-command launches", () => {
     }
   });
 
-  it("normalizes CRLF and lone CR to LF in the script file", async () => {
+  it("preserves CRLF and literal carriage returns in the script file", async () => {
     const calls: ExecFileCall[] = [];
     const before = new Set(await readdir(tmpdir()));
     const workspacePath = mkdtempSync(path.join(tmpdir(), WORKSPACE_PREFIX));
+    const command = [
+      "printf '%s\\n' 'CRLF line'\r\n",
+      "printf '%s\\n' 'literal\rcarriage return'\r\n",
+      "cat <<'EOF'\r\n",
+      "here-document\rvalue\r\n",
+      "EOF\r\n",
+    ].join("");
 
     try {
       await openPathInTargetWithRuntime(
         runCommandArgs({
-          command: "echo one\r\necho two\rlong ago\nexit",
+          command,
           path: workspacePath,
         }),
         createRuntime({ execFile: createExecFile({ calls }) }),
       );
       const runDir = await findCreatedRunDir(before);
 
-      expect(readFileSync(path.join(runDir, "command.sh"), "utf8")).toBe(
-        "echo one\necho two\nlong ago\nexit",
+      expect(readFileSync(path.join(runDir, "command.sh"))).toStrictEqual(
+        Buffer.from(command, "utf8"),
       );
       rmSync(runDir, { recursive: true, force: true });
     } finally {
@@ -651,11 +657,5 @@ describe("terminal run-command launches", () => {
       ),
     ).rejects.toMatchObject({ code: "remote_target_unsupported" });
     expect(execFile).not.toHaveBeenCalled();
-  });
-});
-
-describe("terminal run-command script normalization", () => {
-  it("rewrites CRLF and lone CR to LF", () => {
-    expect(normalizeTerminalRunCommandText("a\r\nb\rc\nd")).toBe("a\nb\nc\nd");
   });
 });
