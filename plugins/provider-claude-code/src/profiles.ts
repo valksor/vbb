@@ -1,27 +1,35 @@
 import { z } from "zod";
 import { validateProfilePathForm } from "./config-dir.js";
+import {
+  tokenProfileAuthTokenFileSchema,
+  tokenProfileEnvSchema,
+} from "./token-profile-rules.js";
 
 const PROFILE_ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/u;
 const PROFILE_ID_MAX_LENGTH = 41;
 const DISPLAY_NAME_MAX_LENGTH = 80;
 
+const commonProfileShape = {
+  id: z
+    .string()
+    .max(PROFILE_ID_MAX_LENGTH)
+    .regex(PROFILE_ID_PATTERN, {
+      message: `must match ${PROFILE_ID_PATTERN.source}`,
+    }),
+  displayName: z
+    .string()
+    .refine(
+      (value) =>
+        value.trim().length > 0 && value.length <= DISPLAY_NAME_MAX_LENGTH,
+      {
+        message: `must be non-blank and at most ${DISPLAY_NAME_MAX_LENGTH} characters`,
+      },
+    ),
+};
+
 const loginProfileSchema = z
   .object({
-    id: z
-      .string()
-      .max(PROFILE_ID_MAX_LENGTH)
-      .regex(PROFILE_ID_PATTERN, {
-        message: `must match ${PROFILE_ID_PATTERN.source}`,
-      }),
-    displayName: z
-      .string()
-      .refine(
-        (value) =>
-          value.trim().length > 0 && value.length <= DISPLAY_NAME_MAX_LENGTH,
-        {
-          message: `must be non-blank and at most ${DISPLAY_NAME_MAX_LENGTH} characters`,
-        },
-      ),
+    ...commonProfileShape,
     configDir: z.string().superRefine((value, context) => {
       try {
         validateProfilePathForm(value, "claudeConfigDir");
@@ -35,12 +43,49 @@ const loginProfileSchema = z
   })
   .strict();
 
-export type ClaudeCodeProfile = z.infer<typeof loginProfileSchema>;
+const tokenProfileSchema = z
+  .object({
+    ...commonProfileShape,
+    authTokenFile: tokenProfileAuthTokenFileSchema,
+    env: tokenProfileEnvSchema,
+  })
+  .strict();
+
+export type ClaudeCodeLoginProfile = z.infer<typeof loginProfileSchema>;
+export type ClaudeCodeTokenProfile = z.infer<typeof tokenProfileSchema>;
+export type ClaudeCodeProfile = ClaudeCodeLoginProfile | ClaudeCodeTokenProfile;
+
+export function isTokenProfile(
+  profile: ClaudeCodeProfile,
+): profile is ClaudeCodeTokenProfile {
+  return "authTokenFile" in profile;
+}
 
 type ParsedProfile = { profile: ClaudeCodeProfile } | { details: string };
 
 function parseProfile(entry: unknown): ParsedProfile {
-  const result = loginProfileSchema.safeParse(entry);
+  const keys =
+    typeof entry === "object" && entry !== null && !Array.isArray(entry)
+      ? Object.keys(entry)
+      : null;
+  const hasLogin = keys?.includes("configDir") === true;
+  const hasToken =
+    keys?.includes("authTokenFile") === true || keys?.includes("env") === true;
+  if (hasLogin && hasToken) {
+    return {
+      details:
+        "configDir cannot be combined with authTokenFile or env; a profile is either a login profile or a token profile",
+    };
+  }
+  if (keys !== null && !hasLogin && !hasToken) {
+    return {
+      details:
+        "needs configDir (login profile) or authTokenFile with env (token profile)",
+    };
+  }
+  const result = (hasToken ? tokenProfileSchema : loginProfileSchema).safeParse(
+    entry,
+  );
   if (result.success) return { profile: result.data };
   return {
     details: result.error.issues
@@ -65,7 +110,9 @@ export function resolveClaudeCodeProfiles(
   const profiles: ClaudeCodeProfile[] = [];
   const warnings: string[] = [];
   const trimmed = settingValue?.trim() ?? "";
-  if (trimmed.length === 0) return { profiles, warnings };
+  if (trimmed.length === 0) {
+    return { profiles, warnings };
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(trimmed);

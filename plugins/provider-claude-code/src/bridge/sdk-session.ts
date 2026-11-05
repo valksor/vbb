@@ -18,6 +18,10 @@ import {
 } from "@get-bb/plugin-sdk/provider-bridge";
 import type { ClaudePermissionMode } from "../interactive-contract.js";
 import {
+  acquireTokenFlagSettings,
+  type TokenFlagSettingsLease,
+} from "./token-flag-settings.js";
+import {
   isMissingClaudeCliMessage,
   missingClaudeCliGuidance,
   translateMissingClaudeCliError,
@@ -38,11 +42,12 @@ export interface SdkSessionOptions {
   allowedTools?: string[];
   disallowedTools?: string[];
   canUseTool?: CanUseTool;
-  env?: NodeJS.ProcessEnv;
+  env: NodeJS.ProcessEnv;
   pathToClaudeCodeExecutable?: Options["pathToClaudeCodeExecutable"];
   plugins?: Options["plugins"];
   thinking?: Options["thinking"];
   settings?: Options["settings"];
+  tokenFlagSettingsDir?: string;
   extraArgs?: Options["extraArgs"];
   recordThreadId?: () => string;
 }
@@ -173,6 +178,7 @@ export class SdkSession {
   private readonly completion: Promise<void>;
   private complete: (() => void) | null = null;
   private stderrTail = "";
+  private tokenSettings: TokenFlagSettingsLease | undefined;
 
   constructor(
     private readonly options: SdkSessionOptions,
@@ -246,6 +252,7 @@ export class SdkSession {
       });
     };
     const recordThreadId = this.options.recordThreadId;
+    this.tokenSettings = acquireTokenFlagSettings(this.options);
     const sdkOptions: Options = {
       abortController: this.abortController,
       cwd: this.options.cwd,
@@ -264,7 +271,7 @@ export class SdkSession {
       includePartialMessages: true,
       settingSources: ["user", "project", "local"],
       persistSession: true,
-      env: this.options.env ?? process.env,
+      env: this.options.env,
       stderr: onStderr,
       ...(this.options.mcpServers
         ? { mcpServers: this.options.mcpServers }
@@ -296,7 +303,7 @@ export class SdkSession {
         : {}),
       ...(this.options.plugins ? { plugins: this.options.plugins } : {}),
       ...(this.options.thinking ? { thinking: this.options.thinking } : {}),
-      ...(this.options.settings ? { settings: this.options.settings } : {}),
+      ...this.tokenSettings.settingsOption(this.options.settings),
       extraArgs: {
         ...this.options.extraArgs,
         "replay-user-messages": null,
@@ -309,6 +316,7 @@ export class SdkSession {
         options: sdkOptions,
       });
     } catch (error) {
+      this.tokenSettings.release();
       throw translateMissingClaudeCliError(error);
     }
 
@@ -361,6 +369,7 @@ export class SdkSession {
     this.abortController.abort();
     this.query?.close();
     this.query = undefined;
+    this.tokenSettings?.release();
   }
 
   async closeGracefully(timeoutMs: number): Promise<void> {
@@ -478,6 +487,7 @@ export class SdkSession {
       this.rejectQueuedInputs("Claude SDK stream ended before input consumed");
       this.resolveInputDone();
       this.query = undefined;
+      this.tokenSettings?.release();
       if (this.complete) {
         this.complete();
         this.complete = null;

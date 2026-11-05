@@ -3935,7 +3935,7 @@ describe("bridge", () => {
       close,
     });
 
-    await expect(listClaudeCodeBridgeModels()).rejects.toThrow(
+    await expect(listClaudeCodeBridgeModels(process.env)).rejects.toThrow(
       "Claude Code reported no models.",
     );
     expect(close).toHaveBeenCalledOnce();
@@ -3996,7 +3996,7 @@ describe("bridge", () => {
       close,
     });
 
-    await expect(listClaudeCodeBridgeModels()).rejects.toThrow(
+    await expect(listClaudeCodeBridgeModels(process.env)).rejects.toThrow(
       "temporary discovery failure",
     );
     expect(queryMock).toHaveBeenCalledOnce();

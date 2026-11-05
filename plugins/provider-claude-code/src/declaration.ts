@@ -3,7 +3,11 @@ import type {
   PluginProviderStrings,
 } from "@get-bb/plugin-sdk";
 import { CLAUDE_NATIVE_ROOTS_DECLARATION } from "./native-roots.js";
-import type { ClaudeCodeProfile } from "./profiles.js";
+import { isTokenProfile, type ClaudeCodeProfile } from "./profiles.js";
+import {
+  isZaiUsageBaseUrl,
+  nonessentialTrafficDisabled,
+} from "./token-profile-rules.js";
 
 const DEFAULT_PROVIDER_ID = "claude-code";
 
@@ -14,9 +18,21 @@ function profileSignInCommand(configDir: string): string {
   return `CLAUDE_CONFIG_DIR=${target} claude auth login`;
 }
 
+function profileBridgeOptions(
+  profile: ClaudeCodeProfile,
+): Record<string, string | Record<string, string>> {
+  return isTokenProfile(profile)
+    ? { claudeAuthTokenFile: profile.authTokenFile, claudeEnv: profile.env }
+    : { claudeConfigDir: profile.configDir };
+}
+
 function profileHints(
   profile: ClaudeCodeProfile | undefined,
 ): Pick<PluginProviderStrings, "signInHint" | "expiredHint"> {
+  if (profile !== undefined && isTokenProfile(profile)) {
+    const hint = `Put the API token for this profile in ${profile.authTokenFile} (chmod 600), then reload.`;
+    return { signInHint: hint, expiredHint: hint };
+  }
   const signInCommand =
     profile === undefined ? undefined : profileSignInCommand(profile.configDir);
   return {
@@ -34,6 +50,7 @@ function profileHints(
 export function claudeCodeProviderDeclaration(
   profile?: ClaudeCodeProfile,
 ): PluginProviderDeclaration {
+  const tokenProfile = profile !== undefined && isTokenProfile(profile);
   return {
     id:
       profile === undefined
@@ -44,7 +61,7 @@ export function claudeCodeProviderDeclaration(
       ? {}
       : {
           family: DEFAULT_PROVIDER_ID,
-          experimental_bridgeOptions: { claudeConfigDir: profile.configDir },
+          experimental_bridgeOptions: profileBridgeOptions(profile),
         }),
     icon: "./icons/claude-code.svg",
     strings: {
@@ -56,7 +73,7 @@ export function claudeCodeProviderDeclaration(
       iconTint: { light: "#D97757", dark: "#D97757" },
     },
     ...CLAUDE_NATIVE_ROOTS_DECLARATION,
-    ...(profile === undefined
+    ...(profile === undefined || tokenProfile
       ? {}
       : {
           experimental_nativeSkillRoots: {
@@ -67,17 +84,23 @@ export function claudeCodeProviderDeclaration(
         }),
     maintenance: {
       health: true,
-      usage: true,
+      usage:
+        !tokenProfile ||
+        (isTokenProfile(profile) &&
+          isZaiUsageBaseUrl(profile.env.ANTHROPIC_BASE_URL) &&
+          !nonessentialTrafficDisabled(profile.env)),
       installation: profile === undefined,
     },
     capabilities: {
-      supportsServiceTier: true,
+      supportsServiceTier: !tokenProfile,
       supportsNativeUserQuestion: true,
       fork: "checkpoint",
       supportsManualCompaction: true,
       supportsThreadArchive: false,
       supportsThreadRename: false,
-      permissionModes: ["accept-edits", "auto", "full"],
+      permissionModes: tokenProfile
+        ? ["accept-edits", "full"]
+        : ["accept-edits", "auto", "full"],
       reasoningLevels: ["low", "medium", "high", "xhigh", "ultracode", "max"],
     },
     reasoningLevels: [
@@ -92,15 +115,19 @@ export function claudeCodeProviderDeclaration(
       },
       { id: "max", label: "Max" },
     ],
-    serviceTiers: [
-      { id: "default", label: "Default" },
-      {
-        id: "fast",
-        label: "Fast",
-        description:
-          "Faster responses on supported Opus models at a higher cost per token.",
-      },
-    ],
+    ...(tokenProfile
+      ? {}
+      : {
+          serviceTiers: [
+            { id: "default", label: "Default" },
+            {
+              id: "fast",
+              label: "Fast",
+              description:
+                "Faster responses on supported Opus models at a higher cost per token.",
+            },
+          ],
+        }),
     composerActions: ["plan"],
     completedTurnDisplay: "flat",
     env: {

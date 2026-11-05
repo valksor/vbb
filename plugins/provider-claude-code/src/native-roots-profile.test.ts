@@ -71,6 +71,52 @@ describe("resolveClaudeProviderNativeRoots", () => {
     ]);
   });
 
+  it("resolves the default ~/.claude roots for a token profile even with an ambient CLAUDE_CONFIG_DIR", async () => {
+    const fixture = await makeFixture();
+
+    const roots = await resolveClaudeProviderNativeRoots({
+      cwd: null,
+      bridgeOptions: {
+        claudeAuthTokenFile: "~/.config/bb/glm.token",
+        claudeEnv: {
+          ANTHROPIC_BASE_URL: "https://api.z.ai/api/anthropic",
+          ANTHROPIC_DEFAULT_OPUS_MODEL: "glm-5.3[1m]",
+        },
+      },
+      homeDir: fixture.homeDir,
+      env: { CLAUDE_CONFIG_DIR: path.join(fixture.homeDir, "ambient") },
+    });
+
+    expect(skillPaths(roots)).toEqual([path.join(fixture.claudeDir, "skills")]);
+    expect(commandPaths(roots)).toEqual([
+      path.join(fixture.claudeDir, "commands"),
+    ]);
+  });
+
+  it("rejects token bridge options the profile schema would reject", async () => {
+    const fixture = await makeFixture();
+
+    await expect(
+      resolveClaudeProviderNativeRoots({
+        cwd: null,
+        bridgeOptions: {
+          claudeAuthTokenFile: "~/.config/bb/glm.token",
+          claudeEnv: { ANTHROPIC_API_KEY: "secret" },
+        },
+        homeDir: fixture.homeDir,
+        env: {},
+      }),
+    ).rejects.toThrow();
+    await expect(
+      resolveClaudeProviderNativeRoots({
+        cwd: null,
+        bridgeOptions: { claudeAuthTokenFile: "~/.config/bb/glm.token" },
+        homeDir: fixture.homeDir,
+        env: {},
+      }),
+    ).rejects.toThrow();
+  });
+
   it("resolves the default roots when the provider has no bridge options", async () => {
     const fixture = await makeFixture();
 

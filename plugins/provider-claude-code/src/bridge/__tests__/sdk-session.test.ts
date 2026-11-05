@@ -27,6 +27,7 @@ const defaultOptions: SdkSessionOptions = {
   cwd: "/tmp/test",
   systemPrompt: "You are a test assistant.",
   allowBypassPermissions: false,
+  env: {},
 };
 
 interface ClaudeQueryPromptCall {

@@ -98,8 +98,12 @@ import {
 } from "./provider-maintenance.js";
 import {
   applyActiveProfileSessionEnv,
+  buildModelProbeTarget,
   currentProfile,
   noteProfileRequest,
+  refreshTokenProfileEnv,
+  rejectForkWithoutProfileToken,
+  tokenProfileSettingsSource,
 } from "./profile.js";
 import {
   buildChromeExtraArgs,
@@ -517,8 +521,9 @@ function applyContextWindowSetting(
   if (disabled === undefined || sessionOptions.disable1MContext === disabled) {
     return;
   }
+  const sessionEnv = readSessionEnv(attachment);
   sessionOptions.disable1MContext = disabled;
-  refreshSessionEnv(attachment);
+  refreshSessionEnv(attachment, sessionEnv);
   if (attachment.residentSession) {
     attachment.residentSession.restartBeforeNextTurn = {
       reason: "Claude Code 1M context setting changed",
@@ -535,8 +540,9 @@ function applyArtifactSetting(
   if (enabled === undefined || sessionOptions.artifactsEnabled === enabled) {
     return;
   }
+  const sessionEnv = readSessionEnv(attachment);
   sessionOptions.artifactsEnabled = enabled;
-  refreshSessionEnv(attachment);
+  refreshSessionEnv(attachment, sessionEnv);
   if (attachment.residentSession) {
     attachment.residentSession.restartBeforeNextTurn = {
       reason: "Claude Artifacts setting changed",
@@ -545,11 +551,18 @@ function applyArtifactSetting(
   }
 }
 
-function refreshSessionEnv(attachment: ThreadAttachment): void {
+function readSessionEnv(attachment: ThreadAttachment): NodeJS.ProcessEnv {
+  return buildSessionEnv(
+    readConfigEnvOverrides(attachment.sessionConstructionConfig.config),
+  );
+}
+
+function refreshSessionEnv(
+  attachment: ThreadAttachment,
+  sessionEnv: NodeJS.ProcessEnv,
+): void {
   attachment.sessionOptions.env = {
-    ...buildSessionEnv(
-      readConfigEnvOverrides(attachment.sessionConstructionConfig.config),
-    ),
+    ...sessionEnv,
     ...buildClaudeFeatureEnv(
       attachment.sessionConstructionConfig.sessionOptions,
     ),
@@ -592,7 +605,7 @@ async function applyPermissionSettings(
       ...attachment.liveSettings,
       permissionMode: params.permissionMode,
     },
-    attachment.sessionOptions.env ?? {},
+    attachment.sessionOptions.env,
   );
   const permissionSettings = {
     sandbox: rebuilt.sandbox ?? { enabled: false },
@@ -1469,6 +1482,7 @@ function buildTrackedSessionOptions(
       permissionMode: params.approvedPlanPermissionMode,
     },
     env,
+    tokenProfileSettingsSource(bridgeTempDir),
   );
   sessionOptions.permissionMode = params.permissionMode;
   const disallowedTools = subagentDisallowedTools(
@@ -1483,6 +1497,7 @@ function buildTrackedSessionOptions(
 }
 
 function replaceThreadSession(args: ReplaceThreadSessionArgs): ThreadSession {
+  refreshTokenProfileEnv(args.attachment);
   args.threadSession.closing = true;
   resolvePendingSessionWork(args.threadSession, args.restart.reason);
   emitSessionReplacement({
@@ -1850,12 +1865,13 @@ function applyTurnEnvironment(
   if (attachment.envSignature === signature) {
     return;
   }
+  const sessionEnv = buildSessionEnv(envOverrides);
   attachment.envSignature = signature;
   attachment.sessionConstructionConfig = {
     ...attachment.sessionConstructionConfig,
     config,
   };
-  refreshSessionEnv(attachment);
+  refreshSessionEnv(attachment, sessionEnv);
   if (attachment.residentSession) {
     attachment.residentSession.restartBeforeNextTurn = {
       reason:
@@ -2320,7 +2336,12 @@ async function handleRequest(request: ClaudeCodeJsonRpcRequest): Promise<void> {
       break;
     case "model/list":
       try {
-        sendResult(request.id, await listModelsMemoized());
+        sendResult(
+          request.id,
+          await listModelsMemoized(() =>
+            buildModelProbeTarget(() => buildSessionEnv({}), bridgeTempDir),
+          ),
+        );
       } catch (error) {
         if (error instanceof MissingClaudeCliError) {
           sendError(
@@ -2543,6 +2564,7 @@ async function handleThreadFork(
   params: ThreadForkParams,
 ): Promise<void> {
   const threadId = params.threadId;
+  if (rejectForkWithoutProfileToken(id, sendError)) return;
 
   const existing = threadAttachments.get(threadId);
   if (existing) {

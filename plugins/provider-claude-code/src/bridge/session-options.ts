@@ -9,6 +9,11 @@ import { accessSync, constants, statSync } from "node:fs";
 import { join } from "node:path";
 import type { Options, Settings } from "@anthropic-ai/claude-agent-sdk";
 import type { ClaudePermissionMode } from "../interactive-contract.js";
+import {
+  tokenFlagSettingsDirOption,
+  tokenProfileFlagSettings,
+  type TokenProfileSettingsSource,
+} from "./session-options-token.js";
 import type {
   ClaudeMutableFlagSettings,
   ClaudeSdkReasoningEffort,
@@ -79,12 +84,17 @@ export function toSdkEffort(
   }
 }
 
-function buildFlagSettings(params: BuildSessionOptionsArgs): Settings {
+function buildFlagSettings(
+  params: BuildSessionOptionsArgs,
+  tokenProfile: TokenProfileSettingsSource | null,
+  sessionEnv: NodeJS.ProcessEnv,
+): Settings {
   return {
     autoMemoryEnabled: params.memoryEnabled ?? true,
     enableWorkflows: params.workflowsEnabled,
     ultracode: params.reasoningLevel === "ultracode",
     fastMode: params.serviceTier === "fast",
+    ...tokenProfileFlagSettings(tokenProfile, sessionEnv),
   };
 }
 
@@ -223,6 +233,7 @@ export function resolveClaudeCodeExecutable(
 export function buildSessionOptions(
   params: BuildSessionOptionsArgs,
   env: NodeJS.ProcessEnv,
+  tokenProfile: TokenProfileSettingsSource | null = null,
 ): SdkSessionOptions {
   const systemPrompt: Exclude<Options["systemPrompt"], undefined> =
     params.instructionMode === "replace"
@@ -240,7 +251,7 @@ export function buildSessionOptions(
     ? (params.additionalWorkspaceWriteRoots ?? [])
     : [];
   const pathToClaudeCodeExecutable = resolveClaudeCodeExecutable({ env });
-  const flagSettings = buildFlagSettings(params);
+  const flagSettings = buildFlagSettings(params, tokenProfile, env);
   const effort =
     params.reasoningLevel === undefined
       ? undefined
@@ -261,6 +272,7 @@ export function buildSessionOptions(
     ...(effort !== undefined ? { thinking: SUMMARIZED_ADAPTIVE_THINKING } : {}),
     settings: flagSettings,
     ...(extraArgs ? { extraArgs } : {}),
+    ...tokenFlagSettingsDirOption(tokenProfile),
     ...(pathToClaudeCodeExecutable ? { pathToClaudeCodeExecutable } : {}),
     ...(params.plugins ? { plugins: params.plugins } : {}),
     ...(sandbox ? { sandbox } : {}),

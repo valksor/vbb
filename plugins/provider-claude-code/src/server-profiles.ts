@@ -7,7 +7,7 @@ import {
 } from "./profiles.js";
 
 const PROFILES_SETTING_DESCRIPTION =
-  'A JSON array of extra Claude Code login profiles. Each profile has id, displayName and configDir, for example {"id":"work","displayName":"Claude Work","configDir":"~/.claude-work"}. See the guide for details.';
+  'A JSON array of extra Claude Code profiles. A login profile has its own sign-in: id, displayName and configDir, for example {"id":"work","displayName":"Claude Work","configDir":"~/.claude-work"}. A token profile talks to another Anthropic-compatible endpoint with an API token read from a file (mode 600): id, displayName, authTokenFile and env with a required ANTHROPIC_BASE_URL and at least one model variable, for example {"id":"glm","displayName":"GLM","authTokenFile":"~/.config/bb/glm.token","env":{"ANTHROPIC_BASE_URL":"https://api.z.ai/api/anthropic","ANTHROPIC_DEFAULT_OPUS_MODEL":"glm-5.3[1m]","ANTHROPIC_DEFAULT_SONNET_MODEL":"glm-5.3-flashx[1m]","ANTHROPIC_DEFAULT_HAIKU_MODEL":"glm-5.3-flash[1m]"}}. A profile is one kind or the other; see the guide for details.';
 
 export const CLAUDE_CODE_PROFILES_SETTING = {
   profiles: {
@@ -41,12 +41,16 @@ export async function registerClaudeCodeProfiles(
     const desired = new Map(profiles.map((profile) => [profile.id, profile]));
     for (const [id, entry] of [...registered]) {
       const next = desired.get(id);
-      if (next !== undefined && JSON.stringify(next) === entry.key) continue;
+      if (next !== undefined && JSON.stringify(next) === entry.key) {
+        continue;
+      }
       entry.dispose();
       registered.delete(id);
     }
     for (const [id, profile] of desired) {
-      if (registered.has(id)) continue;
+      if (registered.has(id)) {
+        continue;
+      }
       const declaration = claudeCodeProviderDeclaration(profile);
       try {
         const { dispose } = bb.providers.register(declaration);
@@ -60,9 +64,13 @@ export async function registerClaudeCodeProfiles(
   }
 
   function resolveAndReconcile(settingValue: string): void {
-    if (disposed) return;
+    if (disposed) {
+      return;
+    }
     const resolved = resolveClaudeCodeProfiles(settingValue);
-    for (const warning of resolved.warnings) bb.log.warn(warning);
+    for (const warning of resolved.warnings) {
+      bb.log.warn(warning);
+    }
     reconcile(resolved.profiles);
     if (resolved.profiles.length > 0) {
       bb.log.info(
@@ -91,7 +99,9 @@ export async function registerClaudeCodeProfiles(
 
   bb.onDispose(() => {
     disposed = true;
-    for (const [, entry] of registered) entry.dispose();
+    for (const [, entry] of registered) {
+      entry.dispose();
+    }
     registered.clear();
   });
 }

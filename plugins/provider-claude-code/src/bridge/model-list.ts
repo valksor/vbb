@@ -1,6 +1,11 @@
 import { type AvailableModel } from "@get-bb/plugin-sdk/provider-bridge";
 import { buildClaudeCodeModels } from "../model-list.js";
 import { probeClaudeInitialization } from "./initialization-probe.js";
+import {
+  probeTokenProfileModels,
+  type ModelProbeTarget,
+  type TokenProfileSettingsSource,
+} from "./model-list-token.js";
 
 async function probeClaudeCodeModels(env: NodeJS.ProcessEnv): Promise<{
   models: AvailableModel[];
@@ -9,6 +14,7 @@ async function probeClaudeCodeModels(env: NodeJS.ProcessEnv): Promise<{
   const initialization = await probeClaudeInitialization({
     env,
     cwd: process.cwd(),
+    settingsFile: null,
   });
   if (initialization.models.length === 0) {
     throw new Error("Claude Code reported no models.");
@@ -17,8 +23,10 @@ async function probeClaudeCodeModels(env: NodeJS.ProcessEnv): Promise<{
 }
 
 export async function listClaudeCodeBridgeModels(
-  env: NodeJS.ProcessEnv = process.env,
+  env: NodeJS.ProcessEnv,
+  tokenProfile: TokenProfileSettingsSource | null = null,
 ): ReturnType<typeof probeClaudeCodeModels> {
+  if (tokenProfile !== null) return probeTokenProfileModels(env, tokenProfile);
   try {
     return await probeClaudeCodeModels(env);
   } catch (error) {
@@ -35,22 +43,26 @@ export async function listClaudeCodeBridgeModels(
 }
 
 interface ClaudeCodeBridgeModelListMemoOptions {
-  list?: () => ReturnType<typeof listClaudeCodeBridgeModels>;
+  list?: (
+    target: ModelProbeTarget,
+  ) => ReturnType<typeof listClaudeCodeBridgeModels>;
   now?: () => number;
   ttlMs: number;
 }
 
 export function createClaudeCodeBridgeModelListMemo({
-  list = listClaudeCodeBridgeModels,
+  list = ({ env, tokenProfile }) =>
+    listClaudeCodeBridgeModels(env, tokenProfile),
   now = Date.now,
   ttlMs,
-}: ClaudeCodeBridgeModelListMemoOptions): () => ReturnType<
-  typeof listClaudeCodeBridgeModels
-> {
+}: ClaudeCodeBridgeModelListMemoOptions): (
+  buildTarget: () => ModelProbeTarget,
+) => ReturnType<typeof listClaudeCodeBridgeModels> {
   type Catalog = Awaited<ReturnType<typeof listClaudeCodeBridgeModels>>;
   let settled: { catalog: Catalog; expiresAt: number } | null = null;
   let pending: Promise<Catalog> | null = null;
-  return () => {
+  return (buildTarget) => {
+    const target = buildTarget();
     if (settled !== null && settled.expiresAt > now()) {
       return Promise.resolve(settled.catalog);
     }
@@ -58,7 +70,7 @@ export function createClaudeCodeBridgeModelListMemo({
     if (pending !== null) {
       return pending;
     }
-    const probe = list()
+    const probe = list(target)
       .then((catalog) => {
         settled = { catalog, expiresAt: now() + ttlMs };
         return catalog;
