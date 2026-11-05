@@ -74,6 +74,7 @@ import { setPluginMachineProviderBridge } from "./services/plugins/plugin-machin
 import { invalidateEnvironmentProviderMachineAvailability } from "./services/environments/provider-machine-availability.js";
 import { requestQueuedMessageDispatch } from "./services/threads/queued-message-dispatch.js";
 import { haltThreadForUnansweredQuestion } from "./services/threads/halt-unanswered-question.fork.js";
+import { installLateAnswerRecovery } from "./services/interactions/late-answer-delivery.fork.js";
 import { registerInternalEventRoutes } from "./internal/events.js";
 import { registerInternalHostRoutes } from "./internal/hosts.js";
 import { registerInternalInteractiveRequestRoutes } from "./internal/interactive-requests.js";
@@ -845,6 +846,7 @@ export function createApp(
     });
     haltThreadForUnansweredQuestion(deps, interaction);
   });
+  installLateAnswerRecovery(deps);
   setTurnTelemetryDeps(deps);
   setPluginThreadEventEmitter(pluginService.events);
   // Bridge the dispatch pipeline to this service's hooks. Until this runs

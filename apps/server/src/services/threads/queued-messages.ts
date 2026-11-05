@@ -14,6 +14,7 @@ import {
   releaseQueuedThreadMessageEditHold,
   releaseStaleQueuedMessageClaims,
   type DbQueryConnection,
+  type DbTransaction,
   type QueuedThreadMessageExecution,
   type QueuedThreadMessageGroupClaimPolicy,
   type QueuedThreadMessageGroupEligibility,
@@ -157,6 +158,7 @@ export function createAutomaticQueuedMessageGroupEligibility(
 export interface CreateQueuedMessageForThreadArgs {
   payload: CreateQueuedMessageRequest;
   thread: Thread;
+  withinTransaction?: (tx: DbTransaction) => void;
 }
 
 function admitQueuedMessage(
@@ -213,6 +215,7 @@ export async function createQueuedMessageForThread(
           throw new ApiError(404, "thread_not_found", "Thread not found");
         }
         const { hasProviderSession } = admitQueuedMessage(tx, currentThread);
+        args.withinTransaction?.(tx);
         const queuedMessage = createQueuedThreadMessageInTransaction(tx, {
           threadId: thread.id,
           content: input,

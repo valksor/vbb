@@ -11,4 +11,6 @@ Agents on providers without a native question tool can stop and ask you to choos
 
 The question card stays open after the agent finishes working. Answering lets the agent continue with your choice, and explicitly dismissing a card lets the agent proceed with its own judgment. Cards expire after 30 minutes by default; choose up to 7 days with the Question timeout setting. If a card expires unanswered, a turn still running is halted so the thread sits idle and waits for you — the agent does not proceed on its own. Dismissing or expiring a card does not restart an idle agent.
 
+If an AskUserQuestion card times out, you can still submit its answer with `respond` when you know the interaction ID. bb queues the answer as one ordinary follow-up message; retries keep the first queued answer.
+
 The tool is added only to providers that lack a native question tool. Providers with their own question tool, such as Claude Code, keep their native behavior.
