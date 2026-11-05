@@ -107,6 +107,11 @@ import {
   getAcpProviderUsage,
 } from "./provider-maintenance.js";
 import {
+  attachClaudeBashOutput,
+  observeClaudeBashOutput,
+  type ClaudeAgentBashOutputWatcher,
+} from "./claude-bash-output.js";
+import {
   type AcpConfigOption,
   acpConfigStateResultSchema,
   acpPromptResultSchema,
@@ -234,6 +239,7 @@ interface AcpThreadSession {
   deferStartEmit: AcpDeferredStartEmitter | undefined;
   awaitingFirstPrompt: boolean;
   turnOutputCount: number;
+  bashOutput: ClaudeAgentBashOutputWatcher | undefined;
 }
 
 type AcpDeferredStartEmitter = (
@@ -2191,6 +2197,7 @@ function liveSessionForThread(
 
 function removeSession(session: AcpThreadSession): void {
   for (const controller of session.pendingToolCalls) controller.abort();
+  session.bashOutput?.dispose();
   if (sessionsByBbThreadId.get(session.bbThreadId) === session) {
     sessionsByBbThreadId.delete(session.bbThreadId);
   }
@@ -2426,6 +2433,7 @@ async function startAgentSession(
     cursorMcpApproval: undefined,
     deferStartEmit: emitStartNotification,
     awaitingFirstPrompt: true,
+    bashOutput: undefined,
   };
   sessionsByBbThreadId.set(bbThreadId, session);
 
@@ -2599,6 +2607,12 @@ async function startAgentSession(
     }
     session.providerThreadId = sessionId;
     bbThreadIdByProviderThreadId.set(sessionId, bbThreadId);
+    session.bashOutput = attachClaudeBashOutput({
+      agentName: capabilities.agentInfo?.name,
+      childEnv,
+      sessionId,
+      publish: (deltas) => sendThreadDeltas(bbThreadId, deltas),
+    });
     sendNotification(BRIDGE_NOTIFICATION_METHODS.threadIdentity, {
       threadId: bbThreadId,
       providerThreadId: sessionId,
@@ -2957,6 +2971,7 @@ function emitSessionUpdate(
     threadId: session.bbThreadId,
     update,
   });
+  observeClaudeBashOutput(session.bashOutput, update);
 }
 
 async function releaseSession(session: AcpThreadSession): Promise<void> {
