@@ -68,6 +68,11 @@ import {
 import { buildProviderPromptActionProps } from "@bb/client-core";
 import type { PromptMentionLinkResolver } from "@bb/client-core";
 import {
+  carryNewThreadDraft,
+  skipsDraftCarry,
+  type CarryDraftToProject,
+} from "./NewThreadComposer.fork";
+import {
   type PluginComposerHost,
   useComposerHostSelection,
 } from "@/components/plugin/plugin-composer-host";
@@ -208,6 +213,7 @@ interface NewThreadComposerPromptOptions {
   placeholder?: string;
   autoFocus?: boolean;
   banner?: ReactNode;
+  handoff?: ReactNode;
   blocker?: NewThreadBlocker;
   resolveMentionLink?: PromptMentionLinkResolver;
   pluginComposerHost?: PluginComposerHost;
@@ -279,6 +285,7 @@ export interface NewThreadComposerProps {
   selectionScope: NewThreadComposerSelectionScope;
   seed?: NewThreadComposerSeed;
   resetKey?: string | number | null;
+  carryDraftToProject?: CarryDraftToProject;
   preferReadyProviderWhenUnset?: boolean;
   onSubmit: (request: NewThreadComposerSubmission) => void | Promise<void>;
   focusRequest?: number;
@@ -553,6 +560,7 @@ export function NewThreadComposer({
   selectionScope,
   seed,
   resetKey,
+  carryDraftToProject,
   preferReadyProviderWhenUnset = false,
   onSubmit,
   focusRequest,
@@ -1520,7 +1528,7 @@ export function NewThreadComposer({
       ) {
         return "refused";
       }
-      if (draftStorage.kind === "new-thread") {
+      if (skipsDraftCarry(draftStorage.kind, carryDraftToProject)) {
         await onProjectChange(nextValue);
         return "changed";
       }
@@ -1549,7 +1557,9 @@ export function NewThreadComposer({
             return "refused";
           }
         }
-        snapshotDraftBeforeOptionChange();
+        if (!carryNewThreadDraft({ carryDraftToProject, draftStorageKind: draftStorage.kind, nextValue, promptDraft })) {
+          snapshotDraftBeforeOptionChange();
+        }
         await onProjectChange(nextValue);
         return "changed";
       } finally {
@@ -1558,6 +1568,7 @@ export function NewThreadComposer({
       }
     },
     [
+      carryDraftToProject,
       draftStorage.kind,
       onProjectChange,
       projectId,
@@ -2060,6 +2071,7 @@ export function NewThreadComposer({
           }}
           promptActions={promptActions}
           modeConfig={{
+            handoff: options.handoff,
             environment: {
               value: effectiveEnvironmentValue,
               sources: projectSources,

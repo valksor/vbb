@@ -59,6 +59,7 @@ import { ThreadPendingInteractionBanners } from "@/components/thread/pending-int
 import { cn } from "@bb/shared-ui/lib/utils";
 import { useThreadContextKind } from "@/components/plugin/PluginThreadContextCard";
 import { Icon, type IconName } from "@bb/shared-ui/icon";
+import { continueInNewThreadAction } from "./ThreadPromptContextBanner.fork";
 import {
   AnimatedBody,
   AnimatedDisclosureBody,
@@ -113,6 +114,7 @@ export interface ThreadPromptArchivedSection {
 export interface ThreadPromptEnvironmentGoneSection {
   status: Extract<EnvironmentStatus, "destroyed"> | MachineRemovalStatus;
   onRestore?: () => void;
+  onContinueInNewThread?: () => void;
   restorePending?: boolean;
 }
 
@@ -1003,6 +1005,8 @@ interface ReadOnlyContextBannerProps {
   description: string | null;
   hasParentThread: boolean;
   statusAction: ReactNode;
+  extraStatusAction: ReactNode;
+  isEnvironmentGone: boolean;
   expandedSegment: string | null;
   onToggleSegment: (key: string) => void;
 }
@@ -1014,6 +1018,8 @@ function ReadOnlyContextBanner({
   description,
   hasParentThread,
   statusAction,
+  extraStatusAction,
+  isEnvironmentGone,
   expandedSegment,
   onToggleSegment,
 }: ReadOnlyContextBannerProps) {
@@ -1025,7 +1031,9 @@ function ReadOnlyContextBanner({
   const statusIcon = (
     <Icon name={iconName} className="size-3.5 shrink-0" aria-hidden="true" />
   );
-  const showStatusAction = statusAction !== null && !hasParentThread;
+  const showStatusAction =
+    (statusAction !== null || extraStatusAction !== null) &&
+    (!hasParentThread || isEnvironmentGone);
   const parentSegment = (part: ThreadContextSegmentPart) =>
     hasParentThread ? (
       <ThreadContextSegmentMount
@@ -1078,7 +1086,10 @@ function ReadOnlyContextBanner({
           />
         )}
         {showStatusAction ? (
-          <BannerActionSlot>{statusAction}</BannerActionSlot>
+          <BannerActionSlot hideInTiny={!isEnvironmentGone}>
+            {statusAction}
+            {extraStatusAction}
+          </BannerActionSlot>
         ) : null}
       </div>
       {description === null ? null : (
@@ -1196,7 +1207,7 @@ export function ThreadPromptContextBanner({
                 pendingLabel="Unarchiving..."
                 onClick={archivedSection.onUnarchive}
               />
-            ) : environmentGoneSection?.onRestore ? (
+            ) : !archivedSection && environmentGoneSection?.onRestore ? (
               <PendingBannerActionButton
                 pending={Boolean(environmentGoneSection.restorePending)}
                 label="Restore workspace"
@@ -1206,6 +1217,8 @@ export function ThreadPromptContextBanner({
             ) : null
           }
           hasParentThread={core.parentThread !== null}
+          extraStatusAction={continueInNewThreadAction(environmentGoneSection)}
+          isEnvironmentGone={environmentGoneSection !== null}
           expandedSegment={expandedSegment}
           onToggleSegment={onToggleSegment}
         />

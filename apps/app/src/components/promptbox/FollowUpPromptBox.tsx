@@ -60,6 +60,7 @@ import { useBottomAnchoredScroll } from "@/components/ui/bottom-anchored-scroll-
 import { useIsCompactViewport } from "@bb/shared-ui/hooks/use-compact-viewport";
 import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
 import { ThreadTimelineScrollToBottomButton } from "@/views/thread-detail/ThreadTimelineScrollToBottomButton";
+import { HandoffChangeTargetButton } from "./HandoffChangeTargetButton.fork";
 import { ThreadContextWindowIndicator } from "@/components/thread/timeline";
 import { formatCompactTokenCount } from "@/components/thread/timeline/thread-context-window-usage";
 import {
@@ -801,11 +802,15 @@ function FollowUpPromptBoxWithComposer({
                 aria-hidden
               />
               <span>Handoff to new thread</span>
+              <HandoffChangeTargetButton
+                disabled={executionControlsDisabled}
+                onClick={execution.handoff.onChangeTarget}
+              />
               <Button
                 type="button"
                 size="icon"
                 variant="ghost"
-                className="ml-auto size-6 shrink-0 text-subtle-foreground"
+                className="size-6 shrink-0 text-subtle-foreground"
                 onClick={execution.handoff.onExit}
                 disabled={executionControlsDisabled}
                 aria-label="Exit handoff"

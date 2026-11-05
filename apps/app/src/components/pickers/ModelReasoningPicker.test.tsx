@@ -844,6 +844,7 @@ describe("ModelReasoningPicker", () => {
           active: false,
           onStart,
           onExit,
+          onChangeTarget: vi.fn(),
           onSelect,
         },
       });
@@ -878,6 +879,7 @@ describe("ModelReasoningPicker", () => {
         active: false,
         onStart,
         onExit: vi.fn(),
+        onChangeTarget: vi.fn(),
         onSelect,
       },
     });
@@ -910,6 +912,7 @@ describe("ModelReasoningPicker", () => {
         active: false,
         onStart,
         onExit,
+        onChangeTarget: vi.fn(),
         onSelect,
       },
     });
@@ -946,6 +949,7 @@ describe("ModelReasoningPicker", () => {
         active: false,
         onStart: vi.fn(),
         onExit: vi.fn(),
+        onChangeTarget: vi.fn(),
         onSelect,
       },
     });
@@ -980,6 +984,7 @@ describe("ModelReasoningPicker", () => {
             active: false,
             onStart: vi.fn(),
             onExit: vi.fn(),
+            onChangeTarget: vi.fn(),
             onSelect,
           },
           providerRouting: { environmentId: "env-source" },
@@ -1031,6 +1036,7 @@ describe("ModelReasoningPicker", () => {
           active: false,
           onStart: vi.fn(),
           onExit: vi.fn(),
+          onChangeTarget: vi.fn(),
           onSelect,
         },
         alternateProviderModels: [
@@ -1081,6 +1087,7 @@ describe("ModelReasoningPicker", () => {
         active: true,
         onStart: vi.fn(),
         onExit,
+        onChangeTarget: vi.fn(),
         onSelect,
       },
     });

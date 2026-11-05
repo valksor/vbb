@@ -46,6 +46,50 @@ import {
   resolveRootComposeEffectiveEnvironmentValue,
 } from "./root-compose-environment-selection";
 
+describe("hasSingleUseRootComposeTargetState", () => {
+  it("recognizes handoff compose state as a single-use target", () => {
+    expect(
+      hasSingleUseRootComposeTargetState({
+        threadHandoffComposeSeed: {
+          draft: {
+            text: "Continue from @thread:thr_source",
+            mentions: [
+              {
+                start: 14,
+                end: 32,
+                resource: {
+                  kind: "thread",
+                  projectId: "proj_source",
+                  threadId: "thr_source",
+                  label: "Source thread",
+                },
+              },
+            ],
+            attachments: [],
+          },
+          environmentId: "env_source",
+          model: "test-model",
+          permissionMode: "auto",
+          projectId: "proj_source",
+          providerId: "test-provider",
+          reasoningLevel: "high",
+          serviceTier: undefined,
+          sourceThreadId: "thr_source",
+          sourceThreadTitle: "Source thread",
+        },
+      }),
+    ).toBe(true);
+  });
+
+  it("leaves ordinary malformed route state unconsumed", () => {
+    expect(
+      hasSingleUseRootComposeTargetState({
+        threadHandoffComposeSeed: { sourceThreadId: "thr_source" },
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("resolveHostEnvironmentProvider", () => {
   const checkoutProvider = makeProjectProvider("project-checkout");
   const worktreeProvider = makeProjectProvider("git-worktree");
