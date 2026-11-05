@@ -281,3 +281,5 @@ export function buildMacGhosttyRemoteSshOpenArgs(
     ...buildRemoteTerminalSshArgs(args),
   ];
 }
+
+export { escapeAppleScriptString, quoteShellArg };

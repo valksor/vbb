@@ -1022,6 +1022,7 @@ export async function createHostDaemonApp(
         dataDir: options.dataDir,
         hostId: options.hostId,
         localApiConfig: options.localApiConfig,
+        logger: options.logger,
         serverUrl: options.serverUrl,
         serverPort: Number(new URL(options.serverUrl).port) || 0,
         devAppPort: options.devAppPort,

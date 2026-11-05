@@ -145,6 +145,14 @@ Use `--selected-model <model-id>` to discover its reasoning choices and include 
 - `bb terminal close`
 - `bb terminal stop`
 
+## run-in-terminal
+
+- `bb run-in-terminal`
+
+Runs a shell command read from a file (or `-` for standard input) in a local
+terminal through the bb host daemon. Check `bb run-in-terminal --help` for its
+terminal-permissions (TCC) and shell-history notes.
+
 ## thread
 
 - `bb thread`

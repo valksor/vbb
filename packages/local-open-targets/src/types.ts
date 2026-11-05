@@ -1,4 +1,5 @@
 import type {
+  OpenInTargetCommandLanguage,
   WorkspaceOpenTarget,
   WorkspaceOpenTargetCapabilities,
   WorkspaceOpenTargetIcon,
@@ -21,7 +22,9 @@ type OpenPathInTargetContext =
 
 export interface OpenPathInTargetArgs {
   columnNumber: number | null;
+  command?: string;
   context: OpenPathInTargetContext;
+  language?: OpenInTargetCommandLanguage;
   lineNumber: number | null;
   path: string;
   targetId: WorkspaceOpenTargetId;

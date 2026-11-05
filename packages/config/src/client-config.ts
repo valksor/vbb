@@ -17,6 +17,7 @@ const clientServerConfigSchema = z
 
 const clientConfigFileSchema = z
   .object({
+    runCommandEnabled: z.boolean().optional(),
     servers: z.record(z.string().min(1), clientServerConfigSchema).default({}),
   })
   .strict();
@@ -42,7 +43,10 @@ export function normalizeClientServerOrigin(value: string): string {
 
 export function parseClientConfig(rawConfig: unknown): ClientConfig {
   const parsed = clientConfigFileSchema.parse(rawConfig);
-  const config: ClientConfig = { servers: {} };
+  const config: ClientConfig = {
+    runCommandEnabled: parsed.runCommandEnabled,
+    servers: {},
+  };
   for (const [rawOrigin, serverConfig] of Object.entries(parsed.servers)) {
     const serverOrigin = normalizeClientServerOrigin(rawOrigin);
     if (config.servers[serverOrigin] !== undefined) {

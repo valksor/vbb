@@ -8,6 +8,7 @@ import {
   LINE_ONLY_FILE_OPEN_CAPABILITIES,
   TERMINAL_OPEN_CAPABILITIES,
 } from "./capabilities.js";
+import { TERMINAL_RUN_COMMAND_CAPABILITIES } from "./terminal-run-command-capabilities.fork.js";
 import {
   buildMacGhosttyLocalOpenArgs,
   buildMacGhosttyRemoteSshOpenArgs,
@@ -571,7 +572,7 @@ export const LAUNCH_ADAPTERS: LaunchAdapter[] = [
     },
   },
   {
-    capabilities: TERMINAL_OPEN_CAPABILITIES,
+    capabilities: TERMINAL_RUN_COMMAND_CAPABILITIES,
     icon: { kind: "builtin", name: "terminal" },
     id: "terminal",
     kind: "terminal",
@@ -586,7 +587,7 @@ export const LAUNCH_ADAPTERS: LaunchAdapter[] = [
     },
   },
   {
-    capabilities: TERMINAL_OPEN_CAPABILITIES,
+    capabilities: TERMINAL_RUN_COMMAND_CAPABILITIES,
     icon: { kind: "builtin", name: "iterm2" },
     id: "iterm2",
     kind: "terminal",
@@ -601,7 +602,7 @@ export const LAUNCH_ADAPTERS: LaunchAdapter[] = [
     },
   },
   {
-    capabilities: TERMINAL_OPEN_CAPABILITIES,
+    capabilities: TERMINAL_RUN_COMMAND_CAPABILITIES,
     icon: { kind: "builtin", name: "ghostty" },
     id: "ghostty",
     kind: "terminal",
