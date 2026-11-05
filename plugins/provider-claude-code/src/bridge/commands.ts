@@ -107,6 +107,10 @@ export const claudeTurnSteerParamsSchema = claudeTurnStartParamsSchema
   .omit({ config: true })
   .extend({ expectedTurnId: z.string() });
 
+const modelListParamsSchema = z
+  .object({ providerOptions: z.record(z.string(), z.unknown()).optional() })
+  .passthrough();
+
 const claudeCodeCommandSchema = z.discriminatedUnion("method", [
   z.object({
     method: z.literal("initialize"),
@@ -114,7 +118,7 @@ const claudeCodeCommandSchema = z.discriminatedUnion("method", [
   }),
   z.object({
     method: z.literal("model/list"),
-    params: z.object({}),
+    params: modelListParamsSchema,
   }),
   z.object({
     method: z.literal("commands/list"),

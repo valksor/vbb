@@ -23,6 +23,16 @@ running instance, pass the same `--data-dir` and `--server-port` to
 `bb-app config` or `bb-app env` so they write the right file and refresh the
 right server.
 
+## Provider plugin profiles
+
+Use `bb plugin config <plugin-id>` for plugin settings. The Claude Code plugin
+accepts a `profiles` JSON array for additional native login providers. Each entry
+contains `id`, `displayName`, and `configDir`. The entry registers
+`claude-code-<id>` on hosts where the plugin runs. Use `bb provider list`,
+`bb provider models claude-code-<id>`, and `bb thread spawn --provider
+claude-code-<id>` to inspect and select it. SDK callers use the same provider ID
+through provider inventory, model access, and thread spawn operations.
+
 Launcher status output is plain when stdout is redirected, including in CI.
 Set `FORCE_COLOR=1` to request color or `NO_COLOR=1` to disable it; `NO_COLOR`
 takes precedence. In-place progress updates require a stdout TTY.

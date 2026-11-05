@@ -18,6 +18,7 @@ import {
 } from "../hosts/online-rpc.js";
 import { callPluginHostRpc } from "../plugins/plugin-host-rpc.js";
 import type { ProviderRegistration } from "./provider-registry.js";
+import { nativeRootsInput } from "./native-roots-input.js";
 
 export const PROVIDER_NATIVE_ROOTS_CACHE_TTL_MS = 10_000;
 
@@ -163,7 +164,7 @@ async function callResolveNativeRoots(
         pluginId,
         contract: experimental_nativeRootsHostContract,
         method: "resolveNativeRoots",
-        input: { providerId, cwd: args.cwd },
+        input: nativeRootsInput(providerId, args.cwd, registration),
         hostId: args.hostId,
         timeoutMs: args.timeoutMs,
         artifact,

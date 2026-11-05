@@ -776,6 +776,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "ContextCategory",
           "ContextEntry",
           "PluginProviderDeclaration",
+          "PluginProviderDeclaration.experimental_bridgeOptions",
           "AvailableModel",
           "AvailableModel.reasoningDiscovery",
           "ModelServiceTier",

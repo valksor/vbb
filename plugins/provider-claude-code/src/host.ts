@@ -3,7 +3,7 @@ import {
   experimental_defineHostEntry,
   experimental_nativeRootsHostContract,
 } from "@get-bb/plugin-sdk/host";
-import { resolveClaudeNativeRoots } from "./native-roots.js";
+import { resolveClaudeProviderNativeRoots } from "./native-roots-profile.js";
 
 export { experimental_providerBridge } from "./bridge/bridge.js";
 
@@ -11,8 +11,9 @@ export default experimental_defineHostEntry({
   contract: experimental_nativeRootsHostContract,
   handlers: {
     resolveNativeRoots: (input) =>
-      resolveClaudeNativeRoots({
+      resolveClaudeProviderNativeRoots({
         cwd: input.cwd,
+        bridgeOptions: input.bridgeOptions,
         homeDir: os.homedir(),
         env: process.env,
       }),

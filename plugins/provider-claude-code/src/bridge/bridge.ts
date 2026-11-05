@@ -97,6 +97,11 @@ import {
   getClaudeProviderUsage,
 } from "./provider-maintenance.js";
 import {
+  applyActiveProfileSessionEnv,
+  currentProfile,
+  noteProfileRequest,
+} from "./profile.js";
+import {
   buildChromeExtraArgs,
   buildClaudeFeatureEnv,
   buildReadonlyDenialMessage,
@@ -1814,6 +1819,7 @@ function buildSessionEnv(
     CLAUDE_CODE_ENTRYPOINT: "cli",
   };
   delete sessionEnv.CLAUDE_AGENT_SDK_CLIENT_APP;
+  applyActiveProfileSessionEnv(sessionEnv);
   return sessionEnv;
 }
 
@@ -2292,6 +2298,7 @@ function createCanUseTool(threadIdRef: ThreadIdRef): CanUseTool {
 }
 
 async function handleRequest(request: ClaudeCodeJsonRpcRequest): Promise<void> {
+  noteProfileRequest(request.params);
   switch (request.method) {
     case "initialize":
       const result: InitializeResult = {
@@ -2342,10 +2349,10 @@ async function handleRequest(request: ClaudeCodeJsonRpcRequest): Promise<void> {
       }
       break;
     case "provider/health":
-      sendResult(request.id, await getClaudeProviderHealth());
+      sendResult(request.id, await getClaudeProviderHealth(currentProfile()));
       break;
     case "provider/usage":
-      sendResult(request.id, await getClaudeProviderUsage());
+      sendResult(request.id, await getClaudeProviderUsage(currentProfile()));
       break;
     case "provider/installation/status":
       sendResult(
