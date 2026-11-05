@@ -727,6 +727,95 @@ describe("bridge", () => {
     }
   });
 
+  it("streams a running foreground Bash task's output file until its tool result arrives", async () => {
+    const claudeTmp = mkdtempSync(join(tmpdir(), "bb-claude-tmp-"));
+    tempDirs.push(claudeTmp);
+    vi.stubEnv("CLAUDE_CODE_TMPDIR", claudeTmp);
+    const bridge = createBridgeJsonRpcTestHarness(handleLine);
+    const queries: ControlledClaudeQuery[] = [];
+    queryMock.mockImplementation(() => {
+      const query = createControlledClaudeQuery();
+      queries.push(query);
+      return query;
+    });
+    const threadId = "thread-bash-follow";
+    const toolUseId = "000000000077";
+    try {
+      await startBridgeThread({ bridge, threadId });
+      bridge.sendRequest(
+        2,
+        "turn/start",
+        canonicalTurnParams({
+          threadId,
+          providerThreadId: threadId,
+          input: [{ type: "text", text: "count" }],
+        }),
+      );
+      await readNextPrompt(getLatestQueryCall());
+      await bridge.waitForResponse(2);
+      queries[0].emit(
+        createAssistantToolUseMessage({
+          parentToolUseId: null,
+          toolInput: { command: "./count.sh" },
+          toolName: "Bash",
+          toolUseId,
+        }),
+      );
+      const tasksDir = join(
+        claudeTmp,
+        `claude-${process.getuid?.() ?? 0}`,
+        "-tmp-worktree",
+        "session-1",
+        "tasks",
+      );
+      mkdirSync(tasksDir, { recursive: true });
+      writeFileSync(join(tasksDir, "bcount.output"), "tick 1\n");
+      queries[0].emit({
+        type: "system",
+        subtype: "task_started",
+        task_id: "bcount",
+        tool_use_id: toolUseId,
+        description: "Count",
+        task_type: "local_bash",
+        is_backgrounded: false,
+        uuid: "00000000-0000-4000-8000-000000000078",
+        session_id: "session-1",
+      });
+      const streamedOutput = () =>
+        assembleCapturedThreadEvents(bridge.messages, "claude-code")
+          .flatMap((event) =>
+            event.type === "item/commandExecution/outputDelta"
+              ? [event.delta]
+              : [],
+          )
+          .join("");
+      await vi.waitFor(() => expect(streamedOutput()).toBe("tick 1\n"));
+
+      queries[0].emit({
+        type: "user",
+        message: {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: toolUseId,
+              content: "tick 1\ntick 2\n",
+            },
+          ],
+        },
+        parent_tool_use_id: null,
+        uuid: "00000000-0000-4000-8000-000000000079",
+        session_id: "session-1",
+      });
+      writeFileSync(join(tasksDir, "bcount.output"), "tick 1\ntick 2\n");
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+      expect(streamedOutput()).toBe("tick 1\n");
+    } finally {
+      vi.unstubAllEnvs();
+      queries[0]?.finish();
+    }
+  });
+
   it("records the command and output file on a backgrounded bash task item", async () => {
     const claudeTmp = mkdtempSync(join(tmpdir(), "bb-claude-tmp-"));
     tempDirs.push(claudeTmp);
