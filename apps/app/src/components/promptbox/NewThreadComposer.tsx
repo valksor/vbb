@@ -1001,7 +1001,11 @@ export function NewThreadComposer({
     [providerOptions],
   );
 
-  const promptDraft = usePromptDraftController(draftStorage);
+  const promptDraft = usePromptDraftController(
+    draftStorage.kind === "new-thread"
+      ? { ...draftStorage, projectId }
+      : draftStorage,
+  );
   const textEffects = useComposerTextEffects(promptDraft.storageKey);
   const promptOptionDraftSnapshotRef = useRef<PromptDraftState | null>(null);
   const snapshotDraftBeforeOptionChange = useCallback(() => {
@@ -1516,6 +1520,10 @@ export function NewThreadComposer({
       ) {
         return "refused";
       }
+      if (draftStorage.kind === "new-thread") {
+        await onProjectChange(nextValue);
+        return "changed";
+      }
       const attachmentPaths = getProjectStoredPromptAttachmentPaths(
         promptDraft.getCurrent().attachments,
       );
@@ -1549,7 +1557,13 @@ export function NewThreadComposer({
         setIsCopyingAttachments(false);
       }
     },
-    [onProjectChange, projectId, promptDraft, snapshotDraftBeforeOptionChange],
+    [
+      draftStorage.kind,
+      onProjectChange,
+      projectId,
+      promptDraft,
+      snapshotDraftBeforeOptionChange,
+    ],
   );
   const handleProjectChange = useCallback(
     async (nextProjectId: string | null) => {
@@ -1875,7 +1889,9 @@ export function NewThreadComposer({
     ],
   );
   const { getSelection, subscribeSelection } = useComposerHostSelection(
-    promptDraft.storageKey,
+    draftStorage.kind === "new-thread"
+      ? draftStorage.kind
+      : promptDraft.storageKey,
     composerSelection,
   );
   const pendingSelectionRef = useRef<Promise<unknown>>(Promise.resolve());
