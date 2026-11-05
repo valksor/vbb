@@ -286,6 +286,7 @@ function CollapsibleMessageText({
           <ShellRunMarkdownPreview
             shellRun={shellRun && collapsedPreview?.wasCapped !== true}
             tableLayout="contained"
+            orderedListNumbering="source"
             content={
               collapsedPreview?.wasCapped === true
                 ? closeUnterminatedMarkdownCodeSpan(body.text)
