@@ -38,6 +38,7 @@ import { NavLink } from "react-router-dom";
 import type {
   EnvironmentStatus,
   PendingInteraction,
+  ThreadPendingInteractionKind,
   ThreadRuntimeDisplayStatus,
 } from "@bb/domain";
 import {
@@ -59,7 +60,11 @@ import { ThreadPendingInteractionBanners } from "@/components/thread/pending-int
 import { cn } from "@bb/shared-ui/lib/utils";
 import { useThreadContextKind } from "@/components/plugin/PluginThreadContextCard";
 import { Icon, type IconName } from "@bb/shared-ui/icon";
-import { continueInNewThreadAction } from "./ThreadPromptContextBanner.fork";
+import {
+  WaitingKindIcon,
+  continueInNewThreadAction,
+  sharedWaitingKind,
+} from "./ThreadPromptContextBanner.fork";
 import {
   AnimatedBody,
   AnimatedDisclosureBody,
@@ -91,6 +96,7 @@ interface ThreadPromptChildThreadItem {
   title: string;
   href: string;
   hasPendingInteraction: boolean;
+  pendingInteractionKind: ThreadPendingInteractionKind | null;
 }
 
 export interface ChildThreadQuestion {
@@ -343,10 +349,9 @@ function ChildThreadsBody({
         const content = (
           <>
             {item.hasPendingInteraction ? (
-              <Icon
-                name="CircleQuestion"
+              <WaitingKindIcon
+                kind={item.pendingInteractionKind}
                 className="size-3.5 shrink-0 text-muted-foreground/75 no-underline"
-                aria-label="Needs input"
               />
             ) : (
               <Icon
@@ -416,7 +421,13 @@ function ChildQuestionSummary({
   );
 }
 
-function ChildThreadsHeaderIcon({ needsInput }: { needsInput: boolean }) {
+function ChildThreadsHeaderIcon({
+  needsInput,
+  sharedKind,
+}: {
+  needsInput: boolean;
+  sharedKind: ThreadPendingInteractionKind | null;
+}) {
   return needsInput ? (
     <span className="relative mr-1 inline-flex shrink-0">
       <Icon
@@ -425,10 +436,9 @@ function ChildThreadsHeaderIcon({ needsInput }: { needsInput: boolean }) {
         aria-hidden="true"
       />
       <span className="absolute -bottom-1.5 -right-1.5 inline-flex rounded-full bg-background">
-        <Icon
-          name="CircleQuestion"
+        <WaitingKindIcon
+          kind={sharedKind}
           className="size-3 text-foreground/80"
-          aria-label="Needs input"
         />
       </span>
     </span>
@@ -444,10 +454,12 @@ function ChildThreadsHeaderIcon({ needsInput }: { needsInput: boolean }) {
 function ChildQuestionBackHeader({
   backButtonRef,
   needsInput,
+  sharedKind,
   onBack,
 }: {
   backButtonRef: RefObject<HTMLButtonElement | null>;
   needsInput: boolean;
+  sharedKind: ThreadPendingInteractionKind | null;
   onBack: () => void;
 }) {
   return (
@@ -470,7 +482,7 @@ function ChildQuestionBackHeader({
         className="size-3.5 shrink-0 text-muted-foreground"
         aria-hidden="true"
       />
-      <ChildThreadsHeaderIcon needsInput={needsInput} />
+      <ChildThreadsHeaderIcon needsInput={needsInput} sharedKind={sharedKind} />
       <span
         className={activityTextClass(
           "active",
@@ -775,6 +787,7 @@ function ActiveChildThreadsCard({
   };
   const showBackHeader = currentQuestion !== undefined && items.length > 1;
   const needsInput = items.some((item) => item.hasPendingInteraction);
+  const sharedKind = sharedWaitingKind(items);
   return (
     <PromptStackCard
       rootRef={cardRef}
@@ -787,6 +800,7 @@ function ActiveChildThreadsCard({
         <ChildQuestionBackHeader
           backButtonRef={backButtonRef}
           needsInput={needsInput}
+          sharedKind={sharedKind}
           onBack={backToChildThreads}
         />
       ) : (
@@ -810,7 +824,10 @@ function ActiveChildThreadsCard({
             ),
           )}
         >
-          <ChildThreadsHeaderIcon needsInput={needsInput} />
+          <ChildThreadsHeaderIcon
+            needsInput={needsInput}
+            sharedKind={sharedKind}
+          />
           {collapsedQuestion ? (
             <span className="flex min-w-0 flex-1 text-left">
               <ChildQuestionSummary

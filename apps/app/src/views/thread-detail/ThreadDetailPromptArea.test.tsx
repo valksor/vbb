@@ -1652,6 +1652,7 @@ describe("ThreadDetailPromptArea", () => {
           title: "Install workspace tools",
           href: "/threads/thr_child",
           hasPendingInteraction: true,
+          pendingInteractionKind: null,
         },
       ],
       pendingInteractions: [],
