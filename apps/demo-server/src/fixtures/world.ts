@@ -74,6 +74,7 @@ export function threadListEntry(
     },
     pinSortKey: null,
     hasPendingInteraction: false,
+    pendingInteractionKind: null,
     environmentHostId: DEMO_HOST_ID,
     environmentName: null,
     environmentBranchName: "main",
