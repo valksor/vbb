@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { completedTurnDisplaySchema } from "./completed-turn-display.js";
 import { isValidGitBranchName } from "./git-checkout.js";
+import {
+  defaultProviderTurnIdleSettings,
+  providerTurnIdleSettingsShape,
+  refineProviderTurnIdleThresholds,
+} from "./provider-turn-idle-settings.fork.js";
 
 export const MANAGED_BRANCH_PREFIX_MAX_LENGTH = 64;
 
@@ -57,6 +62,7 @@ export const appSettingsSchema = z
     defaultMachineAccess: z.string().min(1).nullable(),
     onboardingCompletedAt: z.string().min(1).nullable(),
     earlyAdopter: z.boolean(),
+    ...providerTurnIdleSettingsShape,
   })
   .strict();
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -82,6 +88,7 @@ export const defaultAppSettings: AppSettings = {
   machineGitCredentialsEnabled: true,
   onboardingCompletedAt: null,
   earlyAdopter: false,
+  ...defaultProviderTurnIdleSettings,
 };
 
 export const disabledProviderIdsSchema = z.array(z.string().min(1));
@@ -99,6 +106,12 @@ export const appSettingsUpdateSchema = z.union([
     showUnhandledProviderEvents: z.boolean().optional(),
     onboardingCompletedAt: z.string().min(1).nullable().optional(),
     earlyAdopter: z.boolean().optional(),
+    providerTurnIdleWatchdogEnabled:
+      providerTurnIdleSettingsShape.providerTurnIdleWatchdogEnabled.optional(),
+    providerTurnIdleNotifyMs:
+      providerTurnIdleSettingsShape.providerTurnIdleNotifyMs.optional(),
+    providerTurnIdleInterruptMs:
+      providerTurnIdleSettingsShape.providerTurnIdleInterruptMs.optional(),
   }),
   appSettingsSchema.omit({ showDiagnosticEvents: true }).extend({
     idleProviderSessionTimeoutMinutes:
@@ -112,6 +125,25 @@ export const appSettingsUpdateSchema = z.union([
     showUnhandledProviderEvents: z.boolean(),
     onboardingCompletedAt: z.string().min(1).nullable().optional(),
     earlyAdopter: z.boolean().optional(),
+    providerTurnIdleWatchdogEnabled:
+      providerTurnIdleSettingsShape.providerTurnIdleWatchdogEnabled.optional(),
+    providerTurnIdleNotifyMs:
+      providerTurnIdleSettingsShape.providerTurnIdleNotifyMs.optional(),
+    providerTurnIdleInterruptMs:
+      providerTurnIdleSettingsShape.providerTurnIdleInterruptMs.optional(),
   }),
-]);
+]).superRefine((value, ctx) => {
+  if (
+    value.providerTurnIdleNotifyMs !== undefined &&
+    value.providerTurnIdleInterruptMs !== undefined
+  ) {
+    refineProviderTurnIdleThresholds(
+      {
+        providerTurnIdleInterruptMs: value.providerTurnIdleInterruptMs,
+        providerTurnIdleNotifyMs: value.providerTurnIdleNotifyMs,
+      },
+      ctx,
+    );
+  }
+});
 export type AppSettingsUpdate = z.infer<typeof appSettingsUpdateSchema>;

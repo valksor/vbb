@@ -8,6 +8,7 @@ import {
   defaultAppSettings,
   disabledProviderIdsSchema,
   pluginPackageJsonSchema,
+  refineProviderTurnIdleThresholds,
   type AiServiceSelection,
   type AiServiceSelections,
   type AiTask,
@@ -20,6 +21,9 @@ import { appSettingsValues } from "../schema.js";
 
 const appSettingsKeySchema = appSettingsSchema.keyof();
 const appSettingsKeys = appSettingsKeySchema.options;
+const validatedAppSettingsSchema = appSettingsSchema.superRefine(
+  refineProviderTurnIdleThresholds,
+);
 
 const KEYBINDING_OVERRIDES_KEY = "keybindingOverrides";
 const AI_SERVICE_SELECTIONS_KEY = "aiServiceSelections";
@@ -78,20 +82,31 @@ export function getAppSettings(db: DbConnection): AppSettings {
   for (const row of rows) {
     const key = appSettingsKeySchema.safeParse(row.key);
     if (!key.success) continue;
+    if (
+      key.data === "providerTurnIdleWatchdogEnabled" ||
+      key.data === "providerTurnIdleNotifyMs" ||
+      key.data === "providerTurnIdleInterruptMs"
+    ) {
+      values[key.data] = appSettingsSchema.shape[key.data].parse(
+        parseStoredValue(row.value),
+      );
+      continue;
+    }
     const value = appSettingsSchema.shape[key.data].safeParse(
       parseStoredValue(row.value),
     );
     if (value.success) values[key.data] = value.data;
   }
 
-  return appSettingsSchema.parse(values);
+  return validatedAppSettingsSchema.parse(values);
 }
 
 export function setAppSettings(db: DbConnection, settings: AppSettings): void {
+  const validatedSettings = validatedAppSettingsSchema.parse(settings);
   const updatedAt = Date.now();
   db.transaction((transaction) => {
     for (const key of appSettingsKeys) {
-      writeValue(transaction, key, settings[key], updatedAt);
+      writeValue(transaction, key, validatedSettings[key], updatedAt);
     }
     transaction
       .delete(appSettingsValues)

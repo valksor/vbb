@@ -29,6 +29,7 @@ import {
   customThemeNameSchema,
   isBuiltInThemeId,
   PERSONAL_PROJECT_ID,
+  refineProviderTurnIdleThresholds,
   resolveCodeTheme,
   type AppKeybindingOverrides,
   type AppTheme,
@@ -308,36 +309,59 @@ export function registerSystemRoutes(
       "showDiagnosticEvents" in settings
         ? settings.showDiagnosticEvents
         : undefined;
-    const updatedSettings = appSettingsSchema.parse({
-      ...settings,
-      idleProviderSessionTimeoutMinutes:
-        settings.idleProviderSessionTimeoutMinutes === undefined
-          ? current.idleProviderSessionTimeoutMinutes
-          : settings.idleProviderSessionTimeoutMinutes,
-      allowFastServiceTier:
-        settings.allowFastServiceTier ?? current.allowFastServiceTier,
-      telemetryEnabled: settings.telemetryEnabled ?? current.telemetryEnabled,
-      terminalCopyOnSelect:
-        settings.terminalCopyOnSelect ?? current.terminalCopyOnSelect,
-      keepHistoryAfterContextClear:
-        settings.keepHistoryAfterContextClear ??
-        current.keepHistoryAfterContextClear,
-      summarizeShellCommands:
-        settings.summarizeShellCommands ?? current.summarizeShellCommands,
-      confirmThreadArchive:
-        settings.confirmThreadArchive ?? current.confirmThreadArchive,
-      earlyAdopter: settings.earlyAdopter ?? current.earlyAdopter,
-      onboardingCompletedAt:
-        settings.onboardingCompletedAt === undefined
-          ? current.onboardingCompletedAt
-          : settings.onboardingCompletedAt,
-      showDiagnosticEvents:
-        diagnosticValue === undefined ||
-        (showUnhandledProviderEvents !== undefined &&
-          diagnosticValue === current.showDiagnosticEvents)
-          ? showUnhandledProviderEvents
-          : diagnosticValue,
-    });
+    const parsedSettings = appSettingsSchema
+      .superRefine(refineProviderTurnIdleThresholds)
+      .safeParse({
+        ...settings,
+        idleProviderSessionTimeoutMinutes:
+          settings.idleProviderSessionTimeoutMinutes === undefined
+            ? current.idleProviderSessionTimeoutMinutes
+            : settings.idleProviderSessionTimeoutMinutes,
+        allowFastServiceTier:
+          settings.allowFastServiceTier ?? current.allowFastServiceTier,
+        telemetryEnabled:
+          settings.telemetryEnabled ?? current.telemetryEnabled,
+        terminalCopyOnSelect:
+          settings.terminalCopyOnSelect ?? current.terminalCopyOnSelect,
+        keepHistoryAfterContextClear:
+          settings.keepHistoryAfterContextClear ??
+          current.keepHistoryAfterContextClear,
+        summarizeShellCommands:
+          settings.summarizeShellCommands ?? current.summarizeShellCommands,
+        confirmThreadArchive:
+          settings.confirmThreadArchive ?? current.confirmThreadArchive,
+        earlyAdopter: settings.earlyAdopter ?? current.earlyAdopter,
+        onboardingCompletedAt:
+          settings.onboardingCompletedAt === undefined
+            ? current.onboardingCompletedAt
+            : settings.onboardingCompletedAt,
+        providerTurnIdleWatchdogEnabled:
+          settings.providerTurnIdleWatchdogEnabled === undefined
+            ? current.providerTurnIdleWatchdogEnabled
+            : settings.providerTurnIdleWatchdogEnabled,
+        providerTurnIdleNotifyMs:
+          settings.providerTurnIdleNotifyMs === undefined
+            ? current.providerTurnIdleNotifyMs
+            : settings.providerTurnIdleNotifyMs,
+        providerTurnIdleInterruptMs:
+          settings.providerTurnIdleInterruptMs === undefined
+            ? current.providerTurnIdleInterruptMs
+            : settings.providerTurnIdleInterruptMs,
+        showDiagnosticEvents:
+          diagnosticValue === undefined ||
+          (showUnhandledProviderEvents !== undefined &&
+            diagnosticValue === current.showDiagnosticEvents)
+            ? showUnhandledProviderEvents
+            : diagnosticValue,
+      });
+    if (!parsedSettings.success) {
+      throw new ApiError(
+        400,
+        "invalid_request",
+        parsedSettings.error.issues[0]?.message ?? "Invalid general settings",
+      );
+    }
+    const updatedSettings = parsedSettings.data;
     setAppSettings(deps.db, updatedSettings);
     if (current.telemetryEnabled && !updatedSettings.telemetryEnabled) {
       deps.telemetry.capture({ name: "telemetry_disabled" });

@@ -635,6 +635,7 @@ export function createPluginApi(options: {
     "turn.failed": [],
     "message.cancelled": [],
     "thread.unarchived": [],
+    "experimental_thread.turnWatchdog": [],
   };
   const hooks: PluginHookRecords = {
     "message.dispatch": null,

@@ -24,6 +24,7 @@ import {
   type NotificationLevel,
   type PushNotificationKind,
 } from "./preferences.js";
+import { turnWatchdogMessage } from "./sender.fork.js";
 import type { PushSubscriptionStore } from "./subscriptions.js";
 
 type ThreadResponse = PluginThreadEventPayloads["thread.idle"]["thread"];
@@ -37,11 +38,13 @@ const LAST_OUTCOME_KEY = "last-send-outcome";
 const DELIVERED_THREAD_KEY_PREFIX = "delivered-thread:";
 const FALLBACK_BODIES: Record<PushNotificationKind, string> = {
   "pending-interaction": "Waiting for your input",
+  "turn-watchdog": "A turn stalled",
   "thread-error": "The thread hit an error",
   "turn-finished": "Finished and waiting for you",
 };
 const PUSH_KIND_PRIORITY: readonly PushNotificationKind[] = [
   "pending-interaction",
+  "turn-watchdog",
   "thread-error",
   "turn-finished",
 ];
@@ -176,6 +179,9 @@ export interface PushSender {
   onThreadIdle(payload: PluginThreadEventPayloads["thread.idle"]): void;
   onThreadRead(
     payload: PluginThreadEventPayloads["experimental_thread.read"],
+  ): void;
+  onTurnWatchdog(
+    payload: PluginThreadEventPayloads["experimental_thread.turnWatchdog"],
   ): void;
   send(
     input: SendNotificationInput,
@@ -670,6 +676,13 @@ export function createPushSender(args: CreatePushSenderArgs): PushSender {
       track(
         dismissThread(thread.id),
         `Push notification dismissal for thread ${thread.id}`,
+      );
+    },
+    onTurnWatchdog(payload) {
+      schedule(
+        payload.thread.id,
+        "turn-watchdog",
+        turnWatchdogMessage(payload),
       );
     },
     send,

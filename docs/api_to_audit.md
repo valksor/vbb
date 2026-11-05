@@ -686,6 +686,24 @@ policy asks without replaying the event log. Attempt caps are entirely the
 plugin's; core enforces no ceiling beyond one live retry row per original
 request.
 
+## `experimental_thread.turnWatchdog` (`PluginThreadEventPayloads`)
+
+**What it does.** Core produces this event in `runProviderTurnWatchdogSweep` when
+the watchdog acts on the active turn. `action: "notify"` fires when idle time first crosses
+`providerTurnIdleNotifyMs` and the turn is still running. `action: "interrupt"`
+fires when the turn crosses `providerTurnIdleInterruptMs` and core stops it. The
+push-notifications plugin consumes this event. The payload includes the standard
+`ThreadResponse` DTO, which can contain a user-written title or fallback, plus
+`elapsedMs`, `thresholdMs`, and `action`. The additional watchdog fields contain
+no prompt or output snapshots. Consumers must apply their existing privacy policy
+before forwarding the DTO.
+
+**Audit before stabilizing.** Confirm the payload answers what a notifier needs
+without replaying the event log. Decide whether `notify` and `interrupt` should
+stay one event with an `action` discriminant or split into two named events.
+Confirm consumers apply their privacy policy before forwarding the `ThreadResponse`
+DTO. Stabilization includes the project-wide rename and removing this entry.
+
 ## `bb.experimental_environments` (`register`, `recheck`)
 
 Registers an environment provider: a named place threads run. Ids are flat

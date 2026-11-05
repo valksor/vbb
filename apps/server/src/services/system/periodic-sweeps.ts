@@ -1,3 +1,4 @@
+import { FORK_PERIODIC_SWEEP_JOBS } from "./periodic-sweeps.fork.js";
 import {
   runThreadPruningSweep,
   THREAD_PRUNING_SWEEP_LIMITS,
@@ -658,6 +659,7 @@ const PERIODIC_SWEEP_JOBS: PeriodicSweepJob[] = [
     name: "thread-storage-orphan-cleanup",
     run: runThreadStorageOrphanSweep,
   },
+  ...FORK_PERIODIC_SWEEP_JOBS,
 ];
 
 export async function runStartupRecoverySweep(

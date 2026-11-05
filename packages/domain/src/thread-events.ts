@@ -19,6 +19,7 @@ import {
   systemMessageSubjectSchema,
   systemThreadInterruptedReasonSchema,
 } from "./system-message.js";
+import { providerTurnWatchdogActionSchema } from "./provider-turn-watchdog-action.fork.js";
 
 export { systemEventTypeValues } from "./thread-event-types.js";
 
@@ -238,6 +239,7 @@ export const systemLegacyUserMessageEventDataSchema = z.object({
 
 export const systemProviderTurnWatchdogEventDataSchema = z.object({
   reason: z.literal("provider-turn-idle"),
+  action: providerTurnWatchdogActionSchema.default("notify"),
   thresholdMs: z.number().int().positive(),
   elapsedMs: z.number().int().nonnegative(),
   activeTurnId: z.string().min(1),

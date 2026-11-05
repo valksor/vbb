@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import type { Environment, JsonValue } from "@bb/domain";
+import {
+  defaultAppSettings,
+  type Environment,
+  type JsonValue,
+} from "@bb/domain";
 import { createBbSdk } from "../src/core.js";
 import { createHttpTransport } from "../src/transport-http.js";
 import { ThreadWaitTimeoutError } from "../src/areas/threads.js";
@@ -107,6 +111,33 @@ function createFetchQueue(
 }
 
 describe("@bb/sdk", () => {
+  it("updates watchdog settings through the general settings SDK path", async () => {
+    const settings = {
+      ...defaultAppSettings,
+      providerTurnIdleWatchdogEnabled: false,
+      providerTurnIdleNotifyMs: 600_000,
+      providerTurnIdleInterruptMs: 1_200_000,
+    };
+    const queue = createFetchQueue([{ body: {} }]);
+    const sdk = createBbSdk({
+      transport: createHttpTransport({
+        baseUrl: "http://bb.test",
+        fetch: queue.fetch,
+        runtime: "node",
+      }),
+    });
+
+    await sdk.system.updateGeneralSettings(settings);
+
+    expect(queue.requests).toEqual([
+      {
+        bodyText: JSON.stringify(settings),
+        method: "PUT",
+        url: "http://bb.test/api/v1/settings/general",
+      },
+    ]);
+  });
+
   it("pages prompt history with an opaque cursor", async () => {
     const response = {
       entries: [

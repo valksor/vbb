@@ -153,6 +153,17 @@ the same button.
 reuse results for 10 seconds. The SDK equivalent is
 `bb.sdk.system.usageLimits({ refresh: true })`.
 
+The provider-turn stall watchdog flags an idle active operation after
+`providerTurnIdleNotifyMs` (default `21600000`, 6h) and interrupts it after
+`providerTurnIdleInterruptMs` (default `43200000`, 12h).
+`providerTurnIdleWatchdogEnabled` defaults to `true`. Set it to `false` to disable
+both actions. Both thresholds have a minimum of `300000` (5 minutes), and the
+interrupt threshold must exceed the notify threshold. Use
+`bb settings general <key> <value>`. If you raise the notify threshold past the
+current interrupt threshold, raise the interrupt threshold first. If you lower
+the interrupt threshold below the current notify threshold, lower the notify
+threshold first. The SDK uses the existing general settings update.
+
 Command line: Settings → General → Command line puts the `bb` command on PATH
 on the computer that runs the bb server, so the user, a script, or an agent
 running outside bb (such as Claude Code or Codex) can control bb; threads in bb

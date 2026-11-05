@@ -588,6 +588,9 @@ export function createPushNotificationsPlugin(
     bb.events.on("thread.unarchived", ({ thread }) =>
       preferences.publishSubtree(thread.id),
     );
+    bb.events.on("experimental_thread.turnWatchdog", (payload) => {
+      sender.onTurnWatchdog(payload);
+    });
     bb.background.service("push-sender", {
       async start(signal) {
         await sender.start();

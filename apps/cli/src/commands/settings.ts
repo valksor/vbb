@@ -13,6 +13,7 @@ import {
   experimentKeySchema,
   isUiPreferenceKey,
   parseUiPreferenceValue,
+  refineProviderTurnIdleThresholds,
   UI_PREFERENCE_KEYS,
   type AiServiceSelection,
   type AiTask,
@@ -248,10 +249,13 @@ function updateGeneralSetting(
 
   let message: string | null = null;
   for (const candidate of generalSettingValueCandidates(value)) {
-    const updated = appSettingsSchema.strip().safeParse({
-      ...settings,
-      [settingKey.data]: candidate,
-    });
+    const updated = appSettingsSchema
+      .strip()
+      .superRefine(refineProviderTurnIdleThresholds)
+      .safeParse({
+        ...settings,
+        [settingKey.data]: candidate,
+      });
     if (updated.success) return updated.data;
     message ??= updated.error.issues[0]?.message ?? null;
   }

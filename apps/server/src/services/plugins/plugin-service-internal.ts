@@ -33,6 +33,7 @@ import type {
 import type { HostSharedPortCoordinator } from "../../ws/host-shared-ports.js";
 import type { ProviderRegistryService } from "../providers/provider-registry.js";
 import type { PluginHostArtifactRegistry } from "./plugin-host-artifact-registry.js";
+import type { EmitThreadTurnWatchdog } from "./plugin-thread-events.fork.js";
 
 type PluginServiceState = "running" | "backoff" | "stopped";
 
@@ -248,6 +249,7 @@ export interface PluginThreadEventEmitter {
   emitThreadDeleted(thread: Thread): void;
   emitThreadRead(threadId: string): void;
   emitInteractionPending(thread: Thread, interaction: PendingInteraction): void;
+  emitThreadTurnWatchdog?: EmitThreadTurnWatchdog;
   /**
    * Queue lifecycle. The row is already in its new state when these fire; the
    * DTO is built once and shared by every listener, exactly like the thread

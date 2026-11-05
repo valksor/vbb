@@ -8,6 +8,7 @@ import type {
   ThreadEventItemPresentation,
   UserQuestionInteractionLifecycle,
 } from "@bb/domain";
+import { stalledTurnDisplay } from "./parse-operation-message.fork.js";
 import {
   THREAD_CONTEXT_CLEAR_OPERATION,
   THREAD_CONTEXT_CLEARED_DETAIL,
@@ -633,11 +634,10 @@ export function parseOperationMessage(
   if (decoded.type === "system/provider-turn-watchdog") {
     return op(decoded, meta, "provider-turn-watchdog", {
       opType: "operation",
-      title: "Provider turn stopped responding",
+      ...stalledTurnDisplay(decoded),
       detail: `No provider activity for ${Math.round(
         decoded.elapsedMs / 1_000,
       )}s after ${decoded.lastActivityEventType}`,
-      status: "error",
     });
   }
 

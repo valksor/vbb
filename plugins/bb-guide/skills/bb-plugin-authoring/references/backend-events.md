@@ -21,6 +21,10 @@ bb.events.on("message.queued", ({ entry }) => { ... });                    // en
 bb.events.on("message.dispatched", ({ entry }) => { ... });
 bb.events.on("turn.failed", (event) => { ... });                           // ids + failure facts
 bb.events.on("message.cancelled", ({ entry }) => { ... });                 // row deleted before dispatch
+bb.events.on("experimental_thread.turnWatchdog", ({ thread, elapsedMs, thresholdMs, action }) => {
+  if (action === "notify") { ... }
+  if (action === "interrupt") { ... }
+});
 ```
 
 **Events are announcements core makes.** Something already happened, your

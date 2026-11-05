@@ -39,6 +39,59 @@ describe("bb settings commands", () => {
     },
   );
 
+  it.each([
+    {
+      key: "providerTurnIdleWatchdogEnabled",
+      value: "off",
+      expected: false,
+    },
+    {
+      key: "providerTurnIdleNotifyMs",
+      value: "300000",
+      expected: 300_000,
+    },
+    {
+      key: "providerTurnIdleInterruptMs",
+      value: "43800000",
+      expected: 43_800_000,
+    },
+  ] as const)(
+    "updates watchdog setting $key through general settings",
+    async ({ key, value, expected }) => {
+      const put = vi.fn(async ({ json }) => json);
+      stubServerApi({
+        "v1.system.config.$get": vi.fn(async () => ({
+          generalSettings: defaultAppSettings,
+        })),
+        "v1.settings.general.$put": put,
+      });
+
+      await runCommand(["settings", "general", key, value], register);
+
+      expect(put).toHaveBeenCalledExactlyOnceWith({
+        json: { ...defaultAppSettings, [key]: expected },
+      });
+    },
+  );
+
+  it("rejects a watchdog threshold that would equal the interrupt threshold", async () => {
+    const put = vi.fn(async ({ json }) => json);
+    stubServerApi({
+      "v1.system.config.$get": vi.fn(async () => ({
+        generalSettings: defaultAppSettings,
+      })),
+      "v1.settings.general.$put": put,
+    });
+
+    await expect(
+      runCommand(
+        ["settings", "general", "providerTurnIdleNotifyMs", "43200000"],
+        register,
+      ),
+    ).rejects.toThrow("process.exit:1");
+    expect(put).not.toHaveBeenCalled();
+  });
+
   it("rejects an idle timeout outside the allowed values without writing settings", async () => {
     const put = vi.fn(async ({ json }) => json);
     stubServerApi({

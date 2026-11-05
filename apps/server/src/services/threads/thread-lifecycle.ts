@@ -1344,7 +1344,7 @@ async function requestThreadStartOnce(
   }
 }
 
-function requestThreadStop(
+export function requestThreadStop(
   deps: CommandResultSideEffectsDeps,
   args: RequestThreadStopArgs,
 ): void {

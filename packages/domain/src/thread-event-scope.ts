@@ -63,7 +63,7 @@ interface ThreadEventScopePolicyDefinitionEntry {
   type: ThreadEventType;
 }
 
-const threadEventScopeDefinitionByType = {
+export const threadEventScopeDefinitionByType = {
   "thread/started": {
     policy: "thread",
     rationale: "Thread lifecycle event; it creates the thread timeline itself.",
@@ -222,7 +222,7 @@ const threadEventScopeDefinitionByType = {
   "system/provider-turn-watchdog": {
     policy: "thread",
     rationale:
-      "Legacy persisted watchdog diagnostics are decoded for old timelines only; there is no current producer.",
+      "Provider turn watchdog diagnostics describe server lifecycle ownership for the whole thread.",
   },
 } as const satisfies ThreadEventScopePolicyDefinitionByType;
 
@@ -243,7 +243,7 @@ function buildThreadEventScopePolicyByType(): ThreadEventScopePolicyByType {
   return policies as ThreadEventScopePolicyByType;
 }
 
-const threadEventScopePolicyByType = buildThreadEventScopePolicyByType();
+export const threadEventScopePolicyByType = buildThreadEventScopePolicyByType();
 
 export function threadScope(): ThreadEventScope {
   return { kind: "thread" };
