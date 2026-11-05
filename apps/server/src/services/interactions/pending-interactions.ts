@@ -64,6 +64,7 @@ import {
   recoverLateAnswer,
   type UnclaimedPluginAnswerDeliverer,
 } from "./pending-interactions-late-answer.fork.js";
+import { oldestPendingInteractionKind } from "./pending-interactions-notifications.fork.js";
 import {
   LIVE_DAEMON_COMMAND_TIMEOUT_MS,
   startLiveHostCommand,
@@ -327,6 +328,7 @@ function buildInteractionChangeMetadata({
   return {
     hasPendingInteraction:
       getActivePendingInteractionForThread(db, threadId) !== null,
+    pendingInteractionKind: oldestPendingInteractionKind(db, threadId),
     projectId: thread.projectId,
   };
 }
