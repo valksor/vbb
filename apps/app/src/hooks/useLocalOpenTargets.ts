@@ -15,6 +15,10 @@ import {
   useWorkspaceOpenTargetPreference,
 } from "@/lib/workspace-open-target-preference";
 import { useHostDaemon } from "./useHostDaemon";
+import {
+  useRunCommandTarget,
+  type RunCommandTargetResult,
+} from "./useRunCommandTarget.fork";
 import { useWorkspaceOpenTargets } from "./useWorkspaceOpenTargets";
 
 const LOCAL_OPEN_FAILURE_TITLE = "Failed to open file locally";
@@ -51,7 +55,7 @@ interface OpenPathInAvailableTargetArgs extends OpenLocalPathRequest {
   targetKind: OpenUnavailableTargetKind;
 }
 
-interface UseLocalOpenTargetsResult {
+interface UseLocalOpenTargetsResult extends RunCommandTargetResult {
   canOpenPreferredDirectoryTarget: boolean;
   canOpenPreferredFileTarget: boolean;
   directoryOpenTargets: WorkspaceOpenTarget[];
@@ -441,6 +445,12 @@ export function useLocalOpenTargets(
     ],
   );
 
+  const runCommand = useRunCommandTarget({
+    contextKind,
+    openWorkspace,
+    workspaceOpenTargets,
+  });
+
   return {
     canOpenPreferredDirectoryTarget: preferredDirectoryTarget !== null,
     canOpenPreferredFileTarget: preferredFileTarget !== null,
@@ -453,5 +463,6 @@ export function useLocalOpenTargets(
     openPathInPreferredFileTarget,
     preferredDirectoryTarget,
     preferredFileTarget,
+    ...runCommand,
   };
 }

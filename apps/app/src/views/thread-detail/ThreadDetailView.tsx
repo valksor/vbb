@@ -58,6 +58,8 @@ import {
   type ProjectThreadSubsetFilters,
 } from "../../hooks/queries/thread-queries";
 import { isTransientReadError } from "@/hooks/queries/query-helpers";
+import { ShellCommandRunnerSourceProvider } from "@/components/ui/markdown-shell-command-run.fork";
+import { useShellCommandRun } from "./shell-command-run.fork";
 import { PageShell } from "@/components/ui/page-shell.js";
 import { RouteLoadingSkeleton } from "@/components/ui/route-loading-skeleton";
 import { ThreadTimelineLoadingSkeleton } from "@/components/thread/timeline/ThreadTimelineLoadingSkeleton";
@@ -1080,12 +1082,19 @@ function ThreadDetailViewInternal(
       openPathInFileTarget,
       openPathInPreferredDirectoryTarget,
       preferredDirectoryTarget,
+      runCommandInPreferredTerminalTarget,
+      runCommandTarget,
     },
     threadStorageRootPath,
   } = useThreadFileLinkOpener({
     environment,
     openFilePreview: openLiveFilePreview,
     threadId,
+  });
+  const { drawer, shellCommandRunner } = useShellCommandRun({
+    runCommandInPreferredTerminalTarget,
+    runCommandTarget,
+    workspacePreviewRootPath,
   });
   const parentThreadId = thread?.parentThreadId;
   const parentThreadDisplayName =
@@ -1522,7 +1531,7 @@ function ThreadDetailViewInternal(
       workspaceOpenButton={workspaceOpenButton}
     />
   );
-  const threadScreen = (
+  const baseThreadScreen = (
     <ThreadScreen
       composer={{
         environmentCheckout: threadCheckoutDisplay,
@@ -1547,6 +1556,11 @@ function ThreadDetailViewInternal(
         unreadDividerPlacement: unreadDividerState.placement,
       }}
     />
+  );
+  const threadScreen = (
+    <ShellCommandRunnerSourceProvider runner={shellCommandRunner}>
+      {baseThreadScreen}
+    </ShellCommandRunnerSourceProvider>
   );
   const renderSecondaryTabContent = (
     tab: SecondaryFileFixedPanelTab,
@@ -1787,6 +1801,7 @@ function ThreadDetailViewInternal(
                 onPanelFocus: touchFixedPanelTabsState,
               }}
             />
+            {drawer}
           </AppNavigationHostProvider>
         </UrlOpenRoutingProvider>
       </ThreadTimelineNavigationProvider>

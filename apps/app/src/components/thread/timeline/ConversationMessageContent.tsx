@@ -19,6 +19,7 @@ import {
   type MarkdownThreadMentions,
 } from "../../ui/markdown-preview.js";
 import type { MarkdownLinkRouting } from "@/components/ui/markdown-link-routing.js";
+import { ShellRunMarkdownPreview } from "./ConversationMessageContent.fork.js";
 import {
   parseLocalFileHref,
   resolveRelativeLocalFileHref,
@@ -198,6 +199,7 @@ interface CollapsibleMessageTextProps {
   linkRouting?: MarkdownLinkRouting;
   mentions: readonly PromptTextMention[];
   resolveMentionLink?: PromptMentionLinkResolver;
+  shellRun: boolean;
   text: string;
   mutePrefixLength?: number;
 }
@@ -206,6 +208,7 @@ function CollapsibleMessageText({
   linkRouting,
   mentions,
   resolveMentionLink,
+  shellRun,
   text,
   mutePrefixLength,
 }: CollapsibleMessageTextProps) {
@@ -280,7 +283,8 @@ function CollapsibleMessageText({
         {collapsedPreview?.parseAsMarkdown === false ? (
           <span>{body.text}</span>
         ) : (
-          <MarkdownPreview
+          <ShellRunMarkdownPreview
+            shellRun={shellRun && collapsedPreview?.wasCapped !== true}
             tableLayout="contained"
             content={
               collapsedPreview?.wasCapped === true
@@ -356,6 +360,7 @@ function UserConversationMessage({
   turnRequest,
 }: UserConversationMessageProps) {
   const linkRouting = useMessageLinkRouting(threadId);
+  const workspaceRootPath = useThreadTimelineNavigation()?.workspaceRootPath;
   const automationDue =
     initiator === "user" ? parseAutomationDueMessage(text) : null;
   const generatedSource =
@@ -444,6 +449,7 @@ function UserConversationMessage({
                 mentions={mentions}
                 resolveMentionLink={resolveMentionLink}
                 linkRouting={linkRouting}
+                shellRun={workspaceRootPath !== undefined}
                 text={text}
                 mutePrefixLength={mutePrefixLength || undefined}
               />
@@ -578,7 +584,8 @@ function AssistantConversationMessage({
   );
   const markdown = (
     <>
-      <MarkdownPreview
+      <ShellRunMarkdownPreview
+        shellRun={!streaming && workspaceRootPath !== undefined}
         allowHtml
         className={
           streamingSplit === null
