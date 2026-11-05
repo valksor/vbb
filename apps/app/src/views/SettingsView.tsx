@@ -60,6 +60,7 @@ import { SidebarNavigationProviderSetting } from "@/components/settings/SidebarN
 import { SidebarFooterSettings } from "@/components/settings/SidebarFooterSettings";
 import { SplitDimmingSetting } from "@/components/settings/SplitDimmingSetting";
 import { QuickRepliesSetting } from "@/components/settings/QuickRepliesSetting";
+import { useRunCommandTargetPreferenceControl } from "./run-command-target-preference.fork";
 import { useSettingsNavState } from "@/components/settings/settings-nav";
 import { useRevealSettingsSearchTarget } from "@/components/settings/useRevealSettingsSearchTarget";
 import { PluginsOverview } from "@/components/plugin/PluginsOverview";
@@ -498,6 +499,7 @@ export function LocalOpenTargetSettingsSection({
   targets,
 }: LocalOpenTargetSettingsSectionProps) {
   const [accessRequestPending, setAccessRequestPending] = useState(false);
+  const runCommandPreference = useRunCommandTargetPreferenceControl();
 
   if (accessState === "unavailable") {
     return null;
@@ -584,6 +586,10 @@ export function LocalOpenTargetSettingsSection({
           definition={FILE_TARGET_PREFERENCE}
           onTargetChange={onFileTargetChange}
           preferredTargetId={fileTargetId}
+          targets={targets}
+        />
+        <LocalOpenTargetPreferenceControl
+          {...runCommandPreference}
           targets={targets}
         />
       </div>
