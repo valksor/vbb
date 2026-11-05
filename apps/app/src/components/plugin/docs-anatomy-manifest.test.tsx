@@ -21,6 +21,7 @@ import {
   removePluginSlotRegistrations,
   setPluginSlotRegistrations,
 } from "@/lib/plugin-slots";
+import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
 import { sidebarNavigationQueryKey } from "@/hooks/queries/query-keys";
 import { makePluginRegistrationSet } from "@/test/fixtures/plugins";
 
@@ -134,19 +135,21 @@ function renderAppSidebar() {
             <AppCommandProvider>
               <QuickCreateProjectProvider>
                 <ProjectActionsProvider>
-                  <ThreadActionsProvider>
-                    <SidebarProvider>
-                      <AppSidebar
-                        onResizeMouseDown={() => {}}
-                        isResizing={false}
-                        isBodyHidden={false}
-                        navigation={{ kind: "loading", placement: "rail" }}
-                        settingsRoutePath="/settings"
-                        isSettingsActive={false}
-                        alternateBody={null}
-                      />
-                    </SidebarProvider>
-                  </ThreadActionsProvider>
+                  <SidebarThreadEntriesProvider navigation={undefined}>
+                    <ThreadActionsProvider>
+                      <SidebarProvider>
+                        <AppSidebar
+                          onResizeMouseDown={() => {}}
+                          isResizing={false}
+                          isBodyHidden={false}
+                          navigation={{ kind: "loading", placement: "rail" }}
+                          settingsRoutePath="/settings"
+                          isSettingsActive={false}
+                          alternateBody={null}
+                        />
+                      </SidebarProvider>
+                    </ThreadActionsProvider>
+                  </SidebarThreadEntriesProvider>
                 </ProjectActionsProvider>
               </QuickCreateProjectProvider>
             </AppCommandProvider>

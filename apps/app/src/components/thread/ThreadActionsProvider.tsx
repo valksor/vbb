@@ -43,16 +43,26 @@ import {
   ThreadArchiveDialog,
   type ThreadArchiveDialogTarget,
 } from "@/components/dialogs/ThreadArchiveDialog";
-import { ArchivedThreadToastDescription } from "@/components/thread/ArchivedThreadToastDescription";
+import {
+  ArchivedThreadToastWithNote,
+  archivedToastNote,
+  archivedToastText,
+  archivedToastTitle,
+} from "@/components/thread/ArchivedThreadToastWithNote";
 import { destroyPersistedBrowserViewsForThread } from "@/components/secondary-panel/browserViewVisibilityCoordinator";
 import { getThreadReadToggleAction } from "@bb/client-core";
 import { getRootComposeRoutePath, getThreadRoutePath } from "@/lib/route-paths";
 import { getDesktopBrowserApi } from "@/lib/bb-desktop";
 import { useRouteNavigate } from "@/components/ui/app-route-anchor";
 import { resolveThread } from "@/lib/cached-thread";
+import { useSidebarThreadEntries } from "@/lib/sidebar-thread-entries";
 import { CORE_THREAD_ACTIONS } from "@/lib/thread-actions/core-thread-actions";
+import { useEnvironmentArchiveFlow } from "@/lib/thread-actions/environment-archive";
 import { ThreadActionCollectors } from "@/lib/thread-actions/thread-action-registry";
-import { planThreadSelection } from "@/lib/thread-selection-plan";
+import {
+  planThreadSelection,
+  selectionStopsRunningWork,
+} from "@/lib/thread-selection-plan";
 import type { ThreadCascadeAction } from "@bb/server-contract";
 
 export interface ThreadActionsContextValue {
@@ -119,6 +129,7 @@ export function ThreadActionsProvider({
     viewedThreadIdRef.current = viewedThreadId;
   }, [viewedThreadId]);
   const closePanesForThreads = useSetAtom(closePanesForThreadsAtom);
+  const threadEntries = useSidebarThreadEntries();
   const archiveThreadAndChildrenMutation = useArchiveThreadAndChildren();
   const unarchiveThreadMutation = useUnarchiveThread();
   const markThreadRead = useMarkThreadRead();
@@ -293,7 +304,10 @@ export function ThreadActionsProvider({
     [unarchiveMutate],
   );
 
-  const { mutateAsync: archiveEnvironmentMutateAsync } = useMutation({
+  const {
+    isPending: archiveEnvironmentPending,
+    mutateAsync: archiveEnvironmentMutateAsync,
+  } = useMutation({
     meta: { lifecycleOperation: "archive_thread", showErrorToast: false },
     mutationFn: (environmentId: string) =>
       getPluginBoundSdk(
@@ -308,6 +322,7 @@ export function ThreadActionsProvider({
       archivedThreadIds: readonly string[],
       toastId: string,
       singleThread: Thread | null,
+      stoppedWork = false,
     ) => {
       const browserSdk = getPluginBoundSdk(sdk, "thread-list", queryClient);
       const displacedThreadId = viewedThreadIdRef.current;
@@ -328,13 +343,15 @@ export function ThreadActionsProvider({
       const previousRoute = viewedRouteRef.current;
       if (destination !== null) viewedRouteRef.current = destination;
       appToast.success(
-        singleThread !== null || archivedThreadIds.length === 1
-          ? "Thread archived"
-          : "Threads archived",
+        archivedToastTitle(
+          singleThread !== null || archivedThreadIds.length === 1,
+          stoppedWork,
+        ),
         {
           description: singleThread ? (
-            <ArchivedThreadToastDescription
+            <ArchivedThreadToastWithNote
               archivedThreadCount={archivedThreadIds.length}
+              note={archivedToastNote(stoppedWork)}
               threadTitle={getThreadDisplayTitle(singleThread)}
               onOpenThread={() => {
                 navigate(
@@ -347,7 +364,11 @@ export function ThreadActionsProvider({
               }}
             />
           ) : (
-            `Archived ${describeThreadCount(archivedThreadIds.length)}`
+            archivedToastText(
+              `Archived ${describeThreadCount(archivedThreadIds.length)}`,
+              archivedThreadIds.length,
+              stoppedWork,
+            )
           ),
           cancel: {
             label: "Undo",
@@ -399,8 +420,27 @@ export function ThreadActionsProvider({
     [archiveEnvironmentMutateAsync, presentArchivedThreads],
   );
 
+  const { archiveEnvironmentFromDialog, confirmArchiveEnvironmentThreads } =
+    useEnvironmentArchiveFlow({
+      archiveEnvironmentMutateAsync,
+      archiveEnvironmentThreads,
+      closeArchiveDialog,
+      openArchiveDialog,
+      presentArchivedThreads,
+      threadEntries,
+    });
+
   const performArchiveThreads = useCallback(
-    async ({ threads, roots }: ArchiveDialogRequest) => {
+    async ({
+      environmentId,
+      roots,
+      stopsRunningWork,
+      threads,
+    }: ArchiveDialogRequest) => {
+      if (environmentId !== undefined) {
+        await archiveEnvironmentFromDialog(environmentId, stopsRunningWork);
+        return;
+      }
       const results = await Promise.allSettled(
         roots.map((root) =>
           archiveThreadAndChildrenMutateAsync({ id: root.id }),
@@ -430,9 +470,11 @@ export function ThreadActionsProvider({
           ? `thread-archived-${singleThread.id}`
           : `threads-archived-${roots.map((root) => root.id).join("-")}`,
         singleThread,
+        stopsRunningWork,
       );
     },
     [
+      archiveEnvironmentFromDialog,
       archiveThreadAndChildrenMutateAsync,
       closeArchiveDialog,
       presentArchivedThreads,
@@ -445,12 +487,21 @@ export function ThreadActionsProvider({
       if (active.length === 0) return;
       const plan = await claimSelectionPlan(active, "archive");
       if (plan === null) return;
+      const stopsRunningWork = selectionStopsRunningWork(
+        queryClient,
+        active,
+        plan,
+      );
       const request: ArchiveDialogRequest = {
         threads: active,
         roots: plan.roots,
         childThreadCount: plan.childThreadCount,
+        stopsRunningWork,
       };
-      if (confirmThreadArchive && plan.childThreadCount > 0) {
+      if (
+        stopsRunningWork ||
+        (confirmThreadArchive && plan.childThreadCount > 0)
+      ) {
         openArchiveDialog(request);
       } else {
         await performArchiveThreads(request);
@@ -461,6 +512,7 @@ export function ThreadActionsProvider({
       confirmThreadArchive,
       openArchiveDialog,
       performArchiveThreads,
+      queryClient,
     ],
   );
 
@@ -518,7 +570,7 @@ export function ThreadActionsProvider({
 
   const value = useMemo<ThreadActionsContextValue>(
     () => ({
-      archiveEnvironmentThreads,
+      archiveEnvironmentThreads: confirmArchiveEnvironmentThreads,
       renameThreadAsync,
       requestArchive,
       requestArchiveThreads,
@@ -529,7 +581,7 @@ export function ThreadActionsProvider({
       toggleRead,
     }),
     [
-      archiveEnvironmentThreads,
+      confirmArchiveEnvironmentThreads,
       renameThreadAsync,
       requestArchive,
       requestArchiveThreads,
@@ -569,7 +621,10 @@ export function ThreadActionsProvider({
       />
       <ThreadArchiveDialog
         target={archiveDialog.target}
-        pending={archiveThreadAndChildrenMutation.isPending}
+        pending={
+          archiveThreadAndChildrenMutation.isPending ||
+          archiveEnvironmentPending
+        }
         onOpenChange={archiveDialog.onOpenChange}
         onArchive={confirmArchive}
       />

@@ -261,12 +261,16 @@ export function InboxReadStatus() {
   if (!rpcReady) return null;
   return (
     <QueryClientProvider client={queryClient}>
-      <ThreadActionsProvider>
-        <main className="flex gap-6 p-6">
-          <ThreadListSidebar />
-          <OpenThreadControls />
-        </main>
-      </ThreadActionsProvider>
+      <SidebarThreadEntriesProvider
+        navigation={sidebarNavigation(INBOX_THREADS)}
+      >
+        <ThreadActionsProvider>
+          <main className="flex gap-6 p-6">
+            <ThreadListSidebar />
+            <OpenThreadControls />
+          </main>
+        </ThreadActionsProvider>
+      </SidebarThreadEntriesProvider>
     </QueryClientProvider>
   );
 }
@@ -331,9 +335,13 @@ export function ActionAlignment() {
   if (!ready) return null;
   return (
     <QueryClientProvider client={queryClient}>
-      <ThreadActionsProvider>
-        <ActionSidebar />
-      </ThreadActionsProvider>
+      <SidebarThreadEntriesProvider
+        navigation={sidebarNavigation(ACTION_THREADS)}
+      >
+        <ThreadActionsProvider>
+          <ActionSidebar />
+        </ThreadActionsProvider>
+      </SidebarThreadEntriesProvider>
     </QueryClientProvider>
   );
 }

@@ -27,6 +27,7 @@ import {
   makeSidebarBootstrapResponse,
 } from "@/test/fixtures/projects";
 import { getThreadRoutePath } from "@/lib/route-paths";
+import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
 import { splitLayoutAtom } from "@/lib/split-layout/atoms";
 import type { SplitLayout } from "@/lib/split-layout";
 import { resetThreadActionRegistryForTest } from "@/lib/thread-actions/thread-action-registry";
@@ -183,11 +184,13 @@ it("keeps an unrelated split pane open and focused when an environment is archiv
           ]}
         >
           <RouteNavigationProvider>
-            <ThreadActionsProvider>
-              <SplitThreadArea />
-              <LocationProbe />
-              <ArchiveEnvironmentButton />
-            </ThreadActionsProvider>
+            <SidebarThreadEntriesProvider navigation={undefined}>
+              <ThreadActionsProvider>
+                <SplitThreadArea />
+                <LocationProbe />
+                <ArchiveEnvironmentButton />
+              </ThreadActionsProvider>
+            </SidebarThreadEntriesProvider>
           </RouteNavigationProvider>
         </MemoryRouter>
       </QueryClientProvider>

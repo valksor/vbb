@@ -1,19 +1,19 @@
-import { useRef } from "react";
+import { useRef, type RefObject } from "react";
 import type { Thread } from "@bb/domain";
 import { Button } from "@bb/shared-ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
 } from "@bb/shared-ui/dialog";
-import { formatChildThreadCount } from "@/lib/child-thread-copy";
+import { ArchiveDialogCopy } from "./ArchiveDialogCopy";
 
 export interface ThreadArchiveDialogTarget {
   threads: readonly Thread[];
   childThreadCount: number;
+  stopsRunningWork: boolean;
+  environmentId?: string;
 }
 
 interface ThreadArchiveDialogProps<Target extends ThreadArchiveDialogTarget> {
@@ -30,6 +30,7 @@ export function ThreadArchiveDialog<Target extends ThreadArchiveDialogTarget>({
   onArchive,
 }: ThreadArchiveDialogProps<Target>) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
 
   return (
     <Dialog open={target !== null} onOpenChange={onOpenChange}>
@@ -37,6 +38,10 @@ export function ThreadArchiveDialog<Target extends ThreadArchiveDialogTarget>({
         ref={contentRef}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
+          if (target?.stopsRunningWork) {
+            cancelRef.current?.focus();
+            return;
+          }
           contentRef.current
             ?.querySelector<HTMLButtonElement>('button[type="submit"]')
             ?.focus();
@@ -48,6 +53,7 @@ export function ThreadArchiveDialog<Target extends ThreadArchiveDialogTarget>({
             pending={pending}
             onOpenChange={onOpenChange}
             onArchive={onArchive}
+            cancelRef={cancelRef}
           />
         ) : null}
       </DialogContent>
@@ -62,6 +68,7 @@ interface ThreadArchiveDialogContentProps<
   pending: boolean;
   onOpenChange: (open: boolean) => void;
   onArchive: (target: Target) => void;
+  cancelRef: RefObject<HTMLButtonElement | null>;
 }
 
 export function ThreadArchiveDialogContent<
@@ -71,16 +78,8 @@ export function ThreadArchiveDialogContent<
   pending,
   onOpenChange,
   onArchive,
+  cancelRef,
 }: ThreadArchiveDialogContentProps<Target>) {
-  const { childThreadCount, threads } = target;
-  const single = threads.length === 1;
-  const active = threads.some(
-    (thread) =>
-      thread.status === "starting" ||
-      thread.status === "active" ||
-      thread.status === "stopping",
-  );
-
   return (
     <form
       className="grid gap-4"
@@ -92,21 +91,11 @@ export function ThreadArchiveDialogContent<
       }}
     >
       <DialogHeader>
-        <DialogTitle>
-          {single ? "Archive thread?" : `Archive ${threads.length} threads?`}
-        </DialogTitle>
-        <DialogDescription>
-          {active ? "This will stop current work. " : null}
-          {single ? "Its" : "Their"}{" "}
-          <span className="font-semibold">
-            {formatChildThreadCount(childThreadCount)}
-          </span>{" "}
-          will be archived too. Archived threads stay available and can be
-          unarchived.
-        </DialogDescription>
+        <ArchiveDialogCopy target={target} />
       </DialogHeader>
       <DialogFooter>
         <Button
+          ref={cancelRef}
           type="button"
           variant="outline"
           disabled={pending}
