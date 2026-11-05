@@ -87,11 +87,13 @@ import type {
 } from "@bb/server-contract";
 import { signalRequestArgs, type CreateSdkAreaArgs } from "./common.js";
 import type { BackgroundTaskOutputResponse } from "@bb/server-contract";
+import type { ThreadExecutionProfileResponse } from "@bb/server-contract";
 
 export const DEFAULT_THREAD_WAIT_TIMEOUT_MS = 20 * 60 * 1000;
 export const DEFAULT_THREAD_WAIT_POLL_INTERVAL_MS = 250;
 
 export type ThreadBackgroundTaskOutputResult = BackgroundTaskOutputResponse;
+export type ThreadExecutionProfileResult = ThreadExecutionProfileResponse;
 
 export interface ThreadBackgroundTaskOutputArgs {
   signal?: AbortSignal;
@@ -625,6 +627,9 @@ export interface ThreadsArea {
   experimental_backgroundTaskOutput(
     args: ThreadBackgroundTaskOutputArgs,
   ): Promise<ThreadBackgroundTaskOutputResult>;
+  experimental_executionProfile(
+    args: ThreadStatusArgs,
+  ): Promise<ThreadExecutionProfileResult>;
   archive(args: ThreadActionArgs): Promise<ThreadArchiveResult>;
   archiveAll(args: ThreadActionArgs): Promise<ThreadArchiveAllResult>;
   childSummary(args: ThreadStatusArgs): Promise<ThreadChildSummaryResult>;
@@ -1303,6 +1308,14 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
     },
   };
   return {
+    async experimental_executionProfile(input) {
+      return transport.readJson(
+        transport.api.v1.threads[":id"]["execution-profile"].$get(
+          { param: { id: input.threadId } },
+          ...signalRequestArgs(input.signal),
+        ),
+      );
+    },
     async experimental_backgroundTaskOutput(input) {
       return transport.readJson(
         transport.api.v1.threads[":id"]["background-tasks"][

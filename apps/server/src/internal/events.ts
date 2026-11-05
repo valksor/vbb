@@ -44,6 +44,10 @@ import {
   isActivePruneTriggerThreadEventType,
   maybePruneActiveThreadEventHistory,
 } from "../services/system/event-pruning.js";
+import {
+  partitionExecutionReports,
+  recordExecutionReportsInTransaction,
+} from "./execution-reports.js";
 import { queueChildThreadTurnNotificationBestEffort } from "../services/threads/child-thread-notifications.js";
 import { isParentNotifiableChildThread } from "../services/threads/thread-parent.js";
 import {
@@ -306,6 +310,7 @@ function resolveProviderIdentifiers(event: HostDaemonEventEnvelope["event"]): {
     case "provider/modelFallback":
     case "provider/rateLimits/updated":
     case "provider.env-resolved":
+    case "thread/execution/reported":
     case "thread/compacted":
     case "thread/context/cleared":
     case "thread/goal/updated":
@@ -1160,8 +1165,10 @@ export function registerInternalEventRoutes(app: Hono, deps: AppDeps): void {
           hostId: session.hostId,
           events,
         });
+      const { entries: reportFreeEntries, reports: executionReports } =
+        partitionExecutionReports(ownedEntries);
       const { entries, droppedLifecycleEvents } =
-        dropInteractionLifecycleEvents(ownedEntries);
+        dropInteractionLifecycleEvents(reportFreeEntries);
       if (droppedLifecycleEvents.length > 0) {
         deps.logger.warn(
           {
@@ -1213,7 +1220,11 @@ export function registerInternalEventRoutes(app: Hono, deps: AppDeps): void {
       let appendResult: AppendDaemonEventsResult;
       try {
         appendResult = deps.db.transaction(
-          (tx) => appendDaemonEventsInTransaction(tx, eventInputs),
+          (tx) => {
+            const result = appendDaemonEventsInTransaction(tx, eventInputs);
+            recordExecutionReportsInTransaction(tx, executionReports);
+            return result;
+          },
           { behavior: "immediate" },
         );
       } catch (error) {

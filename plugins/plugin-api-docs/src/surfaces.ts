@@ -1052,7 +1052,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "Add tools, skills, and instructions to every agent session. With this, a plugin can:",
         bullets: [
           "Give agents native tools that work like bb's built-in ones",
-          "Keep a native tool call open with PluginUi.requestInput(..., { experimental_holdToolCall: true })",
+          "Hold a native tool call while a plugin interaction is pending",
           "Choose per thread which tools and skills are available",
           "Add instructions to the system prompt when a session starts",
         ],
@@ -1538,6 +1538,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
         ],
         reference: [
           "Read a local Bash background command's output tail through threads.experimental_backgroundTaskOutput({ threadId, itemId, tailBytes?, signal? }); it returns available, pending, busy, or unavailable with text, truncation, and byte count. The background command panel and bb thread background --task use the same method.",
+          "Inspect requested and provider-reported execution through threads.experimental_executionProfile({ threadId, signal? }); executed is null until a provider reports it, and reportedAt is the server receipt time. bb thread show uses the inherited method and omits it for an older server that returns 404.",
           "Normalize and resolve host paths with experimental_normalizeHostPath(path) and experimental_resolveHostPath({ rootPath, path }) from @get-bb/plugin-sdk; invalid paths return null",
           "Recognize drive roots (including C:) and UNC paths with either Windows separator, regardless of the server OS; reject rootless backslashes and drive-relative paths such as C:foo during resolution",
           "Join relative paths, obtain dirname/basename, derive a slash-separated relative path within a root, and create case-insensitive Windows comparison keys with the experimental host-path helpers; invalid absolute inputs return null",
@@ -1569,6 +1570,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "PluginBbSdk.threads.experimental_listCascade",
           "PluginBbSdk.threads.experimental_regenerateTitle",
           "PluginBbSdk.threads.experimental_backgroundTaskOutput",
+          "PluginBbSdk.threads.experimental_executionProfile",
         ],
         firstParty: [
           "Account Pooler [Experimental]",

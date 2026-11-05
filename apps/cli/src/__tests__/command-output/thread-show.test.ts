@@ -11,9 +11,10 @@ import {
   createClientMock,
   getHelpOutput,
   runCommand,
-  stubServerApi,
+  stubServerApi as rawStubServerApi,
   type CommandRegistrar,
 } from "../helpers/command-output-harness.js";
+import { stubThreadShowApi } from "../helpers/thread-show-api.js";
 import * as fixtures from "../helpers/command-output-fixtures.js";
 import { registerThreadCommands } from "../../commands/thread/index.js";
 
@@ -22,6 +23,12 @@ describe("bb thread show command output", () => {
 
   const register: CommandRegistrar = (program) =>
     registerThreadCommands(program, () => "http://server");
+
+  function stubServerApi(
+    handlers: Parameters<typeof rawStubServerApi>[0],
+  ): void {
+    stubThreadShowApi(handlers);
+  }
 
   function stubPullRequestRpc(
     environmentId: string,
@@ -555,6 +562,7 @@ describe("bb thread show command output", () => {
         },
       },
       pendingTodos: null,
+      execution: null,
     });
   });
 
@@ -585,6 +593,7 @@ describe("bb thread show command output", () => {
       thread,
       environment: null,
       pendingTodos: null,
+      execution: null,
     });
   });
 });

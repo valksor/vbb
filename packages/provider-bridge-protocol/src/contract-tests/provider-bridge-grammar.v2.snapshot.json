@@ -130,6 +130,10 @@
     "session.reset": {
       "kind": "required"
     },
+    "thread.execution": {
+      "kind": "required",
+      "execution": "required"
+    },
     "thread.identity": {
       "kind": "required",
       "providerThreadId": "required"

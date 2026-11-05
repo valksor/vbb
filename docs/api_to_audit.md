@@ -1232,6 +1232,14 @@ Docs: `backend-sdk.md`, `bb guide thread-messaging`.
 
 **Stabilization criteria.** Decide whether other providers' background tasks should be readable, whether `tailBytes` and the `busy`/`pending` states belong in the stable contract, and whether output should stream instead of being polled. Then run the audit, rename project-wide, and remove this entry.
 
+## `bb.sdk.threads.experimental_executionProfile`
+
+**What it does.** `GET /threads/:id/execution-profile` returns `lastRequested`, thread `overrides`, `nextTurn`, and `executed`. `executed` is `null` until a provider reports its active execution. When present, it contains the provider model and nullable reasoning, permission, and service-tier values plus `reportedAt`, the server receipt time.
+
+**Core callers.** `bb thread show` uses this method. Older servers return 404, and the CLI omits the execution section.
+
+**Stabilization criteria.** Confirm provider report semantics and receipt-time meaning across supported providers. Then run the audit, rename project-wide, and remove this entry.
+
 ## `PluginSettingDescriptor.experimental_optionLabels`
 
 A `type: "select"` descriptor record from option value to display label,

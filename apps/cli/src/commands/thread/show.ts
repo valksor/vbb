@@ -21,6 +21,11 @@ import {
 } from "@bb/thread-view";
 import { BbHttpError, type BbSdk } from "@bb/sdk";
 import {
+  fetchExecutionProfile,
+  printExecutionProfile,
+  type ThreadExecutionProfileResult,
+} from "./execution-profile.js";
+import {
   environmentPullRequestSchema,
   type PullRequest,
 } from "bb-plugin-bb--github-pr-status/contract";
@@ -86,6 +91,7 @@ type ThreadShowEnvironmentJsonPayload = Environment & {
 interface ThreadShowJsonPayload extends ThreadStatusPayload {
   environment: ThreadShowEnvironmentJsonPayload | null;
   pendingTodos: ThreadTimelinePendingTodos | null;
+  execution: ThreadExecutionProfileResult | null;
   workStatus?: WorkspaceStatus | null;
   gitDiff?: ThreadGitDiffResponse | null;
 }
@@ -392,6 +398,7 @@ export function registerShowCommand(
           sdk,
           threadId,
         });
+        const execution = await fetchExecutionProfile({ sdk, threadId });
 
         if (opts.json) {
           const environment = await getEnvironment();
@@ -402,6 +409,7 @@ export function registerShowCommand(
               fetchedPullRequest,
             ),
             pendingTodos,
+            execution,
           };
           if (fetchedWorkStatus !== undefined) {
             jsonPayload.workStatus = fetchedWorkStatus.available
@@ -418,6 +426,7 @@ export function registerShowCommand(
         }
 
         printThreadStatus(statusPayload, environmentInfo, fetchedPullRequest);
+        printExecutionProfile(execution);
 
         printPendingTodos(pendingTodos);
 

@@ -399,6 +399,7 @@ type ExpectedThreadsKey =
   | "experimental_listCascade"
   | "experimental_listPluginMetadata"
   | "experimental_regenerateTitle"
+  | "experimental_executionProfile"
   | "getPluginMetadata"
   | "updatePluginMetadata"
   | "context"
