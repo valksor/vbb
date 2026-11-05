@@ -5,7 +5,9 @@ import {
   claudeTaskNotificationMessageSchema,
   claudeTaskStartedMessageSchema,
   claudeTaskUpdatedMessageSchema,
+  claudeUserMessageSchema,
 } from "../schemas.js";
+import { extractToolResults } from "../sdk-extraction.js";
 import {
   ClaudeBashOutputFollower,
   claudeCodeTempRoot,
@@ -21,11 +23,24 @@ interface BashOutputThreadSession {
   translator: ClaudeDeltaTranslator;
 }
 
-export function createThreadBashOutputFollower(attachment: {
-  sessionOptions: { env?: NodeJS.ProcessEnv };
-}): ClaudeBashOutputFollower {
+export function createThreadBashOutputFollower(
+  attachment: {
+    sessionOptions: { env?: NodeJS.ProcessEnv };
+    threadIdRef: { current: string };
+  },
+  sendThreadDeltas: SendThreadDeltas,
+): ClaudeBashOutputFollower {
   return new ClaudeBashOutputFollower({
     tempRoot: claudeCodeTempRoot(attachment.sessionOptions.env ?? {}),
+    publish: (toolUseId, text) =>
+      sendThreadDeltas(attachment.threadIdRef.current, [
+        {
+          kind: "item.outputDelta",
+          key: { providerItemId: toolUseId },
+          channel: "command",
+          text,
+        },
+      ]),
   });
 }
 
@@ -49,10 +64,7 @@ export function observeBashOutputAfterEmit(
   message: SDKMessage,
   sendThreadDeltas: SendThreadDeltas,
 ): void {
-  const taskId = endedTaskId(message);
-  if (taskId !== undefined) {
-    threadSession.bashOutputFollower.cancelResolve(taskId);
-  }
+  followBashOutput(threadSession.bashOutputFollower, message);
   resolveBackgroundBashOutputFile(
     threadSession,
     threadId,
@@ -142,4 +154,55 @@ function resolveBackgroundBashOutputFile(
         }),
       ),
   );
+}
+
+function followBashOutput(
+  follower: ClaudeBashOutputFollower,
+  message: SDKMessage,
+): void {
+  const user = claudeUserMessageSchema.safeParse(message);
+  if (user.success) {
+    for (const result of extractToolResults(user.data)) {
+      follower.stop(result.toolUseId);
+    }
+    return;
+  }
+  const started = claudeTaskStartedMessageSchema.safeParse(message);
+  if (started.success) {
+    const task = started.data;
+    if (
+      task.task_type === "local_bash" &&
+      task.tool_use_id !== undefined &&
+      task.is_backgrounded !== true &&
+      message.session_id !== undefined
+    ) {
+      follower.follow({
+        toolUseId: task.tool_use_id,
+        taskId: task.task_id,
+        sessionId: message.session_id,
+      });
+    }
+    return;
+  }
+  const updated = claudeTaskUpdatedMessageSchema.safeParse(message);
+  if (updated.success) {
+    const { status, is_backgrounded } = updated.data.patch;
+    if (
+      is_backgrounded === true ||
+      status === "completed" ||
+      status === "failed" ||
+      status === "killed"
+    ) {
+      follower.stopTask(updated.data.task_id);
+    }
+    if (status === "completed" || status === "failed" || status === "killed") {
+      follower.cancelResolve(updated.data.task_id);
+    }
+    return;
+  }
+  const notified = claudeTaskNotificationMessageSchema.safeParse(message);
+  if (notified.success) {
+    follower.stopTask(notified.data.task_id);
+    follower.cancelResolve(notified.data.task_id);
+  }
 }

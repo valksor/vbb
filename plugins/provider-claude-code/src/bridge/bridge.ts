@@ -1190,7 +1190,10 @@ function createThreadSession(attachment: ThreadAttachment): ThreadSession {
   const threadSession: ThreadSession = {
     commandListGeneration: 0,
     contextUsageCollector: new ClaudeContextUsageCollector(),
-    bashOutputFollower: createThreadBashOutputFollower(attachment),
+    bashOutputFollower: createThreadBashOutputFollower(
+      attachment,
+      sendThreadDeltas,
+    ),
     session,
     attachment,
     sessionSerial,
