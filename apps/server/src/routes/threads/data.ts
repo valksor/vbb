@@ -18,6 +18,8 @@ import {
   type ThreadEventType,
 } from "@bb/domain";
 import {
+  BACKGROUND_TASK_OUTPUT_DEFAULT_TAIL_BYTES,
+  BACKGROUND_TASK_OUTPUT_MAX_TAIL_BYTES,
   publicApiRoutes,
   THREAD_EVENT_LIST_PAGE_SIZE,
   typedRoutes,
@@ -29,6 +31,7 @@ import type { AppDeps } from "../../types.js";
 import { COMMAND_TIMEOUT_MS } from "../../constants.js";
 import { ApiError } from "../../errors.js";
 import { requirePublicThread } from "../../services/lib/entity-lookup.js";
+import { readThreadBackgroundTaskOutput } from "../../services/threads/background-task-output.js";
 import { callHostRetryableOnlineRpc } from "../../services/hosts/online-rpc.js";
 import { requireThreadStorageTarget } from "../../services/threads/thread-storage.js";
 import { toThreadQueuedMessage } from "../../services/threads/thread-queued-messages.js";
@@ -151,6 +154,22 @@ export function registerThreadDataRoutes(app: Hono, deps: AppDeps): void {
     onValidationError: (msg) => new ApiError(400, "invalid_request", msg),
   });
   const routes = publicApiRoutes.threads;
+  get(routes.backgroundTaskOutput, async (context, query) => {
+    const thread = requirePublicThread(deps.db, context.req.param("id"));
+    const tailBytes = parseBoundedPositiveOptionalInteger({
+      defaultValue: BACKGROUND_TASK_OUTPUT_DEFAULT_TAIL_BYTES,
+      max: BACKGROUND_TASK_OUTPUT_MAX_TAIL_BYTES,
+      name: "tailBytes",
+      value: query.tailBytes,
+    });
+    return context.json(
+      await readThreadBackgroundTaskOutput(deps, {
+        threadId: thread.id,
+        itemId: context.req.param("itemId"),
+        tailBytes,
+      }),
+    );
+  });
   const timelineWindows = createThreadTimelineWindows(deps);
   const conversationOutlineCache = new Map<
     string,

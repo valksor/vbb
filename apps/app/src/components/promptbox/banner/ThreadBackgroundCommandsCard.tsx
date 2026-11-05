@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { isBackgroundAgentTaskType } from "@bb/domain";
 import type { TimelineWorkflowWorkRow } from "@bb/server-contract";
 import { useResizeObserver } from "usehooks-ts";
+import { BackgroundCommandOutputPanel } from "@/components/promptbox/banner/BackgroundCommandOutputPanel";
 import {
   PROMPT_STACK_CARD_HEADER_BUTTON_CLASS,
   PROMPT_STACK_CARD_ROW_HEIGHT,
@@ -19,6 +20,7 @@ import {
 import { cn } from "@bb/shared-ui/lib/utils";
 import {
   PROMPT_STACK_DISCLOSURE_TRIGGER_CLASS,
+  PromptStackChevron,
   PromptStackCountSlot,
   PromptStackHoverChevron,
   useDisclosureFocusHandoff,
@@ -49,8 +51,17 @@ interface BackgroundActivityDisplay {
   runningPrefix: string;
 }
 
+function detailPanelId(itemId: string): string {
+  return `thread-background-command-detail-${itemId}`;
+}
+
+function detailTriggerId(itemId: string): string {
+  return `thread-background-command-trigger-${itemId}`;
+}
+
 function backgroundActivityDisplay(
   row: TimelineWorkflowWorkRow,
+  finished = false,
 ): BackgroundActivityDisplay {
   if (isBackgroundAgentTaskType(row.taskType)) {
     return {
@@ -62,7 +73,9 @@ function backgroundActivityDisplay(
   return {
     icon: "Terminal",
     label: "Background command",
-    runningPrefix: "Running background command:",
+    runningPrefix: finished
+      ? "Finished background command:"
+      : "Running background command:",
   };
 }
 
@@ -112,11 +125,13 @@ function compactBackgroundActivityLabel(
 function BackgroundActivitySummary({
   row,
   showDuration,
+  finished,
 }: {
   row: TimelineWorkflowWorkRow;
   showDuration: boolean;
+  finished: boolean;
 }) {
-  const display = backgroundActivityDisplay(row);
+  const display = backgroundActivityDisplay(row, finished);
   const model = backgroundActivityModel(row);
   return (
     <span className="flex min-w-0 flex-1 items-center gap-1 text-left">
@@ -145,7 +160,7 @@ function BackgroundActivitySummary({
           {model}
         </span>
       ) : null}
-      {showDuration ? (
+      {showDuration && !finished ? (
         <span
           className={cn("shrink-0 tabular-nums", activityMetaClass("active"))}
         >
@@ -156,21 +171,123 @@ function BackgroundActivitySummary({
   );
 }
 
-interface ThreadBackgroundCommandsCardProps {
-  commands: TimelineWorkflowWorkRow[];
-  isExpanded: boolean;
-  onToggle: () => void;
+interface ExpandedActivityRowProps {
+  row: TimelineWorkflowWorkRow;
+  threadId: string;
+  finished: boolean;
+  useCompactSummary: boolean;
+  isGroupExpanded: boolean;
+  isDetailOpen: boolean;
+  onToggleDetail: () => void;
 }
 
-export function ThreadBackgroundCommandsCard({
-  commands,
-  isExpanded,
-  onToggle,
-}: ThreadBackgroundCommandsCardProps) {
+function ExpandedActivityRow({
+  row,
+  threadId,
+  finished,
+  useCompactSummary,
+  isGroupExpanded,
+  isDetailOpen,
+  onToggleDetail,
+}: ExpandedActivityRowProps) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const display = backgroundActivityDisplay(row, finished);
+  const model = backgroundActivityModel(row);
+  const isCommand = !isBackgroundAgentTaskType(row.taskType);
+  const showPanel = isCommand && isDetailOpen && isGroupExpanded;
+  const rowClass = cn(
+    "flex min-w-0 gap-1.5 px-3 py-0.5 text-xs",
+    useCompactSummary ? "items-start" : "items-center",
+  );
+  const content = (
+    <>
+      <span className="flex h-[1lh] shrink-0 items-center">
+        <Icon
+          name={display.icon}
+          className="size-3.5 text-muted-foreground/60"
+          aria-hidden="true"
+        />
+      </span>
+      <span
+        className={cn(
+          "min-w-0 flex-1 text-left text-muted-foreground",
+          useCompactSummary ? "line-clamp-2 break-all" : "truncate",
+        )}
+        title={row.description}
+      >
+        {row.description}
+      </span>
+      {model ? (
+        <span
+          className="shrink-0 whitespace-nowrap font-mono text-2xs text-subtle-foreground"
+          title={`Model: ${model}`}
+        >
+          {model}
+        </span>
+      ) : null}
+      <span className="shrink-0 whitespace-nowrap tabular-nums text-subtle-foreground">
+        {finished ? (
+          "Finished"
+        ) : isGroupExpanded ? (
+          <LiveDurationText startedAt={row.startedAt} />
+        ) : null}
+      </span>
+    </>
+  );
+
+  if (!isCommand) {
+    return <div className={rowClass}>{content}</div>;
+  }
+  return (
+    <div>
+      <button
+        type="button"
+        id={detailTriggerId(row.itemId)}
+        ref={triggerRef}
+        aria-expanded={showPanel}
+        aria-controls={detailPanelId(row.itemId)}
+        onClick={onToggleDetail}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && showPanel) {
+            event.stopPropagation();
+            onToggleDetail();
+          }
+        }}
+        className={cn(
+          rowClass,
+          useCompactSummary ? "min-h-10" : "min-h-6",
+          "w-full cursor-pointer transition-colors hover:bg-background/80",
+        )}
+      >
+        {content}
+        <span className="flex h-[1lh] shrink-0 items-center">
+          <Icon
+            name={showPanel ? "ChevronUp" : "ChevronDown"}
+            className="size-3.5 text-subtle-foreground"
+            aria-hidden="true"
+          />
+        </span>
+      </button>
+      {showPanel ? (
+        <BackgroundCommandOutputPanel
+          id={detailPanelId(row.itemId)}
+          labelledBy={detailTriggerId(row.itemId)}
+          threadId={threadId}
+          row={row}
+          finished={finished}
+          onEscape={() => {
+            onToggleDetail();
+            triggerRef.current?.focus();
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function useCompactCard(cardRef: RefObject<HTMLElement>): boolean {
   const isCompactViewport = useIsCompactViewport();
-  const cardRef = useRef<HTMLElement>(null!);
   const [isCompactCard, setIsCompactCard] = useState<boolean | null>(null);
-  const focus = useDisclosureFocusHandoff(isExpanded, onToggle);
   useResizeObserver({
     ref: cardRef,
     box: "border-box",
@@ -182,18 +299,196 @@ export function ThreadBackgroundCommandsCard({
       );
     },
   });
-  const primary = commands[0];
-  if (!primary) {
-    return null;
+  return isCompactCard ?? isCompactViewport;
+}
+
+interface OpenCommandDetail {
+  commands: TimelineWorkflowWorkRow[];
+  rows: TimelineWorkflowWorkRow[];
+  retainedRow: TimelineWorkflowWorkRow | null;
+  openTaskId: string | null;
+  toggleDetail: (itemId: string) => void;
+}
+
+function useOpenCommandDetail(
+  commands: TimelineWorkflowWorkRow[],
+  isGroupExpanded: boolean,
+): OpenCommandDetail {
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<TimelineWorkflowWorkRow | null>(
+    null,
+  );
+  const liveOpenRow =
+    openTaskId === null
+      ? null
+      : (commands.find((row) => row.itemId === openTaskId) ?? null);
+  if (liveOpenRow !== null && liveOpenRow !== snapshot) {
+    setSnapshot(liveOpenRow);
   }
-  const others = commands.slice(1);
-  const hasMore = others.length > 0;
-  const useCompactSummary = isCompactCard ?? isCompactViewport;
-  const canExpand = hasMore || useCompactSummary;
-  const expandedRows = useCompactSummary ? commands : others;
-  const compactLabel = compactBackgroundActivityLabel(commands);
+  const hasRetainedRow =
+    openTaskId !== null &&
+    liveOpenRow === null &&
+    snapshot?.itemId === openTaskId;
+  const [wasGroupExpanded, setWasGroupExpanded] = useState(isGroupExpanded);
+  if (wasGroupExpanded !== isGroupExpanded) {
+    setWasGroupExpanded(isGroupExpanded);
+  }
+  const dropRetainedRow =
+    hasRetainedRow &&
+    commands.length > 0 &&
+    wasGroupExpanded &&
+    !isGroupExpanded;
+  if (dropRetainedRow) {
+    setOpenTaskId(null);
+  }
+  const retainedRow = hasRetainedRow && !dropRetainedRow ? snapshot : null;
+  return {
+    commands,
+    rows: retainedRow ? [...commands, retainedRow] : commands,
+    retainedRow,
+    openTaskId,
+    toggleDetail: (itemId) =>
+      setOpenTaskId((current) => (current === itemId ? null : itemId)),
+  };
+}
+
+interface ActivityCardProps {
+  threadId: string;
+  cardRef: RefObject<HTMLElement>;
+  detail: OpenCommandDetail;
+  isCompact: boolean;
+}
+
+function SingleCommandCard({
+  threadId,
+  cardRef,
+  detail,
+  isCompact,
+}: ActivityCardProps) {
+  const { commands, rows, retainedRow, openTaskId, toggleDetail } = detail;
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const row = rows[0]!;
+  const finished = row === retainedRow;
+  const isOpen = openTaskId === row.itemId;
+  const display = backgroundActivityDisplay(row, finished);
+  const label = finished
+    ? "Finished background command"
+    : compactBackgroundActivityLabel(commands);
+  return (
+    <PromptStackCard
+      rootRef={cardRef}
+      ariaLabel={backgroundActivityGroupLabel(rows)}
+      className="overflow-hidden"
+      style={{ minHeight: PROMPT_STACK_CARD_ROW_HEIGHT }}
+    >
+      <div className="flex items-center">
+        <button
+          type="button"
+          id={TOGGLE_ID}
+          ref={toggleRef}
+          aria-expanded={isOpen}
+          aria-controls={detailPanelId(row.itemId)}
+          aria-label={
+            isCompact
+              ? label
+              : backgroundActivityAriaLabel(
+                  row,
+                  finished ? "Finished background command" : display.label,
+                )
+          }
+          onClick={() => toggleDetail(row.itemId)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && isOpen) {
+              event.stopPropagation();
+              toggleDetail(row.itemId);
+            }
+          }}
+          className={activityRowClass(
+            "active",
+            cn(
+              PROMPT_STACK_CARD_HEADER_BUTTON_CLASS,
+              PROMPT_STACK_DISCLOSURE_TRIGGER_CLASS,
+            ),
+          )}
+        >
+          <Icon
+            name={display.icon}
+            className={activityIconClass("active", "size-3.5 shrink-0")}
+            aria-hidden="true"
+          />
+          {isCompact ? (
+            <>
+              <span className="min-w-0 flex-1 truncate text-left font-medium">
+                {label}
+              </span>
+              <PromptStackHoverChevron isExpanded={isOpen} />
+            </>
+          ) : (
+            <>
+              <BackgroundActivitySummary
+                row={row}
+                showDuration
+                finished={finished}
+              />
+              <PromptStackChevron isExpanded={isOpen} />
+            </>
+          )}
+        </button>
+      </div>
+      {isOpen ? (
+        <div className="border-t border-border bg-popover">
+          {isCompact && row.command !== null ? (
+            <div
+              className="line-clamp-2 break-all px-3 pt-2 text-xs text-muted-foreground"
+              title={row.description}
+            >
+              {row.description}
+            </div>
+          ) : null}
+          <BackgroundCommandOutputPanel
+            id={detailPanelId(row.itemId)}
+            labelledBy={TOGGLE_ID}
+            threadId={threadId}
+            row={row}
+            finished={finished}
+            onEscape={() => {
+              toggleDetail(row.itemId);
+              toggleRef.current?.focus();
+            }}
+          />
+        </div>
+      ) : null}
+    </PromptStackCard>
+  );
+}
+
+interface GroupActivityCardProps extends ActivityCardProps {
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+function GroupActivityCard({
+  threadId,
+  cardRef,
+  detail,
+  isCompact,
+  isExpanded,
+  onToggle,
+}: GroupActivityCardProps) {
+  const focus = useDisclosureFocusHandoff(isExpanded, onToggle);
+  const { commands, rows, retainedRow, openTaskId, toggleDetail } = detail;
+  const primary = commands[0]!;
   const primaryDisplay = backgroundActivityDisplay(primary);
+  const compactLabel = compactBackgroundActivityLabel(commands);
   const groupLabel = backgroundActivityGroupLabel(commands);
+  const canExpand = rows.length > 1 || isCompact;
+  const icon = (
+    <Icon
+      name={primaryDisplay.icon}
+      className={activityIconClass("active", "size-3.5 shrink-0")}
+      aria-hidden="true"
+    />
+  );
 
   return (
     <PromptStackCard
@@ -210,7 +505,7 @@ export function ThreadBackgroundCommandsCard({
             aria-expanded={isExpanded}
             aria-controls={BODY_ID}
             aria-label={
-              useCompactSummary
+              isCompact
                 ? compactLabel
                 : backgroundActivityAriaLabel(primary, groupLabel)
             }
@@ -224,12 +519,8 @@ export function ThreadBackgroundCommandsCard({
               ),
             )}
           >
-            <Icon
-              name={primaryDisplay.icon}
-              className={activityIconClass("active", "size-3.5 shrink-0")}
-              aria-hidden="true"
-            />
-            {useCompactSummary ? (
+            {icon}
+            {isCompact ? (
               <>
                 <span className="min-w-0 flex-1 truncate text-left font-medium">
                   {compactLabel}
@@ -238,7 +529,11 @@ export function ThreadBackgroundCommandsCard({
               </>
             ) : (
               <>
-                <BackgroundActivitySummary row={primary} showDuration={false} />
+                <BackgroundActivitySummary
+                  row={primary}
+                  showDuration={false}
+                  finished={false}
+                />
                 <PromptStackCountSlot count={commands.length} />
               </>
             )}
@@ -251,12 +546,12 @@ export function ThreadBackgroundCommandsCard({
             )}
             aria-label={backgroundActivityAriaLabel(primary)}
           >
-            <Icon
-              name={primaryDisplay.icon}
-              className={activityIconClass("active", "size-3.5 shrink-0")}
-              aria-hidden="true"
+            {icon}
+            <BackgroundActivitySummary
+              row={primary}
+              showDuration
+              finished={false}
             />
-            <BackgroundActivitySummary row={primary} showDuration />
           </div>
         )}
       </div>
@@ -270,53 +565,58 @@ export function ThreadBackgroundCommandsCard({
           collapseRef={focus.collapseRef}
           onCollapse={focus.onCollapseClick}
         >
-          <div className="flex flex-col gap-0.5 py-1">
-            {expandedRows.map((row) => {
-              const display = backgroundActivityDisplay(row);
-              const model = backgroundActivityModel(row);
-              return (
-                <div
-                  key={row.id}
-                  className={cn(
-                    "flex min-w-0 gap-1.5 px-3 py-0.5 text-xs",
-                    useCompactSummary ? "items-start" : "items-center",
-                  )}
-                >
-                  <span className="flex h-[1lh] shrink-0 items-center">
-                    <Icon
-                      name={display.icon}
-                      className="size-3.5 text-muted-foreground/60"
-                      aria-hidden="true"
-                    />
-                  </span>
-                  <span
-                    className={cn(
-                      "min-w-0 flex-1 text-muted-foreground",
-                      useCompactSummary ? "line-clamp-2 break-all" : "truncate",
-                    )}
-                    title={row.description}
-                  >
-                    {row.description}
-                  </span>
-                  {model ? (
-                    <span
-                      className="shrink-0 whitespace-nowrap font-mono text-2xs text-subtle-foreground"
-                      title={`Model: ${model}`}
-                    >
-                      {model}
-                    </span>
-                  ) : null}
-                  <span className="shrink-0 whitespace-nowrap tabular-nums text-subtle-foreground">
-                    {isExpanded ? (
-                      <LiveDurationText startedAt={row.startedAt} />
-                    ) : null}
-                  </span>
-                </div>
-              );
-            })}
+          <div className="flex flex-col gap-1 py-1">
+            {rows.map((row) => (
+              <ExpandedActivityRow
+                key={row.id}
+                row={row}
+                threadId={threadId}
+                finished={row === retainedRow}
+                useCompactSummary={isCompact}
+                isGroupExpanded={isExpanded}
+                isDetailOpen={openTaskId === row.itemId}
+                onToggleDetail={() => toggleDetail(row.itemId)}
+              />
+            ))}
           </div>
         </AnimatedDisclosureBody>
       ) : null}
     </PromptStackCard>
+  );
+}
+
+interface ThreadBackgroundCommandsCardProps {
+  threadId: string;
+  commands: TimelineWorkflowWorkRow[];
+  isExpanded: boolean;
+  onToggle: () => void;
+}
+
+export function ThreadBackgroundCommandsCard({
+  threadId,
+  commands,
+  isExpanded,
+  onToggle,
+}: ThreadBackgroundCommandsCardProps) {
+  const cardRef = useRef<HTMLElement>(null!);
+  const isCompact = useCompactCard(cardRef);
+  const detail = useOpenCommandDetail(commands, isExpanded);
+  const primary = detail.rows[0];
+  if (!primary) {
+    return null;
+  }
+  const shared = { threadId, cardRef, detail, isCompact };
+  if (
+    detail.rows.length === 1 &&
+    !isBackgroundAgentTaskType(primary.taskType)
+  ) {
+    return <SingleCommandCard {...shared} />;
+  }
+  return (
+    <GroupActivityCard
+      {...shared}
+      isExpanded={isExpanded}
+      onToggle={onToggle}
+    />
   );
 }

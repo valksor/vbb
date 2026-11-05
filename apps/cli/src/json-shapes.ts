@@ -8,6 +8,8 @@ export const JSON_SHAPE_BY_COMMAND_PATH: Readonly<Record<string, string>> = {
   "thread log":
     "[{id, seq, type, createdAt, threadId, scope, data}]    (bare array of raw events, oldest first; page with --after-seq <seq>); with --message: {message, before, after} of conversation rows",
   "thread output": "{output}",
+  "thread background":
+    "{threadId, tasks: [{itemId, kind, status, startedAt, elapsedMs, command, description, outputAvailable}]}    (kind is command or agent); with --task: {threadId, itemId, state, text, truncated, totalBytes}",
   "thread spawn":
     "the created thread: {id, status, title, projectId, environmentId, ...}",
   "thread wait": "{threadId, matched: true, target}",

@@ -2149,6 +2149,8 @@ export function ThreadDetailPromptArea({
           onToggleWorkflow={toggleWorkflowExpanded}
         />
         <ThreadBackgroundCommandsCard
+          key={thread.id}
+          threadId={thread.id}
           commands={activeBackgroundCommands}
           isExpanded={isBackgroundCommandsExpanded}
           onToggle={() => setIsBackgroundCommandsExpanded((value) => !value)}

@@ -3003,8 +3003,7 @@ function storedConversationOutlineStructuralEventRowFields() {
         '$.item.workflow',
         '$.item.usage',
         '$.item.summary',
-        '$.item.error',
-        '$.item.outputFile'
+        '$.item.error'
       )
       ELSE ${events.data}
     END`,

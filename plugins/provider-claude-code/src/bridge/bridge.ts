@@ -3,6 +3,12 @@
 import { experimental_selectedSkillMentions as selectedSkillMentions } from "@get-bb/plugin-sdk/provider-bridge";
 import { ClaudeContextUsageCollector } from "./context-usage.js";
 import { readIsolatedClaudeContextUsage } from "./context-usage-probe.js";
+import {
+  createThreadBashOutputFollower,
+  observeBashOutputAfterEmit,
+  observeBashOutputBeforeEmit,
+} from "./bridge.bash-output.fork.js";
+import type { ClaudeBashOutputFollower } from "./bash-output-follower.js";
 
 import {
   type PendingInteractionGrantedPermissionProfile,
@@ -251,6 +257,7 @@ interface ClaudeSessionRestart {
 interface ThreadSession {
   commandListGeneration: number;
   contextUsageCollector: ClaudeContextUsageCollector;
+  bashOutputFollower: ClaudeBashOutputFollower;
   session: SdkSession;
   attachment: ThreadAttachment;
   sessionSerial: number;
@@ -441,6 +448,7 @@ function resolvePendingSessionWork(
   message: string,
 ): void {
   threadSession.contextUsageCollector.cancel();
+  threadSession.bashOutputFollower.stopAll();
   toolCallTracker.resolvePendingToolCalls(threadSession, message);
   resolvePendingInteractiveRequests(threadSession, message);
 }
@@ -1182,6 +1190,7 @@ function createThreadSession(attachment: ThreadAttachment): ThreadSession {
   const threadSession: ThreadSession = {
     commandListGeneration: 0,
     contextUsageCollector: new ClaudeContextUsageCollector(),
+    bashOutputFollower: createThreadBashOutputFollower(attachment),
     session,
     attachment,
     sessionSerial,
@@ -1639,6 +1648,12 @@ function createOnSdkMessage(
       };
     }
     trackSdkAssistantPermissionEscalation(threadSession, message);
+    observeBashOutputBeforeEmit(
+      threadSession,
+      args.threadIdRef.current,
+      message,
+      sendThreadDeltas,
+    );
     emitForSession(threadSession, args.threadIdRef.current, "sdk/message", {
       threadId: args.threadIdRef.current,
       message,
@@ -1652,6 +1667,12 @@ function createOnSdkMessage(
       threadSession.commandListGeneration += 1;
       publishProviderCommands(threadSession, message.commands);
     }
+    observeBashOutputAfterEmit(
+      threadSession,
+      args.threadIdRef.current,
+      message,
+      sendThreadDeltas,
+    );
     if (
       message.type === "result" ||
       (message.type === "system" &&

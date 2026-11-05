@@ -472,6 +472,8 @@ export interface EventProjectionWorkflowMessage
   taskType: string;
   workflowName: string | null;
   description: string;
+  command: string | null;
+  outputFile: string | null;
   model: string | null;
   status: Extract<
     EventProjectionMessageStatus,

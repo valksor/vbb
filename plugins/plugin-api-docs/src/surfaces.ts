@@ -1537,6 +1537,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "Retry failed environment cleanup with recover: true after inspecting processes using the workspace",
         ],
         reference: [
+          "Read a local Bash background command's output tail through threads.experimental_backgroundTaskOutput({ threadId, itemId, tailBytes?, signal? }); it returns available, pending, busy, or unavailable with text, truncation, and byte count. The background command panel and bb thread background --task use the same method.",
           "Normalize and resolve host paths with experimental_normalizeHostPath(path) and experimental_resolveHostPath({ rootPath, path }) from @get-bb/plugin-sdk; invalid paths return null",
           "Recognize drive roots (including C:) and UNC paths with either Windows separator, regardless of the server OS; reject rootless backslashes and drive-relative paths such as C:foo during resolution",
           "Join relative paths, obtain dirname/basename, derive a slash-separated relative path within a root, and create case-insensitive Windows comparison keys with the experimental host-path helpers; invalid absolute inputs return null",
@@ -1567,6 +1568,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "PluginBbSdk.threads.experimental_listDescendants",
           "PluginBbSdk.threads.experimental_listCascade",
           "PluginBbSdk.threads.experimental_regenerateTitle",
+          "PluginBbSdk.threads.experimental_backgroundTaskOutput",
         ],
         firstParty: [
           "Account Pooler [Experimental]",

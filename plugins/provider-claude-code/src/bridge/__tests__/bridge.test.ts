@@ -727,6 +727,159 @@ describe("bridge", () => {
     }
   });
 
+  it("records the command and output file on a backgrounded bash task item", async () => {
+    const claudeTmp = mkdtempSync(join(tmpdir(), "bb-claude-tmp-"));
+    tempDirs.push(claudeTmp);
+    vi.stubEnv("CLAUDE_CODE_TMPDIR", claudeTmp);
+    const bridge = createBridgeJsonRpcTestHarness(handleLine);
+    const queries: ControlledClaudeQuery[] = [];
+    queryMock.mockImplementation(() => {
+      const query = createControlledClaudeQuery();
+      queries.push(query);
+      return query;
+    });
+    const threadId = "thread-bash-bg";
+    const toolUseId = "000000000088";
+    try {
+      await startBridgeThread({ bridge, threadId });
+      bridge.sendRequest(
+        2,
+        "turn/start",
+        canonicalTurnParams({
+          threadId,
+          providerThreadId: threadId,
+          input: [{ type: "text", text: "build" }],
+        }),
+      );
+      await readNextPrompt(getLatestQueryCall());
+      await bridge.waitForResponse(2);
+      queries[0].emit(
+        createAssistantToolUseMessage({
+          parentToolUseId: null,
+          toolInput: { command: "pnpm build", run_in_background: true },
+          toolName: "Bash",
+          toolUseId,
+        }),
+      );
+      const tasksDir = join(
+        claudeTmp,
+        `claude-${process.getuid?.() ?? 0}`,
+        "-tmp-worktree",
+        "session-1",
+        "tasks",
+      );
+      mkdirSync(tasksDir, { recursive: true });
+      const outputFile = join(tasksDir, "bbuild.output");
+      writeFileSync(outputFile, "");
+      queries[0].emit({
+        type: "system",
+        subtype: "task_started",
+        task_id: "bbuild",
+        tool_use_id: toolUseId,
+        description: "Build",
+        task_type: "local_bash",
+        is_backgrounded: true,
+        uuid: "00000000-0000-4000-8000-000000000089",
+        session_id: "session-1",
+      });
+      const taskItems = () =>
+        assembleCapturedThreadEvents(bridge.messages, "claude-code").flatMap(
+          (event) =>
+            event.type === "item/backgroundTask/progress" ? [event.item] : [],
+        );
+      await vi.waitFor(() =>
+        expect(taskItems()).toEqual([
+          expect.objectContaining({ command: "pnpm build", outputFile }),
+        ]),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      queries[0]?.finish();
+    }
+  });
+
+  it("carries the output file on the close delta of a command that ends before the async lookup resolves", async () => {
+    const claudeTmp = mkdtempSync(join(tmpdir(), "bb-claude-tmp-"));
+    tempDirs.push(claudeTmp);
+    vi.stubEnv("CLAUDE_CODE_TMPDIR", claudeTmp);
+    const bridge = createBridgeJsonRpcTestHarness(handleLine);
+    const queries: ControlledClaudeQuery[] = [];
+    queryMock.mockImplementation(() => {
+      const query = createControlledClaudeQuery();
+      queries.push(query);
+      return query;
+    });
+    const threadId = "thread-bash-fast";
+    const toolUseId = "000000000090";
+    try {
+      await startBridgeThread({ bridge, threadId });
+      bridge.sendRequest(
+        2,
+        "turn/start",
+        canonicalTurnParams({
+          threadId,
+          providerThreadId: threadId,
+          input: [{ type: "text", text: "quick" }],
+        }),
+      );
+      await readNextPrompt(getLatestQueryCall());
+      await bridge.waitForResponse(2);
+      queries[0].emit(
+        createAssistantToolUseMessage({
+          parentToolUseId: null,
+          toolInput: { command: "echo hi", run_in_background: true },
+          toolName: "Bash",
+          toolUseId,
+        }),
+      );
+      const tasksDir = join(
+        claudeTmp,
+        `claude-${process.getuid?.() ?? 0}`,
+        "-tmp-worktree",
+        "session-1",
+        "tasks",
+      );
+      mkdirSync(tasksDir, { recursive: true });
+      const outputFile = join(tasksDir, "bfast.output");
+      writeFileSync(outputFile, "hi\n");
+      queries[0].emit({
+        type: "system",
+        subtype: "task_started",
+        task_id: "bfast",
+        tool_use_id: toolUseId,
+        description: "Say hi",
+        task_type: "local_bash",
+        is_backgrounded: true,
+        uuid: "00000000-0000-4000-8000-000000000091",
+        session_id: "session-1",
+      });
+      queries[0].emit({
+        type: "system",
+        subtype: "task_notification",
+        task_id: "bfast",
+        tool_use_id: toolUseId,
+        status: "completed",
+        output_file: "",
+        summary: "done",
+        uuid: "00000000-0000-4000-8000-000000000092",
+        session_id: "session-1",
+      });
+      const closedItems = () =>
+        assembleCapturedThreadEvents(bridge.messages, "claude-code").flatMap(
+          (event) =>
+            event.type === "item/backgroundTask/completed" ? [event.item] : [],
+        );
+      await vi.waitFor(() =>
+        expect(closedItems()).toEqual([
+          expect.objectContaining({ command: "echo hi", outputFile }),
+        ]),
+      );
+    } finally {
+      vi.unstubAllEnvs();
+      queries[0]?.finish();
+    }
+  });
+
   it.each([
     [200_000, false],
     [1_000_000, false],

@@ -170,6 +170,7 @@ terminal-permissions (TCC) and shell-history notes.
 - `bb thread messages`
 - `bb thread timeline`
 - `bb thread output`
+- `bb thread background`
 - `bb thread open`
 - `bb thread pane`
 - `bb thread section`

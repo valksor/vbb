@@ -63,6 +63,7 @@ import {
   translateClaudeTaskMessage,
   type ClaudeTaskMap,
 } from "./task-translation.js";
+import { claudeTaskOutputFileMethods } from "./task-translation.output-file.fork.js";
 import {
   extractAssistantText,
   extractClaudeCommandExecutionOutput,
@@ -781,6 +782,7 @@ export function createClaudeDeltaTranslator(
       tasks: state.tasksById,
       turnStartSuppressed: isTurnStartSuppressed(state),
       hasForwardedToolUse: (toolUseId) => state.startedTools.has(toolUseId),
+      forwardedToolUse: (toolUseId) => state.startedTools.get(toolUseId),
     });
     if (taskDeltas !== null) {
       return withMirror(state, taskDeltas);
@@ -1430,6 +1432,9 @@ export function createClaudeDeltaTranslator(
       commandDescriptionsEnabled = enabled;
     },
     hasOpenTurn,
+    ...claudeTaskOutputFileMethods(
+      (threadId) => stateFor({ threadId }).tasksById,
+    ),
     setClaudeModelContextWindowHint,
     setClaudeReportedContextWindow,
     translate,

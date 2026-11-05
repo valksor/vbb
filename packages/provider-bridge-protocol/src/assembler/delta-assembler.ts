@@ -556,6 +556,7 @@ export function createDeltaAssembler(
         familyId: shape.familyId,
         taskType: shape.taskType,
         description: shape.description,
+        ...(shape.command === undefined ? {} : { command: shape.command }),
         status: shape.status,
         taskStatus: shape.taskStatus,
         skipTranscript: shape.skipTranscript,
