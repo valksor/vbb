@@ -726,7 +726,10 @@ describe("PluginNewThreadComposer seeding", () => {
     registerCheckoutInputsControl();
     window.localStorage.clear();
     window.sessionStorage.clear();
-    getPromptDraftAccessor({ kind: "new-thread" }).setDraft({
+    getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    }).setDraft({
       text: "",
       mentions: [],
       attachments: [],
@@ -745,7 +748,7 @@ describe("PluginNewThreadComposer seeding", () => {
           <NewThreadComposer
             projectId={projectId}
             onProjectChange={() => undefined}
-            draftStorage={{ kind: "new-thread" }}
+            draftStorage={{ kind: "new-thread", projectId }}
             selectionScope="new-thread"
             onSubmit={() => undefined}
           >
@@ -766,7 +769,7 @@ describe("PluginNewThreadComposer seeding", () => {
           <NewThreadComposer
             projectId="proj_1"
             onProjectChange={() => undefined}
-            draftStorage={{ kind: "new-thread" }}
+            draftStorage={{ kind: "new-thread", projectId: "proj_1" }}
             selectionScope="new-thread"
             onSubmit={() => undefined}
           >
@@ -810,7 +813,7 @@ describe("PluginNewThreadComposer seeding", () => {
           <NewThreadComposer
             projectId="proj_1"
             onProjectChange={() => undefined}
-            draftStorage={{ kind: "new-thread" }}
+            draftStorage={{ kind: "new-thread", projectId: "proj_1" }}
             selectionScope="new-thread"
             onSubmit={() => undefined}
           >
@@ -1513,7 +1516,7 @@ describe("PluginNewThreadComposer seeding", () => {
           <NewThreadComposer
             projectId="proj_1"
             onProjectChange={() => undefined}
-            draftStorage={{ kind: "new-thread" }}
+            draftStorage={{ kind: "new-thread", projectId: "proj_1" }}
             selectionScope="new-thread"
             seed={{
               initialPrompt: "fork prompt",
@@ -1811,7 +1814,7 @@ describe("PluginNewThreadComposer seeding", () => {
           <NewThreadComposer
             projectId="proj_1"
             onProjectChange={() => undefined}
-            draftStorage={{ kind: "new-thread" }}
+            draftStorage={{ kind: "new-thread", projectId: "proj_1" }}
             selectionScope="new-thread"
             seed={seed}
             resetKey="thr_source"
@@ -1987,7 +1990,10 @@ describe("PluginNewThreadComposer seeding", () => {
       defaultOptions: { queries: { retry: false } },
     });
     window.localStorage.setItem("bb.root-compose.project-id", "proj_1");
-    const rootDraft = getPromptDraftAccessor({ kind: "new-thread" });
+    const rootDraft = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    });
     rootDraft.setDraft({
       text: "leftover draft",
       mentions: [],
@@ -2312,7 +2318,10 @@ describe("NewThreadComposer environment providers", () => {
     registerCheckoutInputsControl();
     window.localStorage.clear();
     window.sessionStorage.clear();
-    getPromptDraftAccessor({ kind: "new-thread" }).setDraft({
+    getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    }).setDraft({
       text: "",
       mentions: [],
       attachments: [],
@@ -2905,7 +2914,10 @@ describe("NewThreadComposer setSelection", () => {
     registerCheckoutInputsControl();
     window.localStorage.clear();
     window.sessionStorage.clear();
-    getPromptDraftAccessor({ kind: "new-thread" }).setDraft({
+    getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    }).setDraft({
       text: "",
       mentions: [],
       attachments: [],
@@ -2928,7 +2940,7 @@ describe("NewThreadComposer setSelection", () => {
       <NewThreadComposer
         projectId={projectId}
         onProjectChange={setProjectId}
-        draftStorage={{ kind: "new-thread" }}
+        draftStorage={{ kind: "new-thread", projectId }}
         selectionScope="new-thread"
         onSubmit={() => undefined}
       >
@@ -2955,6 +2967,166 @@ describe("NewThreadComposer setSelection", () => {
     expect(host.setSelection).toBeDefined();
     return host;
   }
+
+  it("keeps root-compose drafts isolated while switching projects", async () => {
+    const projectOneDraft = {
+      text: "project one draft",
+      mentions: [],
+      attachments: [
+        {
+          type: "localFile" as const,
+          path: "uploads/project-one.md",
+          name: "project-one.md",
+          sizeBytes: 12,
+        },
+      ],
+    };
+    const projectTwoDraft = {
+      text: "",
+      mentions: [],
+      attachments: [],
+    };
+    const projectOne = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    });
+    const projectTwo = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_2",
+    });
+    projectOne.setDraft(projectOneDraft);
+    projectTwo.setDraft(projectTwoDraft);
+
+    render(rootLikeElement("proj_1"));
+    expect(latestPromptBoxProps().value).toBe("project one draft");
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_2");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().project.value).toBe("proj_2");
+      expect(latestPromptBoxProps().value).toBe("");
+    });
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
+
+    act(() => {
+      latestPromptBoxProps().onChange("project two draft", []);
+    });
+    expect(projectTwo.getCurrent()).toEqual({
+      ...projectTwoDraft,
+      text: "project two draft",
+    });
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_1");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().project.value).toBe("proj_1");
+      expect(latestPromptBoxProps().value).toBe("project one draft");
+    });
+    expect(projectOne.getCurrent()).toEqual(projectOneDraft);
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_2");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().project.value).toBe("proj_2");
+      expect(latestPromptBoxProps().value).toBe("project two draft");
+    });
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
+  });
+
+  it("preserves an existing destination draft without copying source attachments", async () => {
+    const projectOne = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    });
+    const projectTwo = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_2",
+    });
+    projectOne.setDraft({
+      text: "project one draft",
+      mentions: [],
+      attachments: [
+        {
+          type: "localFile",
+          path: "uploads/project-one.md",
+          name: "project-one.md",
+          sizeBytes: 12,
+        },
+      ],
+    });
+    const projectTwoDraft = {
+      text: "project two draft",
+      mentions: [],
+      attachments: [
+        {
+          type: "localFile" as const,
+          path: "uploads/project-two.md",
+          name: "project-two.md",
+          sizeBytes: 24,
+        },
+      ],
+    };
+    projectTwo.setDraft(projectTwoDraft);
+
+    render(rootLikeElement("proj_1"));
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_2");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().value).toBe("project two draft");
+    });
+    expect(projectTwo.getCurrent()).toEqual(projectTwoDraft);
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_1");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().value).toBe("project one draft");
+    });
+    expect(projectOne.getCurrent().attachments).toEqual([
+      {
+        type: "localFile",
+        path: "uploads/project-one.md",
+        name: "project-one.md",
+        sizeBytes: 12,
+      },
+    ]);
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_2");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().value).toBe("project two draft");
+    });
+    expect(projectTwo.getCurrent()).toEqual(projectTwoDraft);
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
+  });
+
+  it("persists a deleted requested project under the visible personal project", async () => {
+    const personalDraft = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: PERSONAL_PROJECT_ID,
+    });
+    const first = render(rootLikeElement("proj_deleted"));
+
+    await waitFor(() => {
+      expect(latestPromptBoxProps().project.value).toBe(PERSONAL_PROJECT_ID);
+    });
+    act(() => {
+      latestPromptBoxProps().onChange("personal fallback draft", []);
+    });
+    expect(personalDraft.getCurrent().text).toBe("personal fallback draft");
+
+    first.unmount();
+    render(rootLikeElement(PERSONAL_PROJECT_ID));
+    await waitFor(() => {
+      expect(latestPromptBoxProps().value).toBe("personal fallback draft");
+    });
+  });
 
   it("tracks values changed through the visible model picker", async () => {
     render(rootLikeElement("proj_1"));
@@ -3042,9 +3214,12 @@ describe("NewThreadComposer setSelection", () => {
     ).toBeNull();
   });
 
-  it("leaves the project alone when a copy or upload is in flight, and still applies the rest", async () => {
+  it("switches an isolated root composer without waiting for attachment copying", async () => {
     mocks.copyAttachments.mockReturnValue(new Promise(() => {}));
-    getPromptDraftAccessor({ kind: "new-thread" }).setDraft({
+    getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    }).setDraft({
       text: "with a file",
       mentions: [],
       attachments: [
@@ -3060,16 +3235,16 @@ describe("NewThreadComposer setSelection", () => {
     const host = currentHost();
     void latestPromptBoxProps().project.onChange("proj_2");
     await waitFor(() => {
-      expect(mocks.copyAttachments).toHaveBeenCalledTimes(1);
+      expect(latestPromptBoxProps().project.value).toBe("proj_2");
     });
 
     const result = await settled(
       host.setSelection!({ projectId: "proj_2", permissionMode: "full" }),
     );
 
-    expect(result.projectId).toBe("proj_1");
+    expect(result.projectId).toBe("proj_2");
     expect(result.permissionMode).toBe("full");
-    expect(mocks.copyAttachments).toHaveBeenCalledTimes(1);
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
   });
 
   it("reports reconciled values instead of the requested ones", async () => {

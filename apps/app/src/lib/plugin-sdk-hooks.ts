@@ -76,6 +76,7 @@ import { useServerConnectionState } from "@/hooks/useServerConnectionState";
 import { wsManager } from "@/lib/ws";
 import { pluginSdkSettingsQueryKey } from "@/hooks/queries/query-keys";
 import { useAppNavigationHost } from "@/lib/app-navigation-host";
+import { useRootComposeProjectId } from "@/lib/root-compose-selection";
 import {
   createPluginPanelController,
   withRetiredAppPanelMembers,
@@ -496,12 +497,13 @@ export function useComposerView(): ComposerView {
   const providedView = useOptionalPluginComposerView();
   const composerHost = usePluginComposerHost();
   const { projectId, threadId } = useRouteState();
+  const [rootComposeProjectId] = useRootComposeProjectId();
   const routeScope: PromptDraftScope = useMemo(
     () =>
       threadId !== undefined && projectId !== undefined
         ? { kind: "thread", projectId, threadId }
-        : { kind: "new-thread" },
-    [projectId, threadId],
+        : { kind: "new-thread", projectId: projectId ?? rootComposeProjectId },
+    [projectId, rootComposeProjectId, threadId],
   );
   const routeDraft = usePromptDraftController(routeScope);
   const draftSource = useComposerDraftSource(composerHost, routeDraft);
@@ -514,7 +516,10 @@ export function useComposerView(): ComposerView {
         composerHost?.scope ??
         (threadId !== undefined
           ? { kind: "thread", threadId }
-          : { kind: "new-thread", projectId: projectId ?? null }),
+          : {
+              kind: "new-thread",
+              projectId: projectId ?? rootComposeProjectId,
+            }),
       layout: "expanded",
       draft: {
         text: draft.text,
@@ -523,7 +528,7 @@ export function useComposerView(): ComposerView {
       },
       run: { isRunning: false, isSubmitting: false },
     }),
-    [composerHost?.scope, draft, projectId, threadId],
+    [composerHost?.scope, draft, projectId, rootComposeProjectId, threadId],
   );
   return providedView ?? fallback;
 }
@@ -535,12 +540,13 @@ export function useComposer(): PluginComposerApi {
   const tracksDraft = useRef(false);
   const tracksSelection = useRef(false);
   const { projectId, threadId } = useRouteState();
+  const [rootComposeProjectId] = useRootComposeProjectId();
   const routeScope: PromptDraftScope = useMemo(
     () =>
       threadId !== undefined && projectId !== undefined
         ? { kind: "thread", projectId, threadId }
-        : { kind: "new-thread" },
-    [projectId, threadId],
+        : { kind: "new-thread", projectId: projectId ?? rootComposeProjectId },
+    [projectId, rootComposeProjectId, threadId],
   );
   const routeDraft = usePromptDraftController(routeScope);
   const draftSource = useComposerDraftSource(composerHost, routeDraft);
@@ -584,8 +590,11 @@ export function useComposer(): PluginComposerApi {
       composerScope ??
       (threadId !== undefined
         ? { kind: "thread", threadId }
-        : { kind: "new-thread", projectId: projectId ?? null }),
-    [composerScope, projectId, threadId],
+        : {
+            kind: "new-thread",
+            projectId: projectId ?? rootComposeProjectId,
+          }),
+    [composerScope, projectId, rootComposeProjectId, threadId],
   );
   const scopeOwnershipKey = [
     pluginId,

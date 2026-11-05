@@ -74,7 +74,10 @@ async function settle() {
 
 it("reloads once after a deployment, persists the latest composer edit before navigation, and restores it with fresh module state", async () => {
   deploy("/assets/index-new.js");
-  const draft = getPromptDraftAccessor({ kind: "new-thread" });
+  const draft = getPromptDraftAccessor({
+    kind: "new-thread",
+    projectId: "project-1",
+  });
   draft.setTextAndMentions("Unsent edit just before the chunk failed", []);
   expect(window.localStorage.getItem(draft.storageKey)).toBeNull();
   let persistedAtReload: string | null = null;
@@ -102,9 +105,12 @@ it("reloads once after a deployment, persists the latest composer edit before na
   vi.resetModules();
   const { getPromptDraftAccessor: restoredAccessor } =
     await import("../hooks/usePromptDraftStorage");
-  expect(restoredAccessor({ kind: "new-thread" }).getCurrent().text).toBe(
-    "Unsent edit just before the chunk failed",
-  );
+  expect(
+    restoredAccessor({
+      kind: "new-thread",
+      projectId: "project-1",
+    }).getCurrent().text,
+  ).toBe("Unsent edit just before the chunk failed");
 });
 
 it("does not reload again when the reload still serves the stale document, and permits a later deployment", async () => {
