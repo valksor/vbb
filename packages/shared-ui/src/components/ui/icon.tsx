@@ -26,6 +26,7 @@ import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
 import Delete02Icon from "@hugeicons/core-free-icons/Delete02Icon";
 import Download01Icon from "@hugeicons/core-free-icons/Download01Icon";
 import Edit02Icon from "@hugeicons/core-free-icons/Edit02Icon";
+import FileQuestionMarkIcon from "@hugeicons/core-free-icons/FileQuestionMarkIcon";
 import FilterHorizontalIcon from "@hugeicons/core-free-icons/FilterHorizontalIcon";
 import FilterIcon from "@hugeicons/core-free-icons/FilterIcon";
 import FolderAddIcon from "@hugeicons/core-free-icons/FolderAddIcon";
@@ -175,6 +176,7 @@ const CORE_ICON_MAP = {
   Copy: Copy01Icon,
   Download: Download01Icon,
   Edit: Edit02Icon,
+  FileQuestion: FileQuestionMarkIcon,
   Filter: FilterIcon,
   FilterHorizontal: FilterHorizontalIcon,
   Folder: FolderIcon,

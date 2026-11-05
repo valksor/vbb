@@ -2,21 +2,23 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { PendingInteraction } from "@bb/domain";
+import type { PendingInteraction, ThreadListEntry } from "@bb/domain";
 import type { UseThreadTimelineControllerResult } from "@/components/thread/timeline";
 import { getPromptDraftAccessor } from "@/hooks/usePromptDraftStorage";
 import { makeThreadResponse } from "@/test/fixtures/thread-responses";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
+import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
 import { ThreadScreen, type ThreadScreenPresentation } from "./ThreadScreen";
 
 const mocks = vi.hoisted(() => ({
+  childThreads: [] as ThreadListEntry[],
   pendingInteractions: [] as PendingInteraction[],
   promptAreaProps: [] as Array<Record<string, unknown>>,
   surfaceProps: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("@/hooks/queries/thread-queries", () => ({
-  useChildThreads: () => ({ data: [] }),
+  useChildThreads: () => ({ data: mocks.childThreads }),
   useThread: () => ({ data: undefined }),
   useThreadPendingInteractions: () => ({ data: mocks.pendingInteractions }),
 }));
@@ -145,6 +147,7 @@ function makePluginInteraction(): PendingInteraction {
 }
 
 beforeEach(() => {
+  mocks.childThreads = [];
   mocks.pendingInteractions = [];
   mocks.promptAreaProps = [];
   mocks.surfaceProps = [];
@@ -160,6 +163,29 @@ afterEach(() => {
 });
 
 describe("ThreadScreen", () => {
+  it("passes a child waiting kind to the child threads section", () => {
+    mocks.childThreads = [
+      makeThreadListEntry({
+        id: "thr_child",
+        projectId: THREAD.projectId,
+        hasPendingInteraction: true,
+        pendingInteractionKind: "plan_approval",
+      }),
+    ];
+    renderScreen({ kind: "page" });
+
+    expect(mocks.promptAreaProps.at(-1)!.childThreadsSection).toEqual(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            id: "thr_child",
+            pendingInteractionKind: "plan_approval",
+          }),
+        ],
+      }),
+    );
+  });
+
   it("hands a plugin-rendered interaction to an embedded chat's composer", () => {
     mocks.pendingInteractions = [makePluginInteraction()];
     renderScreen(SIDE_CHAT_PRESENTATION);

@@ -3,10 +3,14 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PluginSidebarThreadIndicator } from "@get-bb/plugin-sdk";
+import { experimental_resolveThreadStatus } from "@get-bb/plugin-sdk/internal/thread-status";
 import {
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
+  SIDEBAR_WAITING_STATUS_COLOR_CLASS,
   SIDEBAR_WORKING_STATUS_COLOR_CLASS,
 } from "@bb/shared-ui/sidebar-row-classes";
+import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
+import { toThreadStatusThread } from "@/lib/plugin-sidebar-threads";
 import { ThreadStatusGlyph } from "./ThreadStatusGlyph";
 
 afterEach(() => {
@@ -14,10 +18,36 @@ afterEach(() => {
 });
 
 describe("ThreadStatusGlyph", () => {
+  it("renders plan approval from existing thread metadata", () => {
+    const status = experimental_resolveThreadStatus({
+      thread: toThreadStatusThread(
+        makeThreadListEntry({
+          hasPendingInteraction: true,
+          pendingInteractionKind: "plan_approval",
+        }),
+      ),
+      hiddenThreads: [],
+      hasUnsubmittedDraft: false,
+      rowStatus: null,
+    });
+
+    render(<ThreadStatusGlyph indicator={status.indicator} />);
+
+    expect(
+      screen.getByLabelText("Thread needs plan approval").getAttribute("data-icon"),
+    ).toBe("FileQuestion");
+  });
+
   it.each([
     ["unread-error", "Unread thread failed", "CircleX"],
     ["queued-failed", "Queued message failed to send", "CircleX"],
     ["waiting-for-input", "Thread needs user input", "CircleQuestion"],
+    ["waiting-for-plan-approval", "Thread needs plan approval", "FileQuestion"],
+    [
+      "waiting-for-answer",
+      "Thread is waiting for your answer",
+      "MessageQuestion",
+    ],
     ["queued-waiting", "Thread has a message waiting to send", "Clock"],
     ["working-draft", "Thread working with unsubmitted draft", "Edit"],
     ["workflow", "Workflow running", "Workflow"],
@@ -48,6 +78,18 @@ describe("ThreadStatusGlyph", () => {
     const runtime = screen.getByLabelText("Thread working");
     expect(Array.from(runtime.classList)).toContain("animate-spin");
     expect(Array.from(runtime.classList)).toContain("motion-reduce:animate-none");
+  });
+
+  it.each([
+    ["waiting-for-input", "Thread needs user input"],
+    ["waiting-for-plan-approval", "Thread needs plan approval"],
+    ["waiting-for-answer", "Thread is waiting for your answer"],
+  ] as const)("colors the %s glyph with the waiting color", (indicator, label) => {
+    render(<ThreadStatusGlyph indicator={indicator} />);
+
+    expect(
+      Array.from(screen.getByLabelText(label).classList),
+    ).toContain(SIDEBAR_WAITING_STATUS_COLOR_CLASS);
   });
 
   it("draws unread success as a dot and nothing for none", () => {
@@ -102,6 +144,8 @@ describe("ThreadStatusGlyph", () => {
     ["runtime", "Thread working"],
     ["unread-error", "Unread thread failed"],
     ["waiting-for-input", "Thread needs user input"],
+    ["waiting-for-plan-approval", "Thread needs plan approval"],
+    ["waiting-for-answer", "Thread is waiting for your answer"],
   ] satisfies [PluginSidebarThreadIndicator, string][])(
     "keeps %s ahead of a row status",
     (indicator, label) => {

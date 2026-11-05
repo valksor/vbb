@@ -96,12 +96,14 @@ function section(
         title: item.childTitle,
         href: item.href,
         hasPendingInteraction: true,
+        pendingInteractionKind: "question" as const,
       })),
       {
         id: "thr_working",
         title: "Investigate failing checks",
         href: "/threads/thr_working",
         hasPendingInteraction: false,
+        pendingInteractionKind: null,
       },
     ],
     pendingInteractions,
@@ -163,6 +165,42 @@ afterEach(() => {
 });
 
 describe("ThreadPromptContextBanner child questions", () => {
+  it("renders specialized child and shared waiting kinds", () => {
+    const planApproval = section([newest]);
+    const planApprovalItems = planApproval.items.map((item) =>
+      item.hasPendingInteraction
+        ? { ...item, pendingInteractionKind: "plan_approval" as const }
+        : item,
+    );
+    const { unmount } = render(
+      bannerElement({ ...planApproval, items: planApprovalItems }),
+    );
+
+    expect(screen.getAllByLabelText("Thread needs plan approval")).toHaveLength(
+      2,
+    );
+    expect(screen.queryByLabelText("Thread needs user input")).toBe(null);
+    fireEvent.click(screen.getByRole("button", { name: /Child thr_b/ }));
+    expect(
+      screen.getByLabelText("Thread needs plan approval").getAttribute(
+        "data-icon",
+      ),
+    ).toBe("FileQuestion");
+
+    unmount();
+    const mixed = section([newest, middle]);
+    const mixedItems = mixed.items.map((item) =>
+      item.id === newest.childThreadId
+        ? { ...item, pendingInteractionKind: "plan_approval" as const }
+        : item,
+    );
+    render(bannerElement({ ...mixed, items: mixedItems }));
+
+    expect(
+      screen.getByLabelText("Thread needs user input").getAttribute("data-icon"),
+    ).toBe("CircleQuestion");
+  });
+
   it("auto-expands to the row list without opening a question", () => {
     const { rerender } = render(bannerElement(section([]), false));
 

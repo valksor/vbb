@@ -228,6 +228,7 @@ function useChildThreadsSection(
           threadId: entry.id,
         }),
         hasPendingInteraction: entry.hasPendingInteraction,
+        pendingInteractionKind: entry.pendingInteractionKind,
       }));
     if (activeItems.length === 0) return null;
     return { items: activeItems };

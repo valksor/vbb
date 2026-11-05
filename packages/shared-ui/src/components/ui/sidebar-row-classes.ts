@@ -25,6 +25,8 @@ export const SIDEBAR_SUCCESS_STATUS_COLOR_CLASS = "text-success-foreground";
 export const SIDEBAR_SUCCESS_STATUS_DOT_CLASS =
   "size-[5px] rounded-full bg-muted-foreground/60 max-md:pointer-coarse:size-1.5";
 
+export const SIDEBAR_WAITING_STATUS_COLOR_CLASS = "text-attention";
+
 const SIDEBAR_THREAD_ROW_BASE_PADDING_PX = 8;
 const SIDEBAR_THREAD_ROW_DEPTH_STEP_PX = 24;
 const SIDEBAR_THREAD_ROW_GLYPH_CENTER_OFFSET_PX = 8;

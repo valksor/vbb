@@ -14,6 +14,7 @@ import {
   SIDEBAR_STATUS_ICON_CLASS,
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
   SIDEBAR_SUCCESS_STATUS_DOT_CLASS,
+  SIDEBAR_WAITING_STATUS_COLOR_CLASS,
   SIDEBAR_WORKING_STATUS_COLOR_CLASS,
 } from "@bb/shared-ui/sidebar-row-classes";
 
@@ -25,8 +26,10 @@ const WORKING_ACTIVITY_ICONS = {
   goal: "Target",
 } satisfies Partial<Record<PluginSidebarThreadIndicator, IconName>>;
 
-const WAITING_ICONS = {
+export const WAITING_ICONS = {
   "waiting-for-input": "CircleQuestion",
+  "waiting-for-plan-approval": "FileQuestion",
+  "waiting-for-answer": "MessageQuestion",
   "queued-waiting": "Clock",
 } satisfies Partial<Record<PluginSidebarThreadIndicator, IconName>>;
 
@@ -140,6 +143,15 @@ export function ThreadStatusGlyph({
         />
       );
     case "waiting-for-input":
+    case "waiting-for-plan-approval":
+    case "waiting-for-answer":
+      return (
+        <Icon
+          name={WAITING_ICONS[indicator]}
+          className={cn(SIDEBAR_WAITING_STATUS_COLOR_CLASS, iconSizeClass)}
+          aria-label={threadIndicatorLabel(indicator) ?? undefined}
+        />
+      );
     case "queued-waiting":
       return (
         <Icon

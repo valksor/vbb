@@ -61,7 +61,6 @@ export const EXTENDED_ICON_NAMES = [
   "FileDiff",
   "File",
   "FileAttachment",
-  "FileQuestion",
   "FileText",
   "FolderOpen",
   "FolderEdit",

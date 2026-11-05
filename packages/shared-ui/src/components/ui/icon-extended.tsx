@@ -46,7 +46,6 @@ import ExpandIcon from "@hugeicons/core-free-icons/ExpandIcon";
 import File01Icon from "@hugeicons/core-free-icons/File01Icon";
 import FileAttachmentIcon from "@hugeicons/core-free-icons/FileAttachmentIcon";
 import FileEmpty02Icon from "@hugeicons/core-free-icons/FileEmpty02Icon";
-import FileQuestionMarkIcon from "@hugeicons/core-free-icons/FileQuestionMarkIcon";
 import Folder02Icon from "@hugeicons/core-free-icons/Folder02Icon";
 import FolderEditIcon from "@hugeicons/core-free-icons/FolderEditIcon";
 import FolderRemoveIcon from "@hugeicons/core-free-icons/FolderRemoveIcon";
@@ -286,7 +285,6 @@ export const EXTENDED_ICON_MAP: ExtendedIconMap = {
   FileDiff: PlusMinusSquare01Icon,
   File: FileEmpty02Icon,
   FileAttachment: FileAttachmentIcon,
-  FileQuestion: FileQuestionMarkIcon,
   FileText: File01Icon,
   FolderOpen: Folder02Icon,
   FolderEdit: FolderEditIcon,

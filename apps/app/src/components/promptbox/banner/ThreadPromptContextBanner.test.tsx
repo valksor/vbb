@@ -110,7 +110,13 @@ function childThreadItem(
   title: string,
   { pending = false }: { pending?: boolean } = {},
 ) {
-  return { id, title, href: `/threads/${id}`, hasPendingInteraction: pending };
+  return {
+    id,
+    title,
+    href: `/threads/${id}`,
+    hasPendingInteraction: pending,
+    pendingInteractionKind: null,
+  };
 }
 
 function childQuestion(
@@ -390,7 +396,7 @@ describe("ThreadPromptContextBanner", () => {
 
     expect(markup).toContain(">2<");
     expect(markup).not.toContain(">+");
-    expect(markup).toContain('aria-label="Needs input"');
+    expect(markup).toContain('aria-label="Thread needs user input"');
     expect(markup).toContain('aria-label="Working"');
     expect(markup).toContain('data-icon="Loading"');
   });
