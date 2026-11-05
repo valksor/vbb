@@ -133,6 +133,8 @@ function threadInterruptedTitle(
       return "Stopped — host daemon restarted";
     case "provider-turn-idle":
       return "Stopped — provider turn stopped responding";
+    case "question-unanswered":
+      return "Stopped — question unanswered, waiting for you";
     default:
       return assertNever(reason);
   }

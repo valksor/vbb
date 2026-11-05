@@ -284,6 +284,29 @@ Before stabilizing, audit compact and embedded placement, variable-height
 metadata and scroll anchoring, unmount cleanup, asynchronous updates,
 origin filtering, and render isolation during streaming and across messages.
 
+## `bb.ui.requestInput` `experimental_holdToolCall`
+
+`bb.ui.requestInput`'s options accept an optional `experimental_holdToolCall`
+boolean. Default (`false`/absent) keeps today's behavior: inside a native tool's
+`execute`, the tool call is detached and answered at once with a waiting notice,
+and the eventual result reaches the agent as a later message. When set, the tool
+call instead stays blocked until the form settles, and the interaction is bound
+to the thread's active turn (`turnId` is populated from the active turn), so the
+turn-bound send/steer/dispatch guards treat the thread as busy. Direct starts
+are rejected while queued sends can wait for resolution, matching a provider's
+native question. Used by the
+bundled `ask-user-question` plugin so an unanswered question halts the turn
+rather than letting the agent proceed.
+
+Before stabilizing: audit the held-open tool-call transport (a blocking form can
+hold the daemon→server request open up to the form timeout; forwarded tool calls
+use a 65-minute transport ceiling), the turn-bound interaction lifecycle
+(steer/edit/queue while pending, and abort on thread stop/delete, plugin dispose,
+session revocation, and server-move), and concurrency (the
+one-active-interaction-per-thread guard is the only cap on held-open calls).
+Decide whether turn-binding should be inferred from the renderer/policy on the
+server rather than carried as a public option.
+
 ## `app.commands.register`
 
 Unprefixed by explicit request. Registers frontend commands

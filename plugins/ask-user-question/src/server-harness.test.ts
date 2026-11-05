@@ -301,7 +301,7 @@ describe("asking a question", () => {
     await second;
   });
 
-  it("tells the model to carry on when the user dismisses the question", async () => {
+  it("lets the agent proceed when the user explicitly dismisses the question", async () => {
     const host = createHost();
     const call = host.harness.callAgentTool(TOOL_NAME, { questions });
     await vi.waitFor(() =>
@@ -310,11 +310,11 @@ describe("asking a question", () => {
     host.harness.cancelInteraction(host.harness.pendingInteractions[0]!.id);
 
     const result = await call;
-    expect(result).toMatchObject({ isError: true });
+    expect(result).not.toMatchObject({ isError: true });
     expect(await resultText(result)).toContain("dismissed the question");
   });
 
-  it("reports an empty submission as an error instead of a blank answer", async () => {
+  it("lets the agent proceed when the submission has no answers", async () => {
     const host = createHost();
     const call = host.harness.callAgentTool(TOOL_NAME, { questions });
     await vi.waitFor(() =>
@@ -325,7 +325,7 @@ describe("asking a question", () => {
     });
 
     const result = await call;
-    expect(result).toMatchObject({ isError: true });
+    expect(result).not.toMatchObject({ isError: true });
     expect(await resultText(result)).toContain("no answers");
   });
 

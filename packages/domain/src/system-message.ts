@@ -33,6 +33,7 @@ export const systemThreadInterruptedReasonSchema = z.enum([
   "host-daemon-restarted",
   "host-removed",
   "provider-turn-idle",
+  "question-unanswered",
 ]);
 export type SystemThreadInterruptedReason = z.infer<
   typeof systemThreadInterruptedReasonSchema

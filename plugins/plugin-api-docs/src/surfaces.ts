@@ -1052,12 +1052,14 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "Add tools, skills, and instructions to every agent session. With this, a plugin can:",
         bullets: [
           "Give agents native tools that work like bb's built-in ones",
+          "Keep a native tool call open with PluginUi.requestInput(..., { experimental_holdToolCall: true })",
           "Choose per thread which tools and skills are available",
           "Add instructions to the system prompt when a session starts",
         ],
         apiSymbols: [
           "PluginAgents",
           "PluginAgentToolContext",
+          "PluginUi",
           "PluginRowPresentation",
           "PluginRowLabels",
         ],

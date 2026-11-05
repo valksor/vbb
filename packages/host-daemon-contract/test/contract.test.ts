@@ -602,6 +602,8 @@ function terminalDataBase64(byteLength: number): string {
 }
 
 const INTENTIONAL_OPTIONAL_HOST_DAEMON_FIELDS: Record<string, string> = {
+  "hostDaemonCommandSchema.resolution.message":
+    "a plan approval denial can carry agent-facing text; absence keeps the provider's default rejection message.",
   "hostDaemonCommandSchema.resolution.description":
     "the interaction.resolve command's resolution is the persisted union, so it also admits the plugin_submitted arm and the description a plugin's describeSubmission returned. It never reaches the wire: a plugin interaction is settled in the server against its waiting requestInput promise and never queues a daemon command, so an older daemon never sees the field.",
   "hostDaemonCommandSchema.resolution.description.detail":
@@ -1060,7 +1062,7 @@ describe("host-daemon command schemas", () => {
   });
 
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(260);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(261);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 
@@ -1080,7 +1082,8 @@ describe("host-daemon command schemas", () => {
     expect(contract.isCompatibleHostDaemonProtocolVersion(257)).toBe(false);
     expect(contract.isCompatibleHostDaemonProtocolVersion(258)).toBe(false);
     expect(contract.isCompatibleHostDaemonProtocolVersion(259)).toBe(false);
-    expect(contract.isCompatibleHostDaemonProtocolVersion(260)).toBe(true);
+    expect(contract.isCompatibleHostDaemonProtocolVersion(260)).toBe(false);
+    expect(contract.isCompatibleHostDaemonProtocolVersion(261)).toBe(true);
     expect(contract.hostDaemonSupportsConnectNext(246)).toBe(false);
     expect(contract.hostDaemonSupportsConnectNext(247)).toBe(true);
     expect(contract.hostDaemonSupportsDesktopBrokerProof(247)).toBe(false);
@@ -1197,6 +1200,13 @@ describe("host-daemon command schemas", () => {
     ).toBe(true);
     expect(
       threadStopCommandSchema.safeParse({ ...base, intent: "pause" }).success,
+    ).toBe(false);
+    expect(
+      threadStopCommandSchema.safeParse({
+        ...base,
+        intent: "interrupt",
+        interruptionReason: "question-unanswered",
+      }).success,
     ).toBe(false);
   });
 
