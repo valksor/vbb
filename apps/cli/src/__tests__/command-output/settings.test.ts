@@ -16,6 +16,104 @@ describe("bb settings commands", () => {
   const register: CommandRegistrar = (program) =>
     registerSettingsCommands(program, () => "http://server");
 
+  it("lists quick replies and reads their empty default through UI commands", async () => {
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({
+        preferences: {
+          "composer.quickReplies": {
+            value: ["continue", "run the tests\nthen report", "continue"],
+            revision: 7,
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        preferences: {
+          "composer.quickReplies": { value: [], revision: 8 },
+        },
+      });
+    stubServerApi({ "v1.preferences.ui.$get": list });
+
+    await runCommand(["settings", "ui", "list", "--json"], register);
+    await runCommand(
+      ["settings", "ui", "get", "composer.quickReplies", "--json"],
+      register,
+    );
+
+    expect(
+      collectLogPayloads(vi.mocked(console.log)).map((value) => JSON.parse(value)),
+    ).toEqual([
+      {
+        preferences: {
+          "composer.quickReplies": {
+            value: ["continue", "run the tests\nthen report", "continue"],
+            revision: 7,
+          },
+        },
+      },
+      { key: "composer.quickReplies", value: [], revision: 8 },
+    ]);
+  });
+
+  it("sets ordered quick replies with the fetched revision and resets to default", async () => {
+    const quickReplies = ["continue", "run the tests\nthen report", "continue"];
+    const list = vi.fn(async () => ({
+      preferences: {
+        "composer.quickReplies": { value: [], revision: 8 },
+      },
+    }));
+    const put = vi.fn(async ({ json }) => ({
+      key: "composer.quickReplies",
+      value: json.value,
+      revision: 9,
+    }));
+    const reset = vi.fn(async () => ({
+      key: "composer.quickReplies",
+      value: [],
+      revision: 10,
+    }));
+    stubServerApi({
+      "v1.preferences.ui.$get": list,
+      "v1.preferences.ui.:key.$put": put,
+      "v1.preferences.ui.:key.$delete": reset,
+    });
+
+    await runCommand(
+      [
+        "settings",
+        "ui",
+        "set",
+        "composer.quickReplies",
+        JSON.stringify(quickReplies),
+        "--json",
+      ],
+      register,
+    );
+    await runCommand(
+      ["settings", "ui", "reset", "composer.quickReplies", "--json"],
+      register,
+    );
+
+    expect(list).toHaveBeenCalledExactlyOnceWith({});
+    expect(put).toHaveBeenCalledExactlyOnceWith({
+      json: { expectedRevision: 8, value: quickReplies },
+      param: { key: "composer.quickReplies" },
+    });
+    expect(reset).toHaveBeenCalledExactlyOnceWith({
+      param: { key: "composer.quickReplies" },
+    });
+    expect(
+      collectLogPayloads(vi.mocked(console.log)).map((value) => JSON.parse(value)),
+    ).toEqual([
+      {
+        key: "composer.quickReplies",
+        value: quickReplies,
+        revision: 9,
+      },
+      { key: "composer.quickReplies", value: [], revision: 10 },
+    ]);
+  });
+
   it.each(["5", "0"])(
     "sets the idle timeout to %s through general settings",
     async (value) => {

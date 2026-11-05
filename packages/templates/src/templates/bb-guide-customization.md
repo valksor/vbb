@@ -1,7 +1,7 @@
 ---
 kind: instruction
 title: bb Guide — Customization
-summary: Command reference for the bb app theme, server-backed settings, keyboard shortcuts, sidebar preferences, host files, and voice transcription.
+summary: Command reference for the bb app theme, server-backed settings, keyboard shortcuts, UI preferences, host files, and voice transcription.
 intent: Explain the CLI theme surface, server-backed app settings, and the remaining app-wide customization commands.
 editingNotes: Keep flags accurate against the CLI implementation. Theme details live in the bb-cli skill's references/theming.md. Bundled plugins document their settings in the plugins chapter and their skills, not here.
 ---
@@ -310,12 +310,23 @@ conflicting plugin defaults stay unbound. Plugin defaults resolve in each app
 window, not in `keyboard list`, so CLI/SDK callers should clear conflicting
 explicit bindings in the same update.
 
-Sidebar preferences
+UI preferences
 
-`bb settings ui` reads and writes server-side sidebar preferences shared by
+`bb settings ui` reads and writes server-side UI preferences shared by
 every window, device, and the CLI. The same registry stores which thread Info
-panel sections are collapsed (`infoPanel.collapsedSections`) and whether a
-thread pane's thread context card stays pinned open (`threadContextCard.pinned`).
+panel sections are collapsed (`infoPanel.collapsedSections`), whether a
+thread pane's thread context card stays pinned open (`threadContextCard.pinned`),
+and the composer's quick-reply buttons (`composer.quickReplies`). The default
+quick-reply list is empty, so buttons appear only after configuration. It
+accepts up to 50 trimmed, nonblank messages, each at most 1,024 characters;
+buttons appear for idle or errored threads and an empty list hides them.
+
+`bb settings ui set composer.quickReplies '["continue","run the tests"]'`
+sets the list. SDK callers use `sdk.system.uiPreferences.list()` to read the
+revision, `sdk.system.uiPreferences.set({ key: "composer.quickReplies", value,
+expectedRevision })` to write it, and
+`sdk.system.uiPreferences.reset({ key: "composer.quickReplies" })` to restore
+the empty default.
 
 bb settings ui list [--json]
 bb settings ui get <key> [--json]

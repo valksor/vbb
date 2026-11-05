@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { GIT_PLUGIN_ID } from "./plugin-id.js";
 
-const UI_PREFERENCE_STRING_MAX_LENGTH = 1_024;
+export const UI_PREFERENCE_STRING_MAX_LENGTH = 1_024;
+export const COMPOSER_QUICK_REPLIES_MAX_COUNT = 50;
 const UI_PREFERENCE_LIST_MAX_LENGTH = 10_000;
 
 const sidebarOrganizationModeSchema = z.enum([
@@ -33,6 +34,9 @@ const sidebarHiddenGroupsSchema = z
   .array(uiPreferenceStringSchema.regex(/^(project|section|machine):\S+$/))
   .max(UI_PREFERENCE_LIST_MAX_LENGTH)
   .transform((value) => [...new Set(value)]);
+const composerQuickRepliesSchema = z
+  .array(z.string().trim().min(1).max(UI_PREFERENCE_STRING_MAX_LENGTH))
+  .max(COMPOSER_QUICK_REPLIES_MAX_COUNT);
 
 export const UI_PREFERENCE_KEYS = [
   "sidebar.organizationMode",
@@ -50,6 +54,7 @@ export const UI_PREFERENCE_KEYS = [
   "sidebar.navigationProvider",
   "sidebar.threadListProvider",
   "composer.provider",
+  "composer.quickReplies",
   "infoPanel.collapsedSections",
   "threadContextCard.pinned",
 ] as const;
@@ -155,6 +160,11 @@ export const uiPreferenceDefinitions = {
     uiPreferenceStringSchema,
     "__automatic__",
     "Plugin that draws the composer's input box: a plugin key such as bb--composer/composer, or __automatic__ for the first composer from a plugin you installed, then the bundled Composer plugin. With no composer plugin enabled, no composer is shown.",
+  ),
+  "composer.quickReplies": defineUiPreference(
+    composerQuickRepliesSchema,
+    [],
+    "Messages shown as buttons above the composer when a thread is idle or errored; pressing one sends it. Each message is up to 1,024 characters; at most 50. An empty list hides the buttons.",
   ),
   "threadContextCard.pinned": defineUiPreference(
     z.boolean(),

@@ -48,6 +48,10 @@ export const SETTINGS_SEARCH_INDEX: Record<
         keywords: ["enter", "steer", "queue", "follow-up"],
       },
       {
+        title: "Quick replies",
+        keywords: ["continue", "canned", "messages", "composer"],
+      },
+      {
         title: "Thread archive confirmation",
         keywords: ["confirm", "child threads"],
       },

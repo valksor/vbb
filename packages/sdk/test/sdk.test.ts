@@ -111,6 +111,85 @@ function createFetchQueue(
 }
 
 describe("@bb/sdk", () => {
+  it("round-trips ordered quick replies through the UI preferences transport", async () => {
+    const quickReplies = ["continue", "run the tests\nthen report", "continue"];
+    const queue = createFetchQueue([
+      {
+        body: {
+          preferences: {
+            "composer.quickReplies": { value: [], revision: 4 },
+          },
+        },
+      },
+      {
+        body: {
+          key: "composer.quickReplies",
+          value: quickReplies,
+          revision: 5,
+        },
+      },
+      {
+        body: {
+          key: "composer.quickReplies",
+          value: [],
+          revision: 6,
+        },
+      },
+    ]);
+    const sdk = createBbSdk({
+      transport: createHttpTransport({
+        baseUrl: "http://bb.test",
+        fetch: queue.fetch,
+        runtime: "node",
+      }),
+    });
+
+    await expect(sdk.system.uiPreferences.list()).resolves.toEqual({
+      preferences: {
+        "composer.quickReplies": { value: [], revision: 4 },
+      },
+    });
+    await expect(
+      sdk.system.uiPreferences.set({
+        expectedRevision: 4,
+        key: "composer.quickReplies",
+        value: quickReplies,
+      }),
+    ).resolves.toEqual({
+      key: "composer.quickReplies",
+      value: quickReplies,
+      revision: 5,
+    });
+    await expect(
+      sdk.system.uiPreferences.reset({ key: "composer.quickReplies" }),
+    ).resolves.toEqual({
+      key: "composer.quickReplies",
+      value: [],
+      revision: 6,
+    });
+
+    expect(queue.requests).toEqual([
+      {
+        bodyText: undefined,
+        method: "GET",
+        url: "http://bb.test/api/v1/preferences/ui",
+      },
+      {
+        bodyText: JSON.stringify({
+          expectedRevision: 4,
+          value: quickReplies,
+        }),
+        method: "PUT",
+        url: "http://bb.test/api/v1/preferences/ui/composer.quickReplies",
+      },
+      {
+        bodyText: undefined,
+        method: "DELETE",
+        url: "http://bb.test/api/v1/preferences/ui/composer.quickReplies",
+      },
+    ]);
+  });
+
   it("updates watchdog settings through the general settings SDK path", async () => {
     const settings = {
       ...defaultAppSettings,
