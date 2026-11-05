@@ -302,6 +302,8 @@ function buildWorkflowWorkRow(
     taskType: message.taskType,
     workflowName: message.workflowName,
     description: message.description,
+    command: message.command,
+    outputAvailable: message.outputFile !== null,
     model: message.model,
     taskStatus: message.taskStatus,
     workflow: message.workflow,

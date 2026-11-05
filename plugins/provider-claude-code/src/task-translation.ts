@@ -24,6 +24,10 @@ import {
   type ClaudeWorkflowAgentRecord,
 } from "./schemas.js";
 import { backgroundTaskPresentation } from "./presentation.js";
+import {
+  resolveTaskCommand,
+  type ForwardedToolLookup,
+} from "./task-translation.output-file.fork.js";
 
 interface ClaudeTrackedTask {
   taskId: string;
@@ -33,6 +37,7 @@ interface ClaudeTrackedTask {
   generation: number;
   workflowName: string | undefined;
   description: string;
+  command: string | undefined;
   taskStatus: BackgroundTaskStatus;
   skipTranscript: boolean;
   foreground: boolean;
@@ -53,6 +58,7 @@ interface TranslateClaudeTaskMessageArgs {
   tasks: ClaudeTaskMap;
   turnStartSuppressed: boolean;
   hasForwardedToolUse: (toolUseId: string) => boolean;
+  forwardedToolUse: ForwardedToolLookup;
 }
 
 export function hasCompletionBlockingClaudeTasks(
@@ -196,6 +202,7 @@ function buildClaudeTaskShape(
     familyId: task.taskId,
     taskType: task.taskType,
     description: task.description,
+    ...(task.command !== undefined ? { command: task.command } : {}),
     status: backgroundTaskItemStatus(task.taskStatus),
     taskStatus: task.taskStatus,
     skipTranscript: task.skipTranscript,
@@ -221,7 +228,7 @@ function taskKey(task: ClaudeTrackedTask): {
   };
 }
 
-function buildClaudeTaskProgressDelta(
+export function buildClaudeTaskProgressDelta(
   task: ClaudeTrackedTask,
   flush: boolean,
 ): ThreadDelta {
@@ -306,6 +313,12 @@ export function translateClaudeTaskMessage(
       generation,
       workflowName: message.workflow_name,
       description: message.description,
+      command: resolveTaskCommand(
+        args,
+        message.tool_use_id,
+        taskType,
+        existing,
+      ),
       taskStatus: "running",
       skipTranscript: message.skip_transcript ?? false,
       foreground,

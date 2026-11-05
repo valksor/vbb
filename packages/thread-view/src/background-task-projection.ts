@@ -47,6 +47,8 @@ function applyBackgroundTaskItem(
   message.taskType = item.taskType;
   message.workflowName = item.workflowName ?? null;
   message.description = item.description;
+  message.command = item.command ?? message.command;
+  message.outputFile = item.outputFile ?? message.outputFile;
   message.status = itemStatusToExecStatus(item.status);
   message.taskStatus = item.taskStatus;
   message.skipTranscript = item.skipTranscript;
@@ -98,6 +100,8 @@ export function upsertBackgroundTaskMessage(
     taskType: lifecycle.item.taskType,
     workflowName: lifecycle.item.workflowName ?? null,
     description: lifecycle.item.description,
+    command: lifecycle.item.command ?? null,
+    outputFile: lifecycle.item.outputFile ?? null,
     model: null,
     status: itemStatusToExecStatus(lifecycle.item.status),
     taskStatus: lifecycle.item.taskStatus,

@@ -422,6 +422,7 @@ type ExpectedThreadsKey =
   | "listRunning"
   | "markRead"
   | "markUnread"
+  | "experimental_backgroundTaskOutput"
   | "message"
   | "open"
   | "output"

@@ -10,6 +10,8 @@ export interface TerminalOutputBlockProps {
   exitCode: number | null;
   metadataLines: readonly string[];
   streaming: boolean;
+  scrollClassName?: string;
+  scrollAriaLabel?: string;
 }
 
 const ANSI_THEME_COLORS: Record<number, string> = {
@@ -64,6 +66,8 @@ export function TerminalOutputBlock({
   metadataLines,
   output,
   streaming,
+  scrollClassName,
+  scrollAriaLabel,
 }: TerminalOutputBlockProps) {
   const renderedOutputHtml = useMemo(
     () =>
@@ -98,7 +102,11 @@ export function TerminalOutputBlock({
             size="base"
             streaming={streaming}
             className="mt-1.5"
-            scrollClassName="whitespace-pre leading-tight text-muted-foreground"
+            ariaLabel={scrollAriaLabel}
+            scrollClassName={cn(
+              "whitespace-pre leading-tight text-muted-foreground",
+              scrollClassName,
+            )}
           >
             <div dangerouslySetInnerHTML={{ __html: renderedOutputHtml }} />
           </TimelineDetailScroll>

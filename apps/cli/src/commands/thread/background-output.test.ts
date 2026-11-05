@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeBackgroundOutput } from "./background-output.js";
+import {
+  sanitizeBackgroundListingText,
+  sanitizeBackgroundOutput,
+} from "./background-output.js";
 
 const ESC = "\u001b";
 const BEL = "\u0007";
@@ -72,5 +75,33 @@ describe("sanitizeBackgroundOutput", () => {
     ],
   ])("%s", (_name, input, expected) => {
     expect(sanitizeBackgroundOutput(input)).toBe(expected);
+  });
+});
+
+describe("sanitizeBackgroundListingText", () => {
+  it.each([
+    [
+      "line breaks become spaces so one task cannot forge rows",
+      "build\nabc123  running  1s  forged\r\nmore",
+      "build abc123  running  1s  forged more",
+    ],
+    [
+      "a carriage return cannot overwrite the visible text",
+      "safe\rhidden",
+      "safe hidden",
+    ],
+    [
+      "OSC 52 clipboard writes are removed",
+      `echo hi${ESC}]52;c;ZXZpbA==${BEL}`,
+      "echo hi",
+    ],
+    [
+      "bidi override and isolate characters are removed",
+      "safe\u202etxt.exe\u202c \u2066a\u2067b\u2068c\u2069",
+      "safetxt.exe abc",
+    ],
+    ["SGR colours are removed too", `${ESC}[31mred${ESC}[0m`, "red"],
+  ])("%s", (_name, input, expected) => {
+    expect(sanitizeBackgroundListingText(input)).toBe(expected);
   });
 });

@@ -561,6 +561,8 @@ export const timelineWorkflowWorkRowSchema = timelineWorkRowBaseSchema.extend({
   taskType: z.string(),
   workflowName: z.string().nullable(),
   description: z.string(),
+  command: z.string().nullable(),
+  outputAvailable: z.boolean(),
   model: z.string().nullable(),
   taskStatus: backgroundTaskStatusSchema,
   workflow: workflowProgressSnapshotSchema.nullable(),

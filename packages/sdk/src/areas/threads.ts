@@ -86,9 +86,19 @@ import type {
   UpdateQueuedMessageRequest,
 } from "@bb/server-contract";
 import { signalRequestArgs, type CreateSdkAreaArgs } from "./common.js";
+import type { BackgroundTaskOutputResponse } from "@bb/server-contract";
 
 export const DEFAULT_THREAD_WAIT_TIMEOUT_MS = 20 * 60 * 1000;
 export const DEFAULT_THREAD_WAIT_POLL_INTERVAL_MS = 250;
+
+export type ThreadBackgroundTaskOutputResult = BackgroundTaskOutputResponse;
+
+export interface ThreadBackgroundTaskOutputArgs {
+  signal?: AbortSignal;
+  threadId: string;
+  itemId: string;
+  tailBytes?: number;
+}
 
 export interface ThreadListArgs {
   archived?: boolean;
@@ -612,6 +622,9 @@ export interface ThreadQueueArea {
 }
 
 export interface ThreadsArea {
+  experimental_backgroundTaskOutput(
+    args: ThreadBackgroundTaskOutputArgs,
+  ): Promise<ThreadBackgroundTaskOutputResult>;
   archive(args: ThreadActionArgs): Promise<ThreadArchiveResult>;
   archiveAll(args: ThreadActionArgs): Promise<ThreadArchiveAllResult>;
   childSummary(args: ThreadStatusArgs): Promise<ThreadChildSummaryResult>;
@@ -1290,6 +1303,22 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
     },
   };
   return {
+    async experimental_backgroundTaskOutput(input) {
+      return transport.readJson(
+        transport.api.v1.threads[":id"]["background-tasks"][
+          ":itemId"
+        ].output.$get(
+          {
+            param: { id: input.threadId, itemId: input.itemId },
+            query:
+              input.tailBytes === undefined
+                ? {}
+                : { tailBytes: String(input.tailBytes) },
+          },
+          ...signalRequestArgs(input.signal),
+        ),
+      );
+    },
     archive: archiveAll,
     archiveAll,
     async childSummary(input) {

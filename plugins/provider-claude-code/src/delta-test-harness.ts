@@ -129,6 +129,10 @@ interface ClaudeDeltaHarness {
   acceptInput(clientRequestId: string, threadId?: string): ThreadEvent[];
   settleSession(threadId?: string): ThreadEvent[];
   itemId(providerItemId: string, threadId?: string): string;
+  setBackgroundTaskOutputFile(
+    threadId: string,
+    args: { taskId: string; providerItemKey: string; path: string },
+  ): ThreadEvent[];
 }
 
 export function createClaudeDeltaHarness(
@@ -172,6 +176,12 @@ export function createClaudeDeltaHarness(
     },
     itemId(providerItemId, threadId = "") {
       return assembler.getBbItemId(threadId, providerItemId) ?? "";
+    },
+    setBackgroundTaskOutputFile(threadId, args) {
+      return assembler.assemble({
+        threadId,
+        deltas: translator.setBackgroundTaskOutputFile(threadId, args),
+      });
     },
   };
 }

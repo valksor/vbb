@@ -18,6 +18,7 @@ interface TimelineDetailScrollProps {
   streaming?: boolean;
   className?: string;
   scrollClassName?: string;
+  ariaLabel?: string;
   showAboveFade?: boolean;
   children: ReactNode;
 }
@@ -28,6 +29,7 @@ export function TimelineDetailScroll({
   streaming = false,
   className,
   scrollClassName,
+  ariaLabel,
   showAboveFade = true,
   children,
 }: TimelineDetailScrollProps) {
@@ -56,8 +58,13 @@ export function TimelineDetailScroll({
       <div
         ref={refCallback}
         data-detail-scroll-area={size}
+        {...(ariaLabel === undefined
+          ? {}
+          : { role: "region", tabIndex: 0, "aria-label": ariaLabel })}
         className={cn(
           "min-w-0 overflow-y-auto",
+          ariaLabel !== undefined &&
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring",
           overflowX === "auto" ? "overflow-x-auto" : "overflow-x-hidden",
           maxHeightClassName,
           scrollClassName,

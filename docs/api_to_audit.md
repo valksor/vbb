@@ -1224,6 +1224,14 @@ Docs: `backend-sdk.md`, `bb guide thread-messaging`.
 2. **Result shape.** The call returns the updated thread; decide whether callers
    need the generating service or a preview that does not apply the title.
 
+## `bb.sdk.threads.experimental_backgroundTaskOutput`
+
+**What it does.** `GET /threads/:id/background-tasks/:itemId/output` returns `{ state, text, truncated, totalBytes }` for a `local_bash` background command: the tail (default 64 KiB, at most 1 MiB, `tailBytes`) of the task's output file, read through the host daemon with a size read followed by a tail read, retried with backoff on `file_changed`. `state` is `available`, `pending` (file not yet created while the task runs), `busy` (the file kept changing), or `unavailable` (not a trusted `local_bash` task of that thread, no host or environment, a daemon file error, or the file is gone after the task ended). The core SDK takes `{ threadId, itemId, tailBytes?, signal? }`. The server only reads the `claude-<uid>/…/tasks/<familyId>.output` path it recorded from the task's own events, never a caller-supplied path, and never returns the host path.
+
+**Core callers.** The command-output panel on the background-commands banner (`useThreadBackgroundTaskOutput`) and `bb thread background --task`.
+
+**Stabilization criteria.** Decide whether other providers' background tasks should be readable, whether `tailBytes` and the `busy`/`pending` states belong in the stable contract, and whether output should stream instead of being polled. Then run the audit, rename project-wide, and remove this entry.
+
 ## `PluginSettingDescriptor.experimental_optionLabels`
 
 A `type: "select"` descriptor record from option value to display label,

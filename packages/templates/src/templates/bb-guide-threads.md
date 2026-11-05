@@ -7,6 +7,18 @@ editingNotes: Keep flags accurate against the CLI implementation. Run the json-f
 ---
 Thread commands
 
+Background command output:
+  bb thread background [id] [--self] [--json]
+  bb thread background [id] --task <itemId> [--tail-bytes <n>] [--raw] [--json]
+
+  Lists active background commands and agents. --task reads a command's output
+  tail, including a finished task if its file remains. Use itemId from the list.
+  Tail size defaults to 65536 bytes, with a maximum of 1048576.
+  --tail-bytes and --raw require --task. Agent output is unavailable.
+  Display output strips terminal controls and keeps SGR colors. --raw preserves
+  output controls. JSON preserves payload strings and reports output state.
+  SDK: threads.experimental_backgroundTaskOutput({threadId, itemId, tailBytes?, signal?}).
+
 Every command supports --json for machine-readable output. Read-only commands
 take a thread ID or --self where supported; mutating lifecycle and messaging
 commands require an explicit ID or --self.

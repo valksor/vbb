@@ -50,6 +50,9 @@ the most-parsed commands ends with the same shape.
   bb thread output <id> --json
     {output}
 
+  bb thread background <id> --json
+    {threadId, tasks: [{itemId, kind, status, startedAt, elapsedMs, command, description, outputAvailable}]}    (kind is command or agent); with --task: {threadId, itemId, state, text, truncated, totalBytes}
+
   bb thread spawn ... --json
     the created thread: {id, status, title, projectId, environmentId, ...}
 

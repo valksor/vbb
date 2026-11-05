@@ -7,6 +7,11 @@ import {
   type MachineEnvironmentList,
 } from "./api/machine-environment.js";
 import {
+  backgroundTaskOutputQuerySchema,
+  type BackgroundTaskOutputQuery,
+  type BackgroundTaskOutputResponse,
+} from "./api/background-task-output.js";
+import {
   machineEnvironmentReplaceSchema,
   recordTelemetryEventRequestSchema,
   setAiServiceSelectionRequestSchema,
@@ -1254,6 +1259,15 @@ export const publicApiRoutes = {
   },
 
   threads: {
+    backgroundTaskOutput: defineRoute({
+      path: "/threads/:id/background-tasks/:itemId/output",
+      method: "get",
+      request: optionalQueryRequest<
+        { param: { id: string; itemId: string } },
+        BackgroundTaskOutputQuery
+      >(backgroundTaskOutputQuerySchema),
+      response: jsonResponse<BackgroundTaskOutputResponse>(),
+    }),
     list: defineRoute({
       path: "/threads",
       method: "get",
