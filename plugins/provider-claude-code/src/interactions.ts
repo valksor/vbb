@@ -339,7 +339,7 @@ export function buildClaudeInteractiveResponse(
       behavior: "deny",
       message:
         args.payload.subject.kind === "plan"
-          ? buildClaudePlanRejectionMessage()
+          ? (args.resolution.message ?? buildClaudePlanRejectionMessage())
           : "Permission request denied",
       decisionClassification: "user_reject",
     };

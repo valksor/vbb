@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  APPROVAL_DENY_MESSAGE_MAX_LENGTH,
+  approvalPendingInteractionResolutionSchema,
   pendingInteractionMacOsPermissionsSchema,
   pendingInteractionCreateSchema,
   pendingInteractionSchema,
@@ -11,6 +13,45 @@ import {
 } from "../src/index.js";
 
 describe("pending interaction schemas", () => {
+  it("parses approval deny resolutions with an optional message", () => {
+    expect(
+      approvalPendingInteractionResolutionSchema.parse({
+        decision: "deny",
+        message: "held for review",
+      }),
+    ).toEqual({ decision: "deny", message: "held for review" });
+    expect(
+      approvalPendingInteractionResolutionSchema.parse({
+        decision: "deny",
+        message: "  padded  ",
+      }),
+    ).toEqual({ decision: "deny", message: "  padded  " });
+    expect(
+      approvalPendingInteractionResolutionSchema.parse({ decision: "deny" }),
+    ).toEqual({ decision: "deny" });
+
+    expect(() =>
+      approvalPendingInteractionResolutionSchema.parse({
+        decision: "deny",
+        message: "",
+      }),
+    ).toThrow();
+    expect(() =>
+      approvalPendingInteractionResolutionSchema.parse({
+        decision: "deny",
+        message: "   ",
+      }),
+    ).toThrow("Approval deny message cannot be blank");
+    expect(() =>
+      approvalPendingInteractionResolutionSchema.parse({
+        decision: "deny",
+        message: "x".repeat(APPROVAL_DENY_MESSAGE_MAX_LENGTH + 1),
+      }),
+    ).toThrow(
+      `Approval deny message cannot exceed ${APPROVAL_DENY_MESSAGE_MAX_LENGTH} characters`,
+    );
+  });
+
   it("parses semantic command approval interactions", () => {
     expect(
       pendingInteractionCreateSchema.parse({

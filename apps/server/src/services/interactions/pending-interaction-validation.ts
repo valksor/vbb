@@ -17,6 +17,7 @@ import {
   isPluginPendingInteractionResolution,
 } from "@bb/domain";
 import { ApiError } from "../../errors.js";
+import { assertDenyMessageAllowed } from "./pending-interaction-validation.fork.js";
 
 type GrantedPendingInteractionResolution = Extract<
   ApprovalPendingInteractionResolution,
@@ -161,7 +162,7 @@ export function pendingInteractionResolutionEquals(
 
   switch (left.decision) {
     case "deny":
-      return right.decision === "deny";
+      return right.decision === "deny" && left.message === right.message;
     case "allow_once":
       return (
         right.decision === "allow_once" && grantedResolutionEquals(left, right)
@@ -331,6 +332,7 @@ export function validatePendingInteractionResolution(
     );
   }
   validateAvailableDecision(interaction, resolution.decision);
+  assertDenyMessageAllowed(interaction, resolution);
   if (resolution.decision !== "deny") {
     if (resolution.grantedPermissions !== null) {
       validateGrantedPermissions(

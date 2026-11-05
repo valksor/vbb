@@ -94,6 +94,7 @@ Interactions:
                                            Allow a command, file-change, plan, or tool-use approval
   bb thread interactions deny <interaction-id> [id]
                                            Deny an approval
+    --message <text>                       plan approvals only; replaces the text the agent sees
   bb thread interactions grant <interaction-id> [id] --scope turn|session
                                            Grant a permission interaction
   bb thread interactions answer <interaction-id> [id] --choice <questionId=value> --text <questionId=text>
@@ -103,6 +104,8 @@ Interactions:
     --self                                 Target current thread (every subcommand)
     --json                                 Machine-readable output (every subcommand)
 
+  `show` prints the deny `Message:` when a resolved deny carries one; a plan
+  deny delivers that text to the agent instead of the default rejection.
   `answer` may skip questions that `show` marks Optional.
   `show` prints a plugin form's `Data` so you can shape the `--value` JSON.
   A provider's plugin-defined request cannot be cancelled; stop the thread to
