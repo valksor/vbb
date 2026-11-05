@@ -819,14 +819,6 @@ describe("ACP parent references", () => {
       ),
       "thread-b",
     );
-    const first = completedItems(
-      harness.translate(completed("end_turn", "thread-a"), "thread-a"),
-    );
-    expect(first).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ text: "a", parentToolCallId: parentA }),
-      ]),
-    );
     const second = completedItems(
       harness.translate(completed("end_turn", "thread-b"), "thread-b"),
     );
@@ -836,5 +828,33 @@ describe("ACP parent references", () => {
     expect(
       second.find((item) => item.type === "agentMessage")?.parentToolCallId,
     ).toBeUndefined();
+    const first = completedItems(
+      harness.translate(completed("end_turn", "thread-a"), "thread-a"),
+    );
+    expect(first).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ text: "a", parentToolCallId: parentA }),
+      ]),
+    );
+    harness.translate(started("thread-b"), "thread-b");
+    const reusedId = startedItemId(
+      harness.translate(update(openCommand("agent"), "thread-b"), "thread-b"),
+    );
+    const reused = completedItems(
+      harness.translate(
+        update(
+          {
+            sessionUpdate: "tool_call_update",
+            toolCallId: "agent",
+            status: "completed",
+            rawOutput: "done",
+          },
+          "thread-b",
+        ),
+        "thread-b",
+      ),
+    )[0];
+    expect(reused).toMatchObject({ id: reusedId });
+    expect(reused?.parentToolCallId).toBeUndefined();
   });
 });
