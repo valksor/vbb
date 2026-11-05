@@ -68,6 +68,7 @@ import { ThreadTodoCard } from "@/components/promptbox/banner/ThreadTodoCard";
 import { ThreadPromptModeCard } from "@/components/promptbox/banner/ThreadPromptModeCard";
 import { ThreadWorkflowStack } from "@/components/promptbox/banner/ThreadWorkflowStack";
 import { ThreadBackgroundCommandsCard } from "@/components/promptbox/banner/ThreadBackgroundCommandsCard";
+import { useHandoffComposerNavigation } from "./ThreadDetailPromptArea.handoff.fork";
 import { useQuickRepliesCard } from "./ThreadDetailPromptArea.quick-replies.fork";
 import { ThreadModelFallbackCard } from "@/components/promptbox/banner/ThreadModelFallbackCard";
 import { InlineMessageEditorFrame } from "@/components/promptbox/InlineMessageEditorFrame";
@@ -132,7 +133,7 @@ import { getThreadRoutePath } from "@/lib/route-paths";
 import { getThreadDisplayTitle } from "@/lib/thread-title";
 import {
   buildThreadHandoffCreateRequest,
-  buildThreadHandoffFollowUpDraft,
+  buildThreadHandoffFollowUpDraftWithOwnAttachments,
   stripThreadHandoffPrefix,
   type ThreadHandoffCreateSeed,
 } from "@bb/client-core";
@@ -784,7 +785,7 @@ export function ThreadDetailPromptArea({
           },
     );
     const currentDraft = promptDraft.getCurrent();
-    const seededDraft = buildThreadHandoffFollowUpDraft(
+    const seededDraft = buildThreadHandoffFollowUpDraftWithOwnAttachments(
       handoffSeed,
       currentDraft,
     );
@@ -827,6 +828,22 @@ export function ThreadDetailPromptArea({
     setServiceTier,
     thread.id,
   ]);
+  const { handleContinueInNewThread, moveHandoffToNewThreadComposer } =
+    useHandoffComposerNavigation({
+      effectiveSelectedModel,
+      exitHandoff,
+      handoffSeed,
+      isHandoffSelection,
+      navigate,
+      permissionMode,
+      promptDraft,
+      reasoningLevel,
+      selectedProviderId,
+      serviceTier,
+      sourceThreadDisplayTitle,
+      supportsServiceTier,
+      thread,
+    });
   const handleProviderChange = useCallback(
     (providerId: string) => {
       if (providerId === selectedProviderId) {
@@ -1604,6 +1621,7 @@ export function ThreadDetailPromptArea({
         active: isHandoffSelection,
         onStart: beginHandoff,
         onExit: exitHandoff,
+        onChangeTarget: moveHandoffToNewThreadComposer,
         onSelect: handleHandoffSelect,
       },
       ...(isHandoffSelection || pickerSessionOptionSections.length === 0
@@ -1625,6 +1643,7 @@ export function ThreadDetailPromptArea({
       beginHandoff,
       isHandoffSelection,
       exitHandoff,
+      moveHandoffToNewThreadComposer,
       handleModelChange,
       handleProviderChange,
       isLoadingModels,
@@ -2203,6 +2222,9 @@ export function ThreadDetailPromptArea({
                         restorePending: isRestoreCurrentEnvironmentPending,
                       }
                     : {}),
+                  ...(handleContinueInNewThread
+                    ? { onContinueInNewThread: handleContinueInNewThread }
+                    : {}),
                 }
           }
           input={{
@@ -2278,6 +2300,7 @@ export function ThreadDetailPromptArea({
       handleRestoreCurrentEnvironment,
       canRestoreEnvironment,
       environmentGoneStatus,
+      handleContinueInNewThread,
       isFollowUpSubmitting,
       isRestoreCurrentEnvironmentPending,
       isUnarchiveCurrentThreadPending,

@@ -117,6 +117,7 @@ export interface NewThreadModeConfig {
   environmentProviderInputsSlot?: ReactNode;
   machineProviderInputsSlot?: ReactNode;
   banner?: ReactNode;
+  handoff?: ReactNode;
 }
 
 interface NewThreadPromptBoxUIProps {
@@ -322,6 +323,7 @@ const DefaultNewThreadComposer = memo(function DefaultNewThreadComposer({
         mentionMenuPlacement={mentionMenuPlacement}
         attachments={attachments}
         promptActions={promptActions}
+        handoff={modeConfig.handoff}
         voice={voice}
         submission={{
           isSubmitting,

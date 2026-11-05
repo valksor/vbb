@@ -95,7 +95,16 @@ import {
   type OpenAttachmentRequest,
 } from "@/components/secondary-panel/AttachmentOpenerContext";
 import { PluginComposerHostProvider } from "@/components/plugin/plugin-composer-host";
-import type { PromptMentionLinkResolver } from "@bb/client-core";
+import {
+  readThreadHandoffComposeSeedFromLocationState,
+  type PromptMentionLinkResolver,
+  type ThreadHandoffComposeSeed,
+} from "@bb/client-core";
+import {
+  useHandoffComposerProps,
+  useHandoffPromptHeader,
+  useHandoffSeedApplier,
+} from "./root-compose-handoff.fork";
 import { useQuickCreateProjectController } from "@/hooks/useQuickCreateProject";
 import { useNavigateToThreadAfterCreatePreference } from "@/lib/root-compose-create-preference";
 import {
@@ -119,6 +128,7 @@ import { UrlOpenRoutingProvider } from "@/lib/url-open-routing";
 import { AppNavigationHostProvider } from "@/lib/app-navigation-host";
 import { useAppPanelController } from "@/lib/app-fixed-tab-navigation";
 import { useRootComposeProjectId } from "@/lib/root-compose-selection";
+import { useRootComposeHandoffSeed } from "@/lib/root-compose-selection.fork";
 import {
   RootComposeSecondaryContent,
   useRootComposePinnedPanelToggleBoxClassName,
@@ -302,7 +312,8 @@ export function hasSingleUseRootComposeTargetState(state: unknown): boolean {
   return (
     readThreadCreationPlacement(state) !== null ||
     readRootComposeSectionTargetFromLocationState(state) !== null ||
-    readRootComposeEnvironmentTargetFromLocationState(state) !== null
+    readRootComposeEnvironmentTargetFromLocationState(state) !== null ||
+    readThreadHandoffComposeSeedFromLocationState(state) !== null
   );
 }
 
@@ -397,6 +408,7 @@ export function RootComposeView() {
   const { navigateInPane } = usePaneContext();
   const [rootComposeProjectId, setRootComposeProjectId] =
     useRootComposeProjectId();
+  const [handoffSeed, setHandoffSeed] = useRootComposeHandoffSeed();
   const createThread = useCreateThread();
   const [placement, setPlacement] = useRootComposePlacement();
   const [lastCreatedThreadId, setLastCreatedThreadId] = useState<string | null>(
@@ -413,19 +425,29 @@ export function RootComposeView() {
         ...placement,
         ...(sendAt === undefined ? {} : { sendAt }),
       });
+      const shouldNavigateToCreatedThread =
+        handoffSeed !== null || navigateToThreadAfterCreate;
       setLastCreatedThreadId(thread.id);
       setPlacement(DEFAULT_THREAD_CREATION_PLACEMENT);
-      if (navigateToThreadAfterCreate) {
+      setHandoffSeed(null);
+      if (shouldNavigateToCreatedThread) {
         navigateInPane({ projectId: thread.projectId, threadId: thread.id });
       }
     },
     [
       createThread,
+      handoffSeed,
       navigateInPane,
       navigateToThreadAfterCreate,
       placement,
       setPlacement,
+      setHandoffSeed,
     ],
+  );
+
+  const { carryHandoffDraftToProject, composerSeed } = useHandoffComposerProps(
+    handoffSeed,
+    rootComposeProjectId,
   );
 
   return (
@@ -433,8 +455,11 @@ export function RootComposeView() {
       projectId={rootComposeProjectId}
       onProjectChange={setRootComposeProjectId}
       draftStorage={{ kind: "new-thread", projectId: rootComposeProjectId }}
+      carryDraftToProject={carryHandoffDraftToProject}
       selectionScope="new-thread"
-      preferReadyProviderWhenUnset
+      seed={composerSeed}
+      resetKey={handoffSeed?.sourceThreadId ?? null}
+      preferReadyProviderWhenUnset={handoffSeed === null}
       onSubmit={handleSubmit}
     >
       {(composer) => (
@@ -443,6 +468,8 @@ export function RootComposeView() {
           lastCreatedThreadId={lastCreatedThreadId}
           rootComposeProjectId={rootComposeProjectId}
           setRootComposeProjectId={setRootComposeProjectId}
+          handoffSeed={handoffSeed}
+          setHandoffSeed={setHandoffSeed}
         />
       )}
     </NewThreadComposer>
@@ -454,6 +481,8 @@ interface RootComposeSurfaceProps {
   lastCreatedThreadId: string | null;
   rootComposeProjectId: string;
   setRootComposeProjectId: (projectId: string) => void;
+  handoffSeed: ThreadHandoffComposeSeed | null;
+  setHandoffSeed: (seed: ThreadHandoffComposeSeed | null) => void;
 }
 
 function RootComposeSurface({
@@ -461,6 +490,8 @@ function RootComposeSurface({
   lastCreatedThreadId,
   rootComposeProjectId,
   setRootComposeProjectId,
+  handoffSeed,
+  setHandoffSeed,
 }: RootComposeSurfaceProps) {
   const paneContext = useOptionalPaneContext();
   const isFocusedPane = paneContext?.isFocused ?? true;
@@ -537,6 +568,11 @@ function RootComposeSurface({
   const stateInitialDraft = useInitialPromptDraft(stateInitialPrompt);
   const setPromptDraft = composerActions.restoreDraft;
   const restorePromptDraftIfEmpty = promptDraft.restoreIfEmpty;
+  const applyHandoffSeed = useHandoffSeedApplier({
+    composer,
+    setHandoffSeed,
+    setRootComposeProjectId,
+  });
 
   useEffect(() => {
     const initialPrompt = readInitialPromptFromSearch(location.search);
@@ -564,6 +600,7 @@ function RootComposeSurface({
     const environmentTarget = readRootComposeEnvironmentTargetFromLocationState(
       location.state,
     );
+    applyHandoffSeed(location.state);
     if (!hasSingleUseRootComposeTargetState(location.state)) return;
     if (environmentTarget?.kind === "host" && !hostSelectionReady) {
       return;
@@ -594,6 +631,7 @@ function RootComposeSurface({
     });
   }, [
     focusPromptBox,
+    applyHandoffSeed,
     location.search,
     location.state,
     hostSelectionReady,
@@ -1380,11 +1418,17 @@ function RootComposeSurface({
     />
   );
 
+  const promptHeader = useHandoffPromptHeader({
+    focusPromptBox,
+    handoffSeed,
+    setHandoffSeed,
+  });
   const promptBox = renderPromptBox({
     id: "root-compose-prompt",
     autoFocus: !isProviderCliBlocked,
     mentionMenuPlacement: isCompactViewport ? "top" : "bottom",
     banner: promptBanner,
+    handoff: promptHeader,
     blocker:
       blockingProviderCliStatus === null
         ? undefined

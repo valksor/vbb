@@ -748,6 +748,7 @@ describe("FollowUpPromptBox", () => {
         active: false,
         onStart: vi.fn(),
         onExit: vi.fn(),
+        onChangeTarget: vi.fn(),
         onSelect: vi.fn(),
       };
       props.execution.handoff = handoff;

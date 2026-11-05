@@ -108,6 +108,7 @@ export interface ModelReasoningPickerHandoff {
   active: boolean;
   onStart: () => void;
   onExit: () => void;
+  onChangeTarget: () => void;
   onSelect: (selection: ModelReasoningPickerHandoffSelection) => void;
 }
 
