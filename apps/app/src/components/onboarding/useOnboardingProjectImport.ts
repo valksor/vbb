@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { isPromptDraftEmpty } from "@bb/client-core";
 import { useCreateProject } from "@/hooks/mutations/project-mutations";
 import { usePromptDraftController } from "@/hooks/usePromptDraftStorage";
-import { useImportedProjectDefault } from "@/lib/root-compose-selection";
+import {
+  useImportedProjectDefault,
+  useRootComposeProjectId,
+} from "@/lib/root-compose-selection";
 import {
   recordTelemetryEvent,
   type OnboardingEntry,
@@ -19,29 +22,33 @@ export function useOnboardingProjectImport({
 }) {
   const createProject = useCreateProject();
   const setImportedProjectDefault = useImportedProjectDefault();
-  const draft = usePromptDraftController({ kind: "new-thread" });
+  const [rootComposeProjectId] = useRootComposeProjectId();
+  const draft = usePromptDraftController({
+    kind: "new-thread",
+    projectId: rootComposeProjectId,
+  });
   const lifetimeRef = useRef<{ active: boolean; canSelect: boolean } | null>(
     null,
   );
   const [importing, setImporting] = useState(false);
 
   useEffect(() => {
-    const lifetime = {
-      active: true,
-      canSelect:
-        entry === "first_run" && isPromptDraftEmpty(draft.getCurrent()),
-    };
+    const lifetime = { active: true, canSelect: entry === "first_run" };
     lifetimeRef.current = lifetime;
-    const checkDraft = () => {
-      if (!isPromptDraftEmpty(draft.getCurrent())) lifetime.canSelect = false;
-    };
-    checkDraft();
-    const unsubscribe = draft.subscribe(checkDraft);
     return () => {
       lifetime.active = false;
-      unsubscribe();
     };
-  }, [draft, entry]);
+  }, [entry]);
+
+  useEffect(() => {
+    const checkDraft = () => {
+      if (!isPromptDraftEmpty(draft.getCurrent()) && lifetimeRef.current) {
+        lifetimeRef.current.canSelect = false;
+      }
+    };
+    checkDraft();
+    return draft.subscribe(checkDraft);
+  }, [draft]);
 
   const importProjects = async (
     hostId: string,

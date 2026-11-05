@@ -22,7 +22,10 @@ const repos = [
   { name: "atlas-api", path: "/repos/atlas-api" },
   { name: "docs-site", path: "/repos/docs-site" },
 ];
-const draft = getPromptDraftAccessor({ kind: "new-thread" });
+const draft = getPromptDraftAccessor({
+  kind: "new-thread",
+  projectId: PERSONAL_PROJECT_ID,
+});
 
 function arrange(entry: "first_run" | "replay" = "first_run") {
   const store = createStore();
