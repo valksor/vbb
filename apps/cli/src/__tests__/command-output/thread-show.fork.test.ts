@@ -10,7 +10,7 @@ import * as fixtures from "../helpers/command-output-fixtures.js";
 import {
   jsonResponse,
   stubThreadShowApi,
-} from "../helpers/thread-show-api.js";
+} from "../helpers/thread-show-api.fork.js";
 import { registerThreadCommands } from "../../commands/thread/index.js";
 
 describe("bb thread show command output", () => {

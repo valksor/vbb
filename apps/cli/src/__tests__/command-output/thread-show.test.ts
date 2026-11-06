@@ -14,7 +14,7 @@ import {
   stubServerApi as rawStubServerApi,
   type CommandRegistrar,
 } from "../helpers/command-output-harness.js";
-import { stubThreadShowApi } from "../helpers/thread-show-api.js";
+import { stubThreadShowApi } from "../helpers/thread-show-api.fork.js";
 import * as fixtures from "../helpers/command-output-fixtures.js";
 import { registerThreadCommands } from "../../commands/thread/index.js";
 

@@ -24,7 +24,7 @@ import {
   fetchExecutionProfile,
   printExecutionProfile,
   type ThreadExecutionProfileResult,
-} from "./execution-profile.js";
+} from "./show.fork.js";
 import {
   environmentPullRequestSchema,
   type PullRequest,

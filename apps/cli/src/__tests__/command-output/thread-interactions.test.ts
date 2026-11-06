@@ -8,7 +8,7 @@ import {
 } from "../helpers/command-output-harness.js";
 import type { CommandRegistrar } from "../helpers/command-output-harness.js";
 import * as fixtures from "../helpers/command-output-fixtures.js";
-import { jsonResponse } from "../helpers/thread-show-api.js";
+import { jsonResponse } from "../helpers/thread-show-api.fork.js";
 import { registerThreadCommands } from "../../commands/thread/index.js";
 
 describe("bb thread interactions command output", () => {
