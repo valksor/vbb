@@ -83,6 +83,7 @@ const fixtureTestNames = new Set([
   "current checkout mode ad-hoc signs when the app has no Team ID",
   "current checkout mode refuses to push a dirty worktree",
   "rebase mode refuses a dirty worktree before fetching",
+  "rebase mode refuses to push a different branch before fetching",
   "current checkout mode refuses to push without a tracking head",
   "current checkout mode refuses to push a different branch",
   "current checkout mode refuses a fork remote that pushes upstream",
@@ -97,6 +98,7 @@ const fixtureTestNames = new Set([
   "after the update is applied a signal says so and carries no recovery text",
   "resetting the interruption state restores the pause release notice",
   "gives up waiting for bb Local health after the deadline",
+  "waits for the target process before accepting local health",
   "an interrupted seal still releases the lease with checks disabled and reports recovery when that fails",
   "an interrupted acquire releases a lease the server may already hold",
   "keeps recovery usable when the state file is unreadable or the lease is foreign",
@@ -923,6 +925,7 @@ case "$*" in
       printf '%s\n' "origin $BB_TEST_FORK_URL (fetch)"
     fi
     ;;
+  "remote get-url --push --all _get-bb") printf '%s\n' "https://github.com/get-bb/bb.git" ;;
   "remote get-url --push --all origin") printf '%s\n' "$BB_TEST_PUSH_URL" ;;
   "rev-parse --verify refs/remotes/origin/"*)
     if [ -n "$BB_TEST_FORK_HEAD" ]; then printf '%s\n' "$BB_TEST_FORK_HEAD"; else exit 1; fi
@@ -1134,6 +1137,81 @@ test("rebase mode refuses a dirty worktree before fetching", async () => {
     assert.doesNotMatch(commands, /^git (?:fetch|rebase)\b/mu);
   } finally {
     await rm(fixture.binDirectory, { recursive: true, force: true });
+  }
+});
+
+test("rebase mode refuses to push a different branch before fetching", async () => {
+  const defaultMismatch = await createCurrentUpdaterFixture({
+    branch: "feature/current",
+  });
+  const overriddenMismatch = await createCurrentUpdaterFixture();
+  overriddenMismatch.env.BB_LOCAL_FORK_BRANCH = "feature/current";
+  for (const fixture of [defaultMismatch, overriddenMismatch]) {
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          path.join(process.cwd(), "scripts", "update-local-desktop.mjs"),
+          "--skip-install",
+          "--skip-plugins",
+        ],
+        { cwd: process.cwd(), encoding: "utf8", env: fixture.env },
+      );
+      assert.equal(result.status, 1);
+      assert.match(
+        result.stderr,
+        /does not match push target.*--skip-push/su,
+      );
+      const commands = await readFile(fixture.commandLog, "utf8");
+      assert.doesNotMatch(commands, /^git fetch\b/mu);
+      assert.doesNotMatch(commands, /^(?:pnpm|npm|codesign)\b/mu);
+      assert.doesNotMatch(commands, /^git push\b/mu);
+    } finally {
+      await rm(fixture.binDirectory, { recursive: true, force: true });
+    }
+  }
+
+  const matching = await createCurrentUpdaterFixture();
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(process.cwd(), "scripts", "update-local-desktop.mjs"),
+        "--skip-install",
+        "--skip-plugins",
+      ],
+      { cwd: process.cwd(), encoding: "utf8", env: matching.env },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const commands = await readFile(matching.commandLog, "utf8");
+    assert.match(commands, /^git fetch _get-bb main$/mu);
+    assert.match(commands, /^git fetch origin main$/mu);
+    assert.match(commands, /^git push\b/mu);
+  } finally {
+    await rm(matching.binDirectory, { recursive: true, force: true });
+  }
+
+  const skipPush = await createCurrentUpdaterFixture({
+    branch: "feature/current",
+  });
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        path.join(process.cwd(), "scripts", "update-local-desktop.mjs"),
+        "--skip-install",
+        "--skip-plugins",
+        "--skip-push",
+      ],
+      { cwd: process.cwd(), encoding: "utf8", env: skipPush.env },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const commands = await readFile(skipPush.commandLog, "utf8");
+    assert.match(commands, /^git fetch _get-bb main$/mu);
+    assert.match(commands, /^git fetch origin main$/mu);
+    assert.doesNotMatch(commands, /^git push\b/mu);
+  } finally {
+    await rm(skipPush.binDirectory, { recursive: true, force: true });
   }
 });
 
@@ -2547,6 +2625,101 @@ test("seals with a state file naming the cohort, and aborts cleanly when sealing
   });
 });
 
+test("releases the acquired cohort when the first pause state write fails", async () => {
+  await withDataDir(async (dataDir) => {
+    await writeFile(path.join(dataDir, "admin"), "blocked");
+    const now = new Date("2026-10-06T12:00:00.000Z");
+    const operationId = "desktop-update-2026-10-06T12-00-00-000Z";
+    const calls = [];
+    let identityCalls = 0;
+    const client = {
+      acquire: async () => ({
+        barrier: [{ hostId: "local" }, { hostId: "ncdata" }],
+      }),
+      status: async () => ({ lease: lease("draining", operationId) }),
+      identity: async () => {
+        identityCalls += 1;
+        return {
+          connectedHostIds:
+            identityCalls === 1 ? ["local"] : ["local", "ncdata"],
+        };
+      },
+      release: async (_operationId, resolution) => calls.push(resolution),
+    };
+    await assert.rejects(
+      pauseWork(
+        client,
+        { dataDir, previous: "p", candidate: "c", now },
+        fastTiming,
+      ),
+      /EEXIST/u,
+    );
+    assert.deepEqual(calls, ["force-aborted"]);
+    assert.equal(identityCalls, 2);
+  });
+});
+
+test("releases the sealed cohort when the second pause state write fails", async () => {
+  await withDataDir(async (dataDir) => {
+    const now = new Date("2026-10-06T12:00:00.000Z");
+    const operationId = "desktop-update-2026-10-06T12-00-00-000Z";
+    const calls = [];
+    let identityCalls = 0;
+    const client = {
+      acquire: async () => ({ barrier: [{ hostId: "local" }] }),
+      seal: async () => {
+        await rm(path.join(dataDir, "admin"), { recursive: true, force: true });
+        await writeFile(path.join(dataDir, "admin"), "blocked");
+        return { barrier: [{ hostId: "local" }, { hostId: "ncdata" }] };
+      },
+      status: async () => ({ lease: lease("sealed", operationId) }),
+      identity: async () => {
+        identityCalls += 1;
+        return {
+          connectedHostIds:
+            identityCalls === 1 ? ["local"] : ["local", "ncdata"],
+        };
+      },
+      transition: async () => calls.push("transition"),
+      release: async (_operationId, resolution) => calls.push(resolution),
+    };
+    await assert.rejects(
+      pauseWork(
+        client,
+        { dataDir, previous: "p", candidate: "c", now },
+        fastTiming,
+      ),
+      /EEXIST/u,
+    );
+    assert.deepEqual(calls, ["transition", "force-aborted"]);
+    assert.equal(identityCalls, 2);
+  });
+});
+
+test("keeps the pause state write error and recovery guidance when cleanup fails", async () => {
+  await withDataDir(async (dataDir) => {
+    await writeFile(path.join(dataDir, "admin"), "blocked");
+    const now = new Date("2026-10-06T12:00:00.000Z");
+    const operationId = "desktop-update-2026-10-06T12-00-00-000Z";
+    const client = {
+      acquire: async () => ({ barrier: [{ hostId: "local" }] }),
+      status: async () => ({ lease: lease("draining", operationId) }),
+      identity: async () => ({ connectedHostIds: ["local"] }),
+      release: async () => {
+        throw new Error("release refused");
+      },
+    };
+    await assert.rejects(
+      pauseWork(
+        client,
+        { dataDir, previous: "p", candidate: "c", now },
+        fastTiming,
+      ),
+      /EEXIST[\s\S]*Also could not release the pause[\s\S]*release refused[\s\S]*maintenance --data-dir/u,
+    );
+  });
+});
+
 test("prints recovery commands with the absolute CLI path and operation id only", () => {
   const text = recoveryInstructions({
     cli: installedBbLocalCli,
@@ -2579,7 +2752,7 @@ test("prints recovery commands with the absolute CLI path and operation id only"
 
 test("a real SIGTERM sent only to the updater process still releases the pause", async () => {
   const moduleUrl = pathToFileURL(
-    path.join(process.cwd(), "scripts", "update-local-desktop.mjs"),
+    path.join(process.cwd(), "scripts", "update-local-desktop.fork.mjs"),
   ).href;
   const code = `
 import fs from "node:fs";
@@ -2642,7 +2815,7 @@ try {
 
 async function signalledNotices({ resetFirst }) {
   const moduleUrl = pathToFileURL(
-    path.join(process.cwd(), "scripts", "update-local-desktop.mjs"),
+    path.join(process.cwd(), "scripts", "update-local-desktop.fork.mjs"),
   ).href;
   const code = `
 import fs from "node:fs";
@@ -2741,6 +2914,32 @@ test("gives up waiting for bb Local health after the deadline", async () => {
     ),
     /bb Local app did not become healthy at http:\/\/127\.0\.0\.1:\d+\/health within 0 seconds/u,
   );
+});
+
+test("waits for the target process before accepting local health", async (t) => {
+  const processPattern = `bb-updater-health-${process.pid}-${Date.now()}`;
+  let processStarted = false;
+  let healthyResponses = 0;
+  let child = null;
+  t.after(() => child?.kill());
+  t.mock.method(globalThis, "fetch", async () => {
+    healthyResponses += 1;
+    if (!processStarted) {
+      processStarted = true;
+      child = spawn(process.execPath, [
+        "-e",
+        "setInterval(() => {}, 1_000)",
+        processPattern,
+      ]);
+      await new Promise((resolve, reject) => {
+        child.once("spawn", resolve);
+        child.once("error", reject);
+      });
+    }
+    return { ok: true, json: async () => ({ ok: true }) };
+  });
+  await waitForLocalServerHealth("bb Local app", processPattern, 1_000);
+  assert.equal(healthyResponses, 2);
 });
 
 test("an interrupted seal still releases the lease with checks disabled and reports recovery when that fails", async () => {
