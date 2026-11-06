@@ -118,6 +118,7 @@ import {
   type ExperimentalDetailRowProps,
   type ExperimentalInfoListProps,
   type ExperimentalInfoListRowProps,
+  type PluginComposerAsideRegistration,
   type PluginThreadActionEntry,
   type PluginThreadActionRegistration,
   type PluginThreadActionRegistrationInfo,
@@ -2102,6 +2103,7 @@ export interface CapturedPluginApp {
   threadInfoRows: ExperimentalThreadInfoRowRegistration[];
   threadRowMetadata: ExperimentalThreadRowMetadataRegistration<unknown>[];
   threadInfoSections: ExperimentalThreadInfoSectionRegistration[];
+  composerAsides: PluginComposerAsideRegistration[];
   threadContextCardRows: ExperimentalThreadContextCardRowRegistration[];
   threadContextCardSections: ExperimentalThreadContextCardSectionRegistration[];
   threadActions: PluginThreadActionRegistration<unknown>[];

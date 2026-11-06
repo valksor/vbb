@@ -323,6 +323,12 @@ function pluginAppSurfaceItems(
     ),
     ...namedSlotItems(
       pluginId,
+      slots.composerAsides,
+      "composer-aside",
+      "Adds content beside an open thread's composer.",
+    ),
+    ...namedSlotItems(
+      pluginId,
       slots.threadContextCardRows,
       "thread-context-card-row",
       "Adds a row to the thread context card.",

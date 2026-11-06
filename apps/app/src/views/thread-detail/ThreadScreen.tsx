@@ -84,6 +84,19 @@ const THREAD_DETAIL_COMPOSER_ID = "thread-detail-follow-up-composer";
 const EMPTY_CHILD_THREAD_ITEMS: readonly ChildThreadPendingAttentionSource[] =
   [];
 
+function withComposerAside(
+  promptArea: ReactNode,
+  aside: ReactNode,
+): ReactNode {
+  if (promptArea === null) return null;
+  return (
+    <div className="relative">
+      {promptArea}
+      {aside}
+    </div>
+  );
+}
+
 export type ThreadScreenPresentation =
   | { kind: "page" }
   | {
@@ -106,6 +119,7 @@ export interface ThreadScreenTimelineHost {
 }
 
 export interface ThreadScreenComposerHost {
+  aside?: ReactNode;
   environmentCheckout: WorkspaceCheckoutDisplay | undefined;
   environmentChrome: EnvironmentSummaryChrome | undefined;
   contextEnvironmentId: string | null;
@@ -548,7 +562,7 @@ export function ThreadScreen({
   );
 
   const chrome = composer?.environmentChrome;
-  const promptArea = composer ? (
+  const basePromptArea = composer ? (
     <ThreadDetailPromptArea
       composerId={
         presentation.kind === "page"
@@ -595,6 +609,7 @@ export function ThreadScreen({
       thread={thread}
     />
   ) : null;
+  const promptArea = withComposerAside(basePromptArea, composer?.aside);
 
   switch (presentation.kind) {
     case "page":

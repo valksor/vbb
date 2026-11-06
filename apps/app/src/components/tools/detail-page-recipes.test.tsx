@@ -277,6 +277,13 @@ describe("Plugin detail recipe", () => {
             component: () => null,
           },
         ],
+        composerAsides: [
+          {
+            id: "checks",
+            title: "PR checks",
+            component: () => null,
+          },
+        ],
         fileOpeners: [
           {
             id: "markdown",
@@ -322,6 +329,12 @@ describe("Plugin detail recipe", () => {
         ],
       },
     );
+
+    expect(screen.getByText("PR checks")).toBeTruthy();
+    expect(
+      screen.getByText("Adds content beside an open thread's composer."),
+    ).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "PR checks" })).toBeNull();
 
     const destinations = [
       ["Settings", "/settings/plugins/github"],
