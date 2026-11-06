@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { ExperimentalVendorPluginRoots } from "@get-bb/plugin-sdk/host";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { resolveClaudeProviderNativeRoots } from "./native-roots-profile.js";
+import { resolveClaudeProviderNativeRoots } from "./native-roots.profile.fork.js";
 
 interface Fixture {
   cwd: string;

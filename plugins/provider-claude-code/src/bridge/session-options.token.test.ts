@@ -7,7 +7,7 @@ import {
   buildSessionOptions,
   type BuildSessionOptionsArgs,
 } from "./session-options.js";
-import { buildTokenProfileFlagSettings } from "./session-options-token.js";
+import { buildTokenProfileFlagSettings } from "./session-options.token.fork.js";
 
 let isolatedHome: string;
 

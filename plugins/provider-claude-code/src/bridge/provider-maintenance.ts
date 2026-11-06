@@ -28,8 +28,8 @@ import {
   claudeConfigDirLoginCommand,
 } from "../config-dir.js";
 import type { ActiveProfile } from "./profile-env.js";
-import { tokenProfileHealth } from "./provider-maintenance-token.js";
-import { zaiTokenProfileUsage } from "./provider-maintenance-zai.js";
+import { tokenProfileHealth } from "./provider-maintenance.profile.fork.js";
+import { zaiTokenProfileUsage } from "./provider-maintenance.zai.fork.js";
 
 const execFileAsync = experimental_execHostFile;
 const USAGE_FETCH_TIMEOUT_MS = 15_000;

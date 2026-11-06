@@ -3,7 +3,7 @@ import {
   experimental_defineHostEntry,
   experimental_nativeRootsHostContract,
 } from "@get-bb/plugin-sdk/host";
-import { resolveClaudeProviderNativeRoots } from "./native-roots-profile.js";
+import { resolveClaudeProviderNativeRoots } from "./native-roots.profile.fork.js";
 
 export { experimental_providerBridge } from "./bridge/bridge.js";
 
