@@ -3,7 +3,7 @@ import type { Thread, ThreadListEntry } from "@bb/domain";
 import { appToast } from "@/components/ui/app-toast";
 import type { ThreadArchiveDialogTarget } from "@/components/dialogs/ThreadArchiveDialog";
 import { showMutationErrorToast } from "@/lib/mutation-errors";
-import { isArchiveRunningStatus } from "@/lib/thread-selection-plan";
+import { isArchiveRunningStatus } from "@/lib/thread-selection-plan.fork";
 
 interface EnvironmentArchiveFlowOptions {
   archiveEnvironmentMutateAsync: (

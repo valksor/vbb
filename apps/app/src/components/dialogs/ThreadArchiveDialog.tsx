@@ -7,7 +7,7 @@ import {
   DialogFooter,
   DialogHeader,
 } from "@bb/shared-ui/dialog";
-import { ArchiveDialogCopy } from "./ArchiveDialogCopy";
+import { ArchiveDialogCopy } from "./ThreadArchiveDialog.fork";
 
 export interface ThreadArchiveDialogTarget {
   threads: readonly Thread[];

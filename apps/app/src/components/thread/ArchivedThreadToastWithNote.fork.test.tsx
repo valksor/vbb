@@ -2,7 +2,7 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ArchivedThreadToastWithNote } from "./ArchivedThreadToastWithNote";
+import { ArchivedThreadToastWithNote } from "./ArchivedThreadToastWithNote.fork";
 
 afterEach(() => {
   cleanup();

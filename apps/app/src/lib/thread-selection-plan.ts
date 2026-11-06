@@ -1,4 +1,3 @@
-import type { QueryClient } from "@tanstack/react-query";
 import type { Thread } from "@bb/domain";
 import {
   THREAD_CASCADE_LIST_MAX_IDS,
@@ -6,7 +5,11 @@ import {
   type ThreadCascadeListResponse,
 } from "@bb/server-contract";
 import { sdk } from "@/lib/sdk";
-import { lookupCachedThread } from "@/lib/cached-thread";
+
+export {
+  isArchiveRunningStatus,
+  selectionStopsRunningWork,
+} from "./thread-selection-plan.fork";
 
 export interface ThreadSelectionPlan {
   roots: Thread[];
@@ -66,26 +69,4 @@ export async function planThreadSelection({
     threads,
     responses.flatMap((response) => response.threads),
   );
-}
-
-export function isArchiveRunningStatus(status: Thread["status"]): boolean {
-  return status === "starting" || status === "active" || status === "stopping";
-}
-
-export function selectionStopsRunningWork(
-  queryClient: QueryClient,
-  threads: readonly Thread[],
-  plan: ThreadSelectionPlan,
-): boolean {
-  if (threads.some((thread) => isArchiveRunningStatus(thread.status))) {
-    return true;
-  }
-  return [...plan.cascadeThreadIdsByRootId.values()].flat().some((threadId) => {
-    const thread = lookupCachedThread(queryClient, threadId);
-    return (
-      thread !== null &&
-      thread.archivedAt === null &&
-      isArchiveRunningStatus(thread.status)
-    );
-  });
 }
