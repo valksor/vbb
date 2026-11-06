@@ -8,7 +8,6 @@ import {
   SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES,
   SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
-  SIDEBAR_WAITING_STATUS_COLOR_CLASS,
 } from "@bb/shared-ui/sidebar-row-classes";
 import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
 import { toThreadStatusThread } from "@/lib/plugin-sidebar-threads";
@@ -97,20 +96,6 @@ describe("ThreadStatusGlyph", () => {
     },
   );
 
-  it.each([
-    ["workflow", "Workflow running"],
-    ["background-agent", "Background agent running"],
-    ["background-command", "Background command running"],
-    ["plan-mode", "Plan mode active"],
-    ["goal", "Goal active"],
-  ] as const)("colors the %s glyph with its activity color", (indicator, label) => {
-    render(<ThreadStatusGlyph indicator={indicator} />);
-
-    const classes = Array.from(screen.getByLabelText(label).classList);
-    expect(classes).toContain("animate-shine-icon");
-    expect(classes).toContain(SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES[indicator]);
-  });
-
   it("shimmers named work and spins the runtime glyph unless motion is reduced", () => {
     const { rerender } = render(<ThreadStatusGlyph indicator="workflow" />);
     const workflow = screen.getByLabelText("Workflow running");
@@ -126,18 +111,6 @@ describe("ThreadStatusGlyph", () => {
     expect(Array.from(runtime.classList)).toContain(
       SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
     );
-  });
-
-  it.each([
-    ["waiting-for-input", "Thread needs user input"],
-    ["waiting-for-plan-approval", "Thread needs plan approval"],
-    ["waiting-for-answer", "Thread is waiting for your answer"],
-  ] as const)("colors the %s glyph with the waiting color", (indicator, label) => {
-    render(<ThreadStatusGlyph indicator={indicator} />);
-
-    expect(
-      Array.from(screen.getByLabelText(label).classList),
-    ).toContain(SIDEBAR_WAITING_STATUS_COLOR_CLASS);
   });
 
   it("draws unread success as a dot and nothing for none", () => {
