@@ -61,7 +61,7 @@ import {
 import {
   assertPluginAnswerOriginAllowed,
   type PluginAnswerOrigin,
-} from "./pending-interactions-app-answer.js";
+} from "./pending-interactions-app-answer.fork.js";
 import { heldToolCallTurnId } from "./pending-interactions-halt.fork.js";
 import {
   lateAnswerOrConflict,
