@@ -7,18 +7,6 @@ import {
   type MachineEnvironmentList,
 } from "./api/machine-environment.js";
 import {
-  backgroundTaskOutputQuerySchema,
-  type BackgroundTaskOutputQuery,
-  type BackgroundTaskOutputResponse,
-} from "./api/background-task-output.js";
-import {
-  spendRollupQuerySchema,
-  type SpendBackfillResponse,
-  type SpendRollupQuery,
-  type SpendRollupResponse,
-} from "./api/spend.js";
-import type { ThreadExecutionProfileResponse } from "./api/execution-profile.js";
-import {
   machineEnvironmentReplaceSchema,
   recordTelemetryEventRequestSchema,
   setAiServiceSelectionRequestSchema,
@@ -436,10 +424,7 @@ type PathThreadInteractionId = {
 };
 
 export const publicApiRoutes = {
-  spend: {
-    rollup: defineRoute({ path: "/spend/rollup", method: "get", request: optionalQueryRequest<EmptyInput, SpendRollupQuery>(spendRollupQuerySchema), response: jsonResponse<SpendRollupResponse>() }),
-    backfill: defineRoute({ path: "/spend/backfill", method: "post", request: noRequest(), response: jsonResponse<SpendBackfillResponse>() }),
-  },
+  ...forkTopLevelRoutes,
   promptHistory: {
     list: defineRoute({
       path: "/prompt-history",
@@ -1270,22 +1255,7 @@ export const publicApiRoutes = {
   },
 
   threads: {
-    ...branchPromotionRoutes,
-    backgroundTaskOutput: defineRoute({
-      path: "/threads/:id/background-tasks/:itemId/output",
-      method: "get",
-      request: optionalQueryRequest<
-        { param: { id: string; itemId: string } },
-        BackgroundTaskOutputQuery
-      >(backgroundTaskOutputQuerySchema),
-      response: jsonResponse<BackgroundTaskOutputResponse>(),
-    }),
-    executionProfile: defineRoute({
-      path: "/threads/:id/execution-profile",
-      method: "get",
-      request: noRequest<PathId>(),
-      response: jsonResponse<ThreadExecutionProfileResponse>(),
-    }),
+    ...forkThreadRoutes,
     list: defineRoute({
       path: "/threads",
       method: "get",
@@ -2185,4 +2155,7 @@ export type PublicApiSchema = ApiSchemaFromRouteDescriptors<
 >;
 
 export type PublicApiRoutes = Hono<{}, PublicApiSchema, "/">;
-import { branchPromotionRoutes } from "./branch-promotion-routes.fork.js";
+import {
+  forkThreadRoutes,
+  forkTopLevelRoutes,
+} from "./public-api.fork.js";
