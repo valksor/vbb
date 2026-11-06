@@ -59,6 +59,7 @@ function lastOptions(): Record<string, unknown> {
 
 function sessionOptions(
   tokenFlagSettingsDir: string | undefined,
+  sandboxEnabled = false,
 ): SdkSessionOptions {
   return buildSessionOptions(
     {
@@ -71,13 +72,17 @@ function sessionOptions(
       chromeEnabled: false,
       disable1MContext: false,
       artifactsEnabled: false,
-      sandboxEnabled: false,
+      sandboxEnabled,
     },
     { ANTHROPIC_AUTH_TOKEN: TOKEN },
     tokenFlagSettingsDir === undefined
       ? null
       : { env: PROFILE_ENV, settingsDir: tokenFlagSettingsDir },
   );
+}
+
+function sandboxFromFile(file: string): unknown {
+  return JSON.parse(readFileSync(file, "utf8")).sandbox;
 }
 
 function holdStreamOpen(): { end: () => void } {
@@ -173,6 +178,99 @@ describe("SdkSession with a token profile", () => {
         abortController: undefined,
       }),
     ).not.toContain(TOKEN);
+    session.stop();
+  });
+
+  it("writes the sandbox into the settings file and passes no sandbox option", () => {
+    holdStreamOpen();
+    const options = sessionOptions(dir, true);
+    const session = new SdkSession(options, vi.fn(), vi.fn());
+
+    session.start();
+
+    const query = lastOptions();
+    expect(typeof query.settings).toBe("string");
+    expect(query).not.toHaveProperty("sandbox");
+    const file = query.settings as string;
+    expect(statSync(file).mode & 0o777).toBe(0o600);
+    const written = JSON.parse(readFileSync(file, "utf8"));
+    expect(written.sandbox).toEqual(options.sandbox);
+    expect(written.sandbox.failIfUnavailable).toBe(false);
+    expect(written.env.ANTHROPIC_AUTH_TOKEN).toBe(TOKEN);
+    session.stop();
+  });
+
+  it("writes no sandbox key when the token session has no sandbox", () => {
+    holdStreamOpen();
+    const session = new SdkSession(sessionOptions(dir), vi.fn(), vi.fn());
+
+    session.start();
+
+    const query = lastOptions();
+    expect(query).not.toHaveProperty("sandbox");
+    expect(
+      JSON.parse(readFileSync(query.settings as string, "utf8")),
+    ).not.toHaveProperty("sandbox");
+    session.stop();
+  });
+
+  it("keeps the sandbox option for a session without a token profile", () => {
+    holdStreamOpen();
+    const options = sessionOptions(undefined, true);
+    const session = new SdkSession(options, vi.fn(), vi.fn());
+
+    session.start();
+
+    const query = lastOptions();
+    expect(query.sandbox).toEqual(options.sandbox);
+    expect(typeof query.settings).toBe("object");
+    expect(leftovers()).toEqual([]);
+    session.stop();
+  });
+
+  it("writes failIfUnavailable true when an enabled sandbox leaves it unset", () => {
+    holdStreamOpen();
+    const options = sessionOptions(dir);
+    options.sandbox = { enabled: true };
+    const session = new SdkSession(options, vi.fn(), vi.fn());
+
+    session.start();
+
+    expect(sandboxFromFile(lastOptions().settings as string)).toEqual({
+      enabled: true,
+      failIfUnavailable: true,
+    });
+    session.stop();
+  });
+
+  it("writes the current sandbox, or none, into a fresh file on restart", () => {
+    holdStreamOpen();
+    const options = sessionOptions(dir, true);
+    const session = new SdkSession(options, vi.fn(), vi.fn());
+    session.start();
+    const firstFile = lastOptions().settings as string;
+    expect(sandboxFromFile(firstFile)).toEqual(options.sandbox);
+    session.stop();
+
+    options.sandbox = {
+      enabled: true,
+      failIfUnavailable: false,
+      filesystem: { allowWrite: ["/tmp/extra"] },
+    };
+    session.start();
+    const secondFile = lastOptions().settings as string;
+    expect(secondFile).not.toBe(firstFile);
+    expect(sandboxFromFile(secondFile)).toEqual(options.sandbox);
+    expect(lastOptions()).not.toHaveProperty("sandbox");
+    session.stop();
+
+    options.sandbox = undefined;
+    session.start();
+    const thirdFile = lastOptions().settings as string;
+    expect(JSON.parse(readFileSync(thirdFile, "utf8"))).not.toHaveProperty(
+      "sandbox",
+    );
+    expect(lastOptions()).not.toHaveProperty("sandbox");
     session.stop();
   });
 
