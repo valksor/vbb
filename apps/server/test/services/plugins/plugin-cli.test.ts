@@ -269,40 +269,49 @@ describe("plugin CLI commands (bb.cli.register + endpoints + skill + logs)", () 
     expect(unknown.stderr).toContain('unknown plugin "nope"');
   });
 
-  it("keeps a core-name collision callable by plugin id", async () => {
-    const reserved = await writePlugin(
-      join(harness.config.dataDir, "fixtures"),
-      {
-        name: "bb-plugin-shadower",
-        serverSource: `
-          export default function plugin(bb: any) {
-            bb.cli.register({ name: "thread", summary: "s", commands: [{ name: "inspect", summary: "Inspect", usage: "bb thread inspect" }], run: async () => ({ exitCode: 0, stdout: "thread" }) });
-          }
-        `,
-      },
-    );
-    const entry = await harness.pluginService.installPath(reserved);
-    expect(entry.status).toBe("running");
-    const warnings = (await harness.pluginService.readLogTail("shadower", 10))
-      ?.map((line) => JSON.parse(line) as { level: string; message: string })
-      .filter((line) => line.level === "warn")
-      .map(({ level, message }) => ({ level, message }));
-    expect(warnings).toEqual([
-      {
-        level: "warn",
-        message:
-          'CLI command "thread" collides with core command "bb thread"; core keeps the short form. Use "bb plugin run shadower" to invoke this plugin.',
-      },
-    ]);
-    expect(
-      await (await runCli(harness, "shadower", { argv: [] })).json(),
-    ).toMatchObject({ exitCode: 0, stdout: "thread" });
-    const skill = await readFile(
-      join(pluginCommandsSkillDir(harness.config.dataDir), "SKILL.md"),
-      "utf8",
-    );
-    expect(skill).toContain("bb plugin run shadower inspect");
+  it.each(["thread", "maintenance", "run-in-terminal", "spend"])(
+    "keeps a core-name collision %s callable by plugin id",
+    async (name) => {
+      const reserved = await writePlugin(
+        join(harness.config.dataDir, "fixtures"),
+        {
+          name: "bb-plugin-shadower",
+          serverSource: `
+            export default function plugin(bb: any) {
+              bb.cli.register({
+                name: ${JSON.stringify(name)},
+                summary: "s",
+                commands: [{ name: "inspect", summary: "Inspect", usage: ${JSON.stringify(`bb ${name} inspect`)} }],
+                run: async () => ({ exitCode: 0, stdout: ${JSON.stringify(name)} }),
+              });
+            }
+          `,
+        },
+      );
+      const entry = await harness.pluginService.installPath(reserved);
+      expect(entry.status).toBe("running");
+      const warnings = (await harness.pluginService.readLogTail("shadower", 10))
+        ?.map((line) => JSON.parse(line) as { level: string; message: string })
+        .filter((line) => line.level === "warn")
+        .map(({ level, message }) => ({ level, message }));
+      expect(warnings).toEqual([
+        {
+          level: "warn",
+          message: `CLI command "${name}" collides with core command "bb ${name}"; core keeps the short form. Use "bb plugin run shadower" to invoke this plugin.`,
+        },
+      ]);
+      expect(
+        await (await runCli(harness, "shadower", { argv: [] })).json(),
+      ).toMatchObject({ exitCode: 0, stdout: name });
+      const skill = await readFile(
+        join(pluginCommandsSkillDir(harness.config.dataDir), "SKILL.md"),
+        "utf8",
+      );
+      expect(skill).toContain("bb plugin run shadower inspect");
+    },
+  );
 
+  it("rejects an invalid CLI command name", async () => {
     const invalid = await writePlugin(
       join(harness.config.dataDir, "fixtures"),
       {

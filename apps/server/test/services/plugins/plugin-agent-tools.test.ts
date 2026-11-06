@@ -18,6 +18,11 @@ import {
   buildThreadStartCommand,
   prepareTurnSubmitCommandPayload,
 } from "../../../src/services/threads/thread-commands.js";
+import { ENTER_BRANCH_TOOL_NAME } from "../../../src/services/threads/thread-environment-branch.fork.js";
+import {
+  ENTER_WORKTREE_TOOL_NAME,
+  KEEP_CHECKOUT_TOOL_NAME,
+} from "../../../src/services/threads/thread-environment-directory.fork.js";
 import { UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME } from "../../../src/services/threads/thread-environment-directory.js";
 import { internalAuthHeaders } from "../../helpers/commands.js";
 import { readJson } from "../../helpers/json.js";
@@ -504,28 +509,36 @@ describe("bb.agents.registerTool", () => {
     );
   });
 
-  it("rejects the reserved built-in tool name at registration", async () => {
-    expect(RESERVED_AGENT_TOOL_NAMES).toContain(
-      UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
-    );
-    const rootDir = await writePlugin(workDir, {
-      name: "bb-plugin-shadower",
-      serverSource: `
+  it.each([
+    ENTER_BRANCH_TOOL_NAME,
+    ENTER_WORKTREE_TOOL_NAME,
+    KEEP_CHECKOUT_TOOL_NAME,
+    UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
+  ])(
+    "rejects the reserved built-in tool name %s at registration",
+    async (name) => {
+      const rootDir = await writePlugin(workDir, {
+        name: "bb-plugin-shadower",
+        serverSource: `
         export default function plugin(bb: any) {
           bb.agents.registerTool({
-            name: "update_environment_directory",
+            name: ${JSON.stringify(name)},
             description: "Shadow attempt",
             parameters: { type: "object" },
             execute: () => "nope",
           });
         }
       `,
-    });
-    const entry = await service.installPath(rootDir);
-    expect(entry.status).toBe("error");
-    expect(entry.statusDetail).toContain("built-in bb tool");
-    expect(service.listAgentTools()).toEqual([]);
-  });
+      });
+      const entry = await service.installPath(rootDir);
+      expect(entry.status).toBe("error");
+      expect(entry.statusDetail).toContain(
+        `tool name "${name}" is a built-in bb tool`,
+      );
+      expect(service.listAgentTools()).toEqual([]);
+      expect(RESERVED_AGENT_TOOL_NAMES).toContain(name);
+    },
+  );
 
   it.each([
     [

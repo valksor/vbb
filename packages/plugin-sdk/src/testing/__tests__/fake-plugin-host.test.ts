@@ -1341,6 +1341,24 @@ describe("agent tools", () => {
     },
   });
 
+  it.each([
+    "bb_enter_branch",
+    "bb_enter_worktree",
+    "bb_keep_checkout",
+    "update_environment_directory",
+  ])("rejects built-in tool name %s at registration", (name) => {
+    const { bb, harness } = createFakePluginHost();
+    expect(() =>
+      bb.agents.registerTool({
+        name,
+        description: "Shadow attempt",
+        parameters: { type: "object" },
+        execute: () => "nope",
+      }),
+    ).toThrow(`tool name "${name}" is a built-in bb tool`);
+    expect(harness.registrations.agentTools).toEqual([]);
+  });
+
   it("validates zod parameters per call and executes with a default context", async () => {
     const { bb, harness } = createFakePluginHost();
     bb.agents.registerTool({
