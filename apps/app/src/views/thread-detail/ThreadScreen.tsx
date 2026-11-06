@@ -79,23 +79,11 @@ import {
   type ThreadComposerPermissionPolicy,
   type ThreadDetailSentMessageEdit,
 } from "./ThreadDetailPromptArea";
+import { withComposerAside } from "./ThreadScreen.fork";
 
 const THREAD_DETAIL_COMPOSER_ID = "thread-detail-follow-up-composer";
 const EMPTY_CHILD_THREAD_ITEMS: readonly ChildThreadPendingAttentionSource[] =
   [];
-
-function withComposerAside(
-  promptArea: ReactNode,
-  aside: ReactNode,
-): ReactNode {
-  if (promptArea === null) return null;
-  return (
-    <div className="relative">
-      {promptArea}
-      {aside}
-    </div>
-  );
-}
 
 export type ThreadScreenPresentation =
   | { kind: "page" }
