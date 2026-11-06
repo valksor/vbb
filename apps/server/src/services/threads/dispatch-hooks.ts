@@ -24,7 +24,7 @@ import type {
   PluginDispatchExecutionSources,
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
-import { partitionWaiters } from "./dispatch-hook-waiters.js";
+import { partitionWaiters } from "./dispatch-hooks.fork.js";
 import { ApiError } from "../../errors.js";
 import type { AppDeps } from "../../types.js";
 import { toEnvironmentResponse } from "../environments/environment-response.js";
