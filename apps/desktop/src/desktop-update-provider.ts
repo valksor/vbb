@@ -7,7 +7,6 @@ import {
   localDesktopReleaseInfo,
   resolveDesktopLocalBuild,
 } from "../scripts/desktop-local-build.fork.mjs";
-import { resolveDesktopReleaseChannel } from "../scripts/desktop-release-channel.mjs";
 
 type DesktopReleaseChannel = "latest" | "nightly";
 
@@ -38,12 +37,30 @@ export function createDesktopReleaseInfo(
   };
 }
 
-export const DESKTOP_RELEASE_CHANNEL = resolveDesktopReleaseChannel(
-  process.env,
+function resolveBuiltDesktopReleaseChannel(
+  rawChannel: string | undefined,
+): DesktopReleaseChannel {
+  if (rawChannel === undefined || rawChannel.length === 0) {
+    return "latest";
+  }
+  if (rawChannel === "latest" || rawChannel === "nightly") {
+    return rawChannel;
+  }
+
+  throw new Error(
+    `Built desktop release channel must be latest or nightly, got ${String(rawChannel)}.`,
+  );
+}
+
+export const DESKTOP_RELEASE_CHANNEL = resolveBuiltDesktopReleaseChannel(
+  process.env.BB_DESKTOP_RELEASE_CHANNEL,
 );
+const DESKTOP_LOCAL_BUILD = resolveDesktopLocalBuild({
+  BB_DESKTOP_LOCAL_BUILD: process.env.BB_DESKTOP_LOCAL_BUILD,
+});
 export const DESKTOP_RELEASE_INFO = createDesktopReleaseInfo(
   DESKTOP_RELEASE_CHANNEL,
-  resolveDesktopLocalBuild(process.env),
+  DESKTOP_LOCAL_BUILD,
 );
 const DESKTOP_UPDATE_RELEASE_BASE_URL =
   DESKTOP_RELEASE_INFO.updateReleaseBaseUrl;
@@ -81,7 +98,9 @@ export function resolveDesktopUpdateSupport(
   args: ResolveDesktopUpdateSupportArgs,
 ): DesktopUpdateSupport {
   const forkSupport = forkDesktopUpdateSupport(args.env);
-  if (forkSupport !== null) return forkSupport;
+  if (DESKTOP_LOCAL_BUILD || forkSupport !== null) {
+    return { autoUpdate: false, versionCheck: false };
+  }
   if (args.platform === "macos" || args.platform === "windows") {
     return { autoUpdate: true, versionCheck: true };
   }

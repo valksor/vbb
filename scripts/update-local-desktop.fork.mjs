@@ -596,6 +596,7 @@ export async function waitForLocalServerHealth(
       if (response.ok) {
         const health = await response.json();
         if (
+          processObserved &&
           typeof health === "object" &&
           health !== null &&
           health.ok === true
@@ -1212,11 +1213,15 @@ export async function pauseWork(
     throw error;
   }
   const acquiredHostIds = acquired.barrier.map((host) => host.hostId);
-  await writeUpdateState(dataDir, {
-    operationId,
-    hostIds: acquiredHostIds,
-    backupApp: null,
-  });
+  try {
+    await writeUpdateState(dataDir, {
+      operationId,
+      hostIds: acquiredHostIds,
+      backupApp: null,
+    });
+  } catch (error) {
+    await abortPause(error, acquiredHostIds);
+  }
   let sealed;
   try {
     sealed = await client.seal(operationId, { candidate, previous });
@@ -1225,7 +1230,11 @@ export async function pauseWork(
   }
   const sealedHostIds = sealed.barrier.map((host) => host.hostId);
   const hostIds = sealedHostIds.length > 0 ? sealedHostIds : acquiredHostIds;
-  await writeUpdateState(dataDir, { operationId, hostIds, backupApp: null });
+  try {
+    await writeUpdateState(dataDir, { operationId, hostIds, backupApp: null });
+  } catch (error) {
+    await abortPause(error, hostIds);
+  }
   return { operationId, hostIds };
 }
 
@@ -1963,6 +1972,11 @@ export async function updateLocalDesktop(argv) {
   const { branch, status } = requireCleanWorktree({
     allowDirty: options.current,
   });
+  if (!options.current && options.push && !options.check && branch !== forkBranch) {
+    throw new Error(
+      `current checkout branch ${branch} does not match push target ${forkBranch}; use --skip-push to update from this checkout without rewriting ${forkBranch}`,
+    );
+  }
   let remotes = null;
   let previousForkHead = null;
   let upstreamRef = null;
