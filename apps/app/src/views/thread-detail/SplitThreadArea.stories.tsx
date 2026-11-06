@@ -7,6 +7,7 @@ import type { ThreadTimelineGoal } from "@bb/domain";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { makeThread } from "../../../.ladle/story-fixtures";
+import { StoryThreadActionsProvider } from "../../../.ladle/story-thread-actions.fork";
 import { conversationRow } from "@/test/fixtures/thread-timeline-rows";
 import {
   makeThreadResponse,
@@ -20,8 +21,6 @@ import {
 import { maximizedPaneIdAtom, splitLayoutAtom } from "@/lib/split-layout/atoms";
 import type { SplitLayout } from "@/lib/split-layout";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { ThreadActionsProvider } from "@/components/thread/ThreadActionsProvider";
-import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
 import { SplitThreadArea } from "./SplitThreadArea";
 
 export default {
@@ -201,21 +200,19 @@ function SplitWorkspaceStory({ maximized = false }: { maximized?: boolean }) {
   return (
     <QueryClientProvider client={queryClient}>
       <JotaiProvider store={store}>
-        <SidebarThreadEntriesProvider navigation={undefined}>
-          <ThreadActionsProvider>
-            <SidebarProvider>
-              <div className="flex h-screen min-h-[640px] w-full flex-col bg-background p-4 md:p-5">
-                <SplitThreadArea
-                  routeContent={{
-                    kind: "thread",
-                    projectId: PROJECT_ID,
-                    threadId: ACTIVE_THREAD_ID,
-                  }}
-                />
-              </div>
-            </SidebarProvider>
-          </ThreadActionsProvider>
-        </SidebarThreadEntriesProvider>
+        <StoryThreadActionsProvider navigation={undefined}>
+          <SidebarProvider>
+            <div className="flex h-screen min-h-[640px] w-full flex-col bg-background p-4 md:p-5">
+              <SplitThreadArea
+                routeContent={{
+                  kind: "thread",
+                  projectId: PROJECT_ID,
+                  threadId: ACTIVE_THREAD_ID,
+                }}
+              />
+            </div>
+          </SidebarProvider>
+        </StoryThreadActionsProvider>
       </JotaiProvider>
     </QueryClientProvider>
   );

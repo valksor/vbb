@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { PERSONAL_PROJECT_ID } from "@bb/domain";
 import type { SidebarBootstrapResponse } from "@bb/server-contract";
 import { installTestPluginRuntime } from "@get-bb/plugin-sdk/testing/app";
-import { ThreadActionsProvider } from "@/components/thread/ThreadActionsProvider";
 import { SidebarContent, SidebarProvider } from "@/components/ui/sidebar";
 import {
   hostsQueryKey,
@@ -24,6 +23,7 @@ import {
   makeProject,
   makeThreadListEntry,
 } from "../../../.ladle/story-fixtures";
+import { StoryThreadActionsProvider } from "../../../.ladle/story-thread-actions.fork";
 import { PluginThreadList } from "./PluginThreadList";
 import { useThreadListReplacement } from "./threadListProvider";
 import { makeSystemConfig } from "@/test/fixtures/system-config";
@@ -261,16 +261,14 @@ export function InboxReadStatus() {
   if (!rpcReady) return null;
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarThreadEntriesProvider
+      <StoryThreadActionsProvider
         navigation={sidebarNavigation(INBOX_THREADS)}
       >
-        <ThreadActionsProvider>
-          <main className="flex gap-6 p-6">
-            <ThreadListSidebar />
-            <OpenThreadControls />
-          </main>
-        </ThreadActionsProvider>
-      </SidebarThreadEntriesProvider>
+        <main className="flex gap-6 p-6">
+          <ThreadListSidebar />
+          <OpenThreadControls />
+        </main>
+      </StoryThreadActionsProvider>
     </QueryClientProvider>
   );
 }
@@ -335,13 +333,11 @@ export function ActionAlignment() {
   if (!ready) return null;
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarThreadEntriesProvider
+      <StoryThreadActionsProvider
         navigation={sidebarNavigation(ACTION_THREADS)}
       >
-        <ThreadActionsProvider>
-          <ActionSidebar />
-        </ThreadActionsProvider>
-      </SidebarThreadEntriesProvider>
+        <ActionSidebar />
+      </StoryThreadActionsProvider>
     </QueryClientProvider>
   );
 }

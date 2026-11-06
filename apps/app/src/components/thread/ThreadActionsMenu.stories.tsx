@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
 import { makeThreadListEntry } from "../../../.ladle/story-fixtures";
 import { StoryCard, StoryRow } from "../../../.ladle/story-card";
+import { StoryThreadActionsProvider } from "../../../.ladle/story-thread-actions.fork";
 import type { ThreadListEntry } from "@bb/domain";
 import { threadListEntryActionTarget } from "@/lib/thread-actions/thread-action-target";
-import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
-import { ThreadActionsProvider } from "./ThreadActionsProvider";
 import { ThreadActionsMenu } from "./ThreadActionsMenu";
 
 export default {
@@ -13,13 +12,11 @@ export default {
 
 function Stage({ children }: { children: ReactNode }) {
   return (
-    <SidebarThreadEntriesProvider navigation={undefined}>
-      <ThreadActionsProvider>
-        <div className="flex w-fit items-center rounded-md bg-sidebar p-2 text-sidebar-foreground">
-          {children}
-        </div>
-      </ThreadActionsProvider>
-    </SidebarThreadEntriesProvider>
+    <StoryThreadActionsProvider navigation={undefined}>
+      <div className="flex w-fit items-center rounded-md bg-sidebar p-2 text-sidebar-foreground">
+        {children}
+      </div>
+    </StoryThreadActionsProvider>
   );
 }
 
