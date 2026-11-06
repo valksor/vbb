@@ -1,8 +1,12 @@
 import {
   THREAD_DELTA_KEY_SEPARATOR,
+  type DeltaItemShape,
+  type DeltaNoTurnFallback,
   type ThreadDelta,
 } from "@bb/provider-bridge-protocol";
 import { z } from "zod";
+import type { AcpClassifiedToolCall } from "./tool-classification.js";
+import type { AcpToolCallUpdateEvent } from "./wire.js";
 
 const claudeCodeParentMetaSchema = z.object({
   _meta: z.object({
@@ -103,4 +107,39 @@ export function createParentedStreams(streamKeys: {
       parentedStreamRefs.delete(threadId);
     },
   };
+}
+
+export function refinedCommandOpen(args: {
+  classify: (event: AcpToolCallUpdateEvent) => AcpClassifiedToolCall;
+  open:
+    | { event: AcpToolCallUpdateEvent; openedType: DeltaItemShape["type"] }
+    | undefined;
+  merged: AcpToolCallUpdateEvent;
+  toolCallId: string;
+  noTurnFallback: DeltaNoTurnFallback;
+  parentRef: string | undefined;
+}): ThreadDelta[] {
+  if (args.open === undefined) {
+    return [];
+  }
+  const previous = args.classify(args.open.event);
+  const merged = args.classify(args.merged);
+  if (
+    args.open.openedType !== "command" ||
+    previous.item.type !== "command" ||
+    merged.item.type !== "command" ||
+    (previous.item.command === merged.item.command &&
+      previous.presentation.title === merged.presentation.title)
+  ) {
+    return [];
+  }
+  return [
+    {
+      kind: "item.open",
+      key: withParent({ providerItemId: args.toolCallId }, args.parentRef),
+      item: merged.item,
+      presentation: merged.presentation,
+      noTurnFallback: args.noTurnFallback,
+    },
+  ];
 }
