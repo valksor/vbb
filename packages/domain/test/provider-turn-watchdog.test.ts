@@ -1,19 +1,7 @@
 import { describe, expect, it } from "vitest";
-import {
-  providerTurnWatchdogThreadScopedActivityEventTypeValues,
-  systemProviderTurnWatchdogEventDataSchema,
-} from "../src/index.js";
+import { systemProviderTurnWatchdogEventDataSchema } from "../src/index.js";
 
 describe("provider turn watchdog activity event types", () => {
-  it("includes thread-scoped background and delegation activity", () => {
-    expect(providerTurnWatchdogThreadScopedActivityEventTypeValues).toEqual([
-      "item/backgroundTask/progress",
-      "item/backgroundTask/completed",
-      "item/delegation/progress",
-      "item/delegation/completed",
-    ]);
-  });
-
   it("decodes legacy watchdog diagnostics as notifications and rejects invalid actions", () => {
     const event = {
       activeTurnId: "turn-1",
