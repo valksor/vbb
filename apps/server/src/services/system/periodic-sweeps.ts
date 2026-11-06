@@ -177,9 +177,18 @@ export async function runPeriodicSweepJobs(
   }
 }
 
+function isSqliteBusyError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    error.code.startsWith("SQLITE_BUSY")
+  );
+}
+
 async function runChunkedIncrementalVacuum(
-  db: DatabaseMaintenanceSweepDeps["db"],
-): Promise<ReturnType<typeof runIncrementalVacuum>> {
+  deps: DatabaseMaintenanceSweepDeps,
+): Promise<ReturnType<typeof runIncrementalVacuum> | null> {
   let first: ReturnType<typeof runIncrementalVacuum> | null = null;
   let last: ReturnType<typeof runIncrementalVacuum> | null = null;
   for (
@@ -190,13 +199,26 @@ async function runChunkedIncrementalVacuum(
     if (last !== null) {
       await new Promise<void>((resolve) => setImmediate(resolve));
     }
-    last = runIncrementalVacuum(db, {
-      maxPages: Math.min(
-        DATABASE_INCREMENTAL_VACUUM_CHUNK_PAGES,
-        DATABASE_INCREMENTAL_VACUUM_MAX_PAGES - vacuumedPages,
-      ),
-    });
-    first ??= last;
+    let chunk: ReturnType<typeof runIncrementalVacuum>;
+    try {
+      chunk = runIncrementalVacuum(deps.db, {
+        maxPages: Math.min(
+          DATABASE_INCREMENTAL_VACUUM_CHUNK_PAGES,
+          DATABASE_INCREMENTAL_VACUUM_MAX_PAGES - vacuumedPages,
+        ),
+      });
+    } catch (error) {
+      if (first === null || last === null || !isSqliteBusyError(error)) {
+        throw error;
+      }
+      deps.logger.warn(
+        { err: error, result: { before: first.before, after: last.after } },
+        "Incremental database vacuum stopped early",
+      );
+      return null;
+    }
+    last = chunk;
+    first ??= chunk;
     if (last.after.freelistCount === 0) {
       break;
     }
@@ -253,8 +275,10 @@ export async function runDatabaseMaintenanceSweep(
       return;
     }
     try {
-      const result = await runChunkedIncrementalVacuum(deps.db);
-      deps.logger.info({ result }, "Incremental database vacuum completed");
+      const result = await runChunkedIncrementalVacuum(deps);
+      if (result !== null) {
+        deps.logger.info({ result }, "Incremental database vacuum completed");
+      }
     } catch (error) {
       deps.logger.warn({ err: error }, "Incremental database vacuum failed");
     }
