@@ -38,6 +38,12 @@ export function BranchPromotionRow({ thread }: { thread: Thread }) {
     !["completed", "failed"].includes(operation.phase);
   const busy = query.isFetching || resolve.isPending;
   const error = resolve.error ?? query.error;
+  const inspectionStatus =
+    inspect && query.isSuccess
+      ? operation
+        ? `${operation.phase}: ${snapshot?.branchName ?? "Unknown branch"}`
+        : "No branch promotion has started."
+      : null;
   return (
     <DetailRow label="Checkout promotion">
       <div className="flex min-w-0 flex-col gap-2">
@@ -58,10 +64,10 @@ export function BranchPromotionRow({ thread }: { thread: Thread }) {
             >
               Inspect branch promotion
             </Button>
+            <p aria-live="polite" role="status">
+              {inspectionStatus}
+            </p>
             {error && <p role="alert">{error.message}</p>}
-            {inspect && query.isSuccess && !operation && (
-              <p>No branch promotion has started.</p>
-            )}
             {operation && (
               <div className="flex flex-col gap-2">
                 <span>
