@@ -563,6 +563,7 @@
       "dependsOn": [],
       "inputs": [
         "scripts/generate-templates.mjs",
+        "scripts/generate-templates.fork.mjs",
         "scripts/write-generated.mjs",
         "src/templates/**"
       ],

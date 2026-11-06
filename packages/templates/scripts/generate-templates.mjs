@@ -10,6 +10,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
+import { assembleForkTemplateBody } from "./generate-templates.fork.mjs";
 import { writeGeneratedFile } from "./write-generated.mjs";
 
 const packageRoot = path.resolve(
@@ -24,7 +25,6 @@ const outputPath = path.join(
   "templates.generated.ts",
 );
 const TEMPLATE_KINDS = new Set(["instruction", "prompt", "system-message"]);
-const FORK_FRAGMENT_TEMPLATE_FILES = new Set(["bb-guide-maintenance.md"]);
 
 function asNonEmptyString(value) {
   if (typeof value !== "string") return undefined;
@@ -125,11 +125,11 @@ function validateVariables(templateId, declaredVars, body) {
   return errors;
 }
 
-const templateFileNames = (await readdir(templatesDir)).filter((fileName) =>
-  fileName.endsWith(".md"),
-);
-const fileNames = templateFileNames
-  .filter((fileName) => !fileName.endsWith(".fork.md"))
+const fileNames = (await readdir(templatesDir))
+  .filter(
+    (fileName) =>
+      fileName.endsWith(".md") && !fileName.endsWith(".fork.md"),
+  )
   .sort();
 
 const definitions = [];
@@ -139,15 +139,14 @@ const validationErrors = [];
 for (const fileName of fileNames) {
   const raw = await readFile(path.join(templatesDir, fileName), "utf8");
   const parsed = matter(raw);
-  const forkFileName = fileName.replace(/\.md$/u, ".fork.md");
-  const forkBody = FORK_FRAGMENT_TEMPLATE_FILES.has(fileName)
-    ? matter(await readFile(path.join(templatesDir, forkFileName), "utf8"))
-        .content.trim()
-    : "";
   const kind = asNonEmptyString(parsed.data.kind) ?? "prompt";
   const id = toTemplateId(fileName);
   const variablesParsed = parseVariables(parsed.data.variables);
-  const body = [parsed.content.trim(), forkBody].filter(Boolean).join("\n\n");
+  const body = await assembleForkTemplateBody(
+    templatesDir,
+    fileName,
+    parsed.content,
+  );
 
   if (!TEMPLATE_KINDS.has(kind)) {
     validationErrors.push(`Template "${id}": unknown kind "${kind}"`);
