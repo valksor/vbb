@@ -1902,10 +1902,23 @@ export interface PluginUi {
    * does not keep working), and the interaction is bound to the active turn so
    * a direct start while it is open is rejected; queued sends can wait until
    * it resolves.
+   *
+   * `experimental_requireAppAnswer` makes bb refuse an answer to this form
+   * unless it comes from the bb app (desktop, web or mobile), and record how
+   * each accepted answer arrived on the resolution as `answeredVia`. A refused
+   * answer (`bb thread interactions respond`, or any request without the
+   * app's `x-bb-app-surface` header) gets a 403 `app_answer_required`, and
+   * the form stays pending. This is a deterrent, not a security boundary: a
+   * request that sends the app header, or an agent driving the app, still
+   * passes.
    */
   requestInput(
     request: PluginInteractionRequest,
-    options?: { signal?: AbortSignal; experimental_holdToolCall?: boolean },
+    options?: {
+      signal?: AbortSignal;
+      experimental_holdToolCall?: boolean;
+      experimental_requireAppAnswer?: boolean;
+    },
   ): Promise<PluginInteractionResult>;
   /**
    * Register a mention provider for the shipped app's composer (design §4.9).

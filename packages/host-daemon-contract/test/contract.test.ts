@@ -4,11 +4,13 @@ import {
   TERMINAL_DATA_MAX_BASE64_LENGTH,
   TERMINAL_DATA_MAX_BYTES,
   TERMINAL_ROWS_MAX,
+  pluginInteractionDescriptionSchema,
   threadScope,
   turnScope,
   type JsonObject,
 } from "@bb/domain";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import * as contract from "../src/index.js";
 import {
   HOST_ARTIFACT_MAX_BYTES,
@@ -626,6 +628,8 @@ const INTENTIONAL_OPTIONAL_HOST_DAEMON_FIELDS: Record<string, string> = {
     "a described submission carries a payload only when the plugin has something for its own timeline renderer; absence means the row renders from title and detail alone.",
   "hostDaemonCommandSchema.resolution.description.title":
     "a described submission overrides the row title only when the plugin returned one; absence means the presentation's completed label stands.",
+  "hostDaemonCommandSchema.resolution.answeredVia":
+    "the interactive.resolve command's resolution is the persisted union, so it also admits the plugin_submitted arm and the origin of a plugin form's answer. It never reaches the wire: a plugin interaction is settled in the server and never queues a daemon command, and an older daemon drops the key because the nested resolution object is not strict. Absence means a legacy or late answer whose origin was not recorded.",
   "hostDaemonCommandSchema.dynamicTools.presentation":
     "a dynamic tool declares a row presentation only when its plugin wrote one; absence means bb renders the call with the standard tool name and the plugin's branding glyph.",
   "hostDaemonCommandSchema.dynamicTools.presentation.badge":
@@ -1642,6 +1646,82 @@ describe("host-daemon command schemas", () => {
         message: "held for review",
       },
     });
+
+    const pluginSubmittedCommand = {
+      type: "interactive.resolve",
+      environmentId: "env_123",
+      threadId: "thr_123",
+      interactionId: "pint_125",
+      providerId: "codex",
+      providerThreadId: "provider-thread-123",
+      providerRequestId: "request-125",
+    } as const;
+    expect(
+      hostDaemonCommandSchema.parse({
+        ...pluginSubmittedCommand,
+        resolution: { kind: "plugin_submitted" },
+      }),
+    ).toMatchObject({ resolution: { kind: "plugin_submitted" } });
+    expect(
+      hostDaemonCommandSchema.parse({
+        ...pluginSubmittedCommand,
+        resolution: { kind: "plugin_submitted", answeredVia: "app" },
+      }),
+    ).toMatchObject({
+      resolution: { kind: "plugin_submitted", answeredVia: "app" },
+    });
+    expect(
+      hostDaemonCommandSchema.safeParse({
+        ...pluginSubmittedCommand,
+        resolution: { kind: "plugin_submitted", answeredVia: "desktop" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("keeps the pinned protocol267 plugin-resolution parser compatible with answer origin", () => {
+    const legacyPluginSubmittedResolutionAtD0 = z.object({
+      kind: z.literal("plugin_submitted"),
+      description: pluginInteractionDescriptionSchema.optional(),
+    });
+    const legacyPluginResolveCommandAtD0 = z
+      .object({
+        environmentId: z.string().min(1),
+        threadId: z.string().min(1),
+        type: z.literal("interactive.resolve"),
+        interactionId: z.string().min(1),
+        providerId: z.string().min(1),
+        providerThreadId: z.string().min(1),
+        providerRequestId: z.string().min(1),
+        resolution: legacyPluginSubmittedResolutionAtD0,
+      })
+      .strict();
+    const target = {
+      type: "interactive.resolve",
+      environmentId: "env_123",
+      threadId: "thr_123",
+      interactionId: "pint_125",
+      providerId: "codex",
+      providerThreadId: "provider-thread-123",
+      providerRequestId: "request-125",
+    } as const;
+    const description = { title: "Submitted" };
+    for (const answeredVia of ["app", "api"] as const) {
+      const parsed = legacyPluginResolveCommandAtD0.parse({
+        ...target,
+        resolution: { kind: "plugin_submitted", description, answeredVia },
+      });
+      expect(parsed.resolution).toEqual({
+        kind: "plugin_submitted",
+        description,
+      });
+      expect(parsed.resolution).not.toHaveProperty("answeredVia");
+    }
+    expect(
+      legacyPluginResolveCommandAtD0.parse({
+        ...target,
+        resolution: { kind: "plugin_submitted" },
+      }).resolution,
+    ).toEqual({ kind: "plugin_submitted" });
   });
 
   it("rejects online-RPC-only read commands from the settled command schema", () => {

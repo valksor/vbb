@@ -399,7 +399,7 @@ export const SURFACE_GROUPS: SurfaceGroup[] = [
           "Add a form that asks the person a question and returns the answer to the agent. With this, a plugin can:",
         bullets: [
           "Replace the prompt box with your form, even after the turn has ended",
-          "Return the answer or cancellation to the agent and keep a record in the thread",
+          "Record replies or cancellations and optionally require an app header, without verifying identity.",
           "Show bb's answer shortcuts and respond to its answer, submit, switch, and cancel keys",
           "Dictate editable answers and wait for voice input before navigating or submitting",
         ],

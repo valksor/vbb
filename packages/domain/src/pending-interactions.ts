@@ -480,6 +480,7 @@ export type PluginInteractionDescription = z.infer<
 
 const pluginPendingInteractionResolutionSchema = z.object({
   kind: z.literal("plugin_submitted"),
+  answeredVia: z.enum(["app", "api"]).optional(),
   description: pluginInteractionDescriptionSchema.optional(),
 });
 type PluginPendingInteractionResolution = z.infer<

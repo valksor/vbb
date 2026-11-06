@@ -307,6 +307,52 @@ one-active-interaction-per-thread guard is the only cap on held-open calls).
 Decide whether turn-binding should be inferred from the renderer/policy on the
 server rather than carried as a public option.
 
+## `bb.ui.requestInput` `experimental_requireAppAnswer`
+
+**What it does.** `bb.ui.requestInput`'s options accept an optional
+`experimental_requireAppAnswer` boolean. Default (`false`/absent) keeps today's
+behavior: any caller of `POST /threads/:id/interactions/:interactionId/respond`
+can answer the form. When set, the server refuses an answer unless the request
+carries an app surface in `x-bb-app-surface` (`desktop`, `web` or `mobile`).
+A missing, `api` or unknown value counts as `api` and gets
+`403 app_answer_required` ("This form must be answered in the bb app."); the form
+stays pending, so a later app answer succeeds, and the server logs a warning
+with the thread id and interaction id and no payload. The check runs after the
+waiter lookup and before the already-submitting check, so a refused caller never
+sees `409`. The flag lives on the in-memory plugin waiter only: after a server
+restart the form has no waiter, and the respond route cancels it as it does for
+any waiter-less form, so nothing is credited.
+
+Every live answer to a plugin form records `answeredVia: "app" | "api"` on its
+`plugin_submitted` resolution. It is absent on late-answer recoveries and on
+resolutions stored before this field existed, where it means the origin was not
+recorded. `HOST_DAEMON_PROTOCOL_VERSION` is not bumped: the resolution union is
+also the `resolution` of the `interactive.resolve` host command, but
+`plugin_submitted` never crosses that wire (provider plugin-extension forms resolve with
+`request_answer`), and the nested object is not strict, so an older daemon drops
+the key. Host-daemon-contract tests check the new parser and the pinned previous
+plugin-resolution parser, including removal of the new optional key by the previous parser.
+
+**Who uses it.** No bundled core caller uses this option. A plugin can apply it
+to its approval forms. The option does not establish who answered.
+
+**Deliberate exception.** This is an exception to the `AGENTS.md` rule that every
+end-user feature is usable through the SDK and `bb` CLI: `bb thread interactions
+respond` is refused on a flagged form by design. The CLI needs no change; it
+prints the 403 message and exits non-zero.
+
+**Limits (deterrent only).** The local API authenticates nobody, and
+`x-bb-app-surface` is a self-declared telemetry header. A `curl` that sends the
+header, or an agent that drives the real app through browser automation, still
+answers the form. Native plan approvals (Claude Code's ExitPlanMode card) are not
+covered: `bb thread interactions approve <id> --self` still resolves them.
+
+Before stabilizing: a real resolver identity in core (who answered, not which
+client claimed to) replaces the header, and the option is then either dropped or
+re-expressed as "requires a human identity". Audit whether `answeredVia` should
+become a resolver identity on every resolution kind, and whether other
+interaction kinds need the same gate.
+
 ## `app.commands.register`
 
 Unprefixed by explicit request. Registers frontend commands
@@ -3905,7 +3951,6 @@ runs one case table through both the core and the plugin inputs.
 2. **Unread grouping.** The thread-list plugin's read-status grouping keeps
    its own "unread and done" predicate. Decide whether that predicate belongs
    in the SDK next to this function.
-
 
 ## `PluginSidebarThread.pendingInteractionKind` / `PluginThreadStatusThread.pendingInteractionKind` (`@get-bb/plugin-sdk/app`)
 

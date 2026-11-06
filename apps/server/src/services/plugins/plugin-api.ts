@@ -536,6 +536,7 @@ export function createPluginApi(options: {
       presentation: ThreadEventItemPresentation;
       signal?: AbortSignal;
       holdToolCall?: boolean;
+      requireAppAnswer?: boolean;
     },
   ) => Promise<PluginInteractionResult>;
   ensureSharedPortTunnel: PluginHosts["ensureSharedPortTunnel"];
@@ -702,6 +703,8 @@ export function createPluginApi(options: {
       throw new Error(`ui.requestInput presentation.icon ${iconProblem}`);
     }
     const holdToolCall = requestOptions?.experimental_holdToolCall === true;
+    const requireAppAnswer =
+      requestOptions?.experimental_requireAppAnswer === true;
     const pending = requestInteraction({
       ...normalized,
       presentation: fillPluginPresentation({
@@ -714,6 +717,7 @@ export function createPluginApi(options: {
       }),
       signal: requestOptions?.signal,
       ...(holdToolCall ? { holdToolCall: true } : {}),
+      ...(requireAppAnswer ? { requireAppAnswer: true } : {}),
     });
     if (!holdToolCall && !requestOptions?.signal?.aborted) {
       detachActivePluginToolCallForUserInput();

@@ -125,13 +125,15 @@ describe("pending interaction lifecycle", () => {
 
       const first = await respond();
       expect(first.status).toBe(200);
-      expect(await first.json()).toMatchObject({
+      const firstResult = await first.json();
+      expect(firstResult).toMatchObject({
         status: "resolved",
         resolution: {
           kind: "plugin_submitted",
           description: { title: "Answered after the question timed out" },
         },
       });
+      expect(firstResult.resolution).not.toHaveProperty("answeredVia");
       expect(queuedMessageContents(harness.deps, thread.id)).toEqual([
         expect.stringContaining("Which layout? — Inner area"),
       ]);
@@ -195,6 +197,7 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: interaction.id,
           value: LATE_ANSWER,
+          answeredVia: "api",
         });
 
       const results = await Promise.all([respond(), respond()]);
@@ -218,6 +221,7 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: interaction.id,
           value,
+          answeredVia: "api",
         });
       const expectStillTimedOut = () =>
         expect(
@@ -278,6 +282,7 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: interaction!.id,
           value: LATE_ANSWER,
+          answeredVia: "api",
         });
 
       await expect(request).resolves.toEqual({
@@ -329,6 +334,7 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: unrelatedInteraction!.id,
           value: { values: {} },
+          answeredVia: "api",
         }),
       ).rejects.toMatchObject({ status: 409 });
       expect(queuedMessageContents(harness.deps, thread.id)).toEqual([]);
