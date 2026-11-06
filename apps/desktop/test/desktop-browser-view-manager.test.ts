@@ -3871,6 +3871,40 @@ describe("DesktopBrowserViewManager", () => {
     expect(popupWindow.destroyCalls).toBe(1);
   });
 
+  it("keeps popups hidden and never re-shows them across server switches when headless", () => {
+    const manager = createDesktopBrowserViewManager({
+      headless: true,
+      partition: "persist:test",
+    });
+    const hostWindow = new FakeHostWindow({
+      contentBounds: { width: 700, height: 450 },
+      webContentsId: 63,
+    });
+
+    manager.setServerOrigin("https://first.example");
+    attachBrowserTab({
+      manager,
+      hostWindow,
+      tabId: "browser:a",
+      url: "https://example.com/first",
+    });
+    const view = requireFakeView(0);
+    const popup = view.webContents.emitWindowOpen("https://example.com/login", {
+      disposition: "new-window",
+    });
+    popup.createWindow?.({});
+    const popupWindow = electronMock.fakeWindows[0];
+    if (popupWindow === undefined) {
+      throw new Error("Expected a popup window to be created.");
+    }
+    expect(popupWindow.options.show).toBe(false);
+
+    manager.setServerOrigin("https://second.example");
+    expect(popupWindow.visible).toBe(false);
+    manager.setServerOrigin("https://first.example");
+    expect(popupWindow.visible).toBe(false);
+  });
+
   it("loads the URL itself when Electron supplies no child webContents", () => {
     const manager = createDesktopBrowserViewManager({
       partition: "persist:test",

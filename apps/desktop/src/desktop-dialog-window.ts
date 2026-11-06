@@ -1,4 +1,5 @@
 import { BrowserWindow, screen } from "electron";
+import { isDesktopHeadlessProcess } from "./desktop-headless-runtime.js";
 
 const DIALOG_FALLBACK_CONTENT_HEIGHT = 320;
 const DIALOG_MIN_CONTENT_HEIGHT = 120;
@@ -122,7 +123,7 @@ export function showDesktopDialogHtml(
 ): void {
   let shown = false;
   function showOnce(): void {
-    if (shown || dialogWindow.isDestroyed()) {
+    if (shown || isDesktopHeadlessProcess() || dialogWindow.isDestroyed()) {
       return;
     }
     shown = true;

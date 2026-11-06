@@ -61,6 +61,10 @@ import {
 import { z } from "zod";
 import { registerDesktopClipboardIpc } from "./desktop-clipboard.js";
 import { registerDesktopAttentionIpc } from "./desktop-attention.js";
+import {
+  applyDesktopHeadlessStartup,
+  isDesktopHeadlessProcess,
+} from "./desktop-headless-runtime.js";
 import { registerDesktopWindowFocusIpc } from "./desktop-window-focus.js";
 import {
   assertPathExists,
@@ -647,6 +651,8 @@ function sendDesktopWindowStateChanged(
 }
 
 const desktopLogger = createDesktopLogger({ logDir: formatLogDirectory() });
+
+const desktopHeadless = isDesktopHeadlessProcess();
 
 function resolveDataDirFromEnv(args: ResolveDataDirFromEnvArgs): string {
   const rawDataDir = args.env.BB_DATA_DIR?.trim();
@@ -1718,7 +1724,7 @@ async function runStartupAction(
 
 function openConnectSignIn(parentWindow: BrowserWindow | null): void {
   if (connectSignInWindow !== null && !connectSignInWindow.isDestroyed()) {
-    connectSignInWindow.focus();
+    if (!desktopHeadless) connectSignInWindow.focus();
     return;
   }
   const target = serverTargetStore?.getTarget();
@@ -1733,6 +1739,7 @@ function openConnectSignIn(parentWindow: BrowserWindow | null): void {
   const signInWindow = new BrowserWindow({
     height: 720,
     parent: parentWindow ?? undefined,
+    show: !desktopHeadless,
     title:
       targetUrl === null ? "Sign in to bb Connect" : "Reconnect bb Connect",
     webPreferences: {
@@ -2141,7 +2148,7 @@ async function loadLogViewerWindow(
   logViewerWindow = browserWindow;
 
   browserWindow.once("ready-to-show", () => {
-    browserWindow.show();
+    if (!desktopHeadless) browserWindow.show();
   });
   browserWindow.on("closed", () => {
     if (logViewerTailer === tailer) {
@@ -2172,7 +2179,7 @@ async function openLocalLogs(): Promise<void> {
   }
 
   if (logViewerWindow !== null && !logViewerWindow.isDestroyed()) {
-    logViewerWindow.focus();
+    if (!desktopHeadless) logViewerWindow.focus();
     return;
   }
 
@@ -3049,6 +3056,7 @@ async function runDesktopApp(): Promise<void> {
   if (process.platform === "darwin" && app.dock !== undefined && devIcon) {
     app.dock.setIcon(iconPath);
   }
+  applyDesktopHeadlessStartup(app, desktopLogger);
   await reapStaleOwnedRuntime({
     signal: "SIGTERM",
     timeoutMs: 5_000,
@@ -3207,6 +3215,7 @@ async function runDesktopApp(): Promise<void> {
   });
   void removeLegacyAutomationPartitions(userDataPath).catch(() => {});
   desktopBrowserViewManager = createDesktopBrowserViewManager({
+    headless: desktopHeadless,
     pagePreloadPath: browserPagePreloadPath,
     dispatchAppCommand({ command, hostWebContentsId }) {
       const browserWindow = BrowserWindow.getAllWindows().find(
@@ -3372,6 +3381,7 @@ async function runDesktopApp(): Promise<void> {
       return nativeTheme.shouldUseDarkColors;
     },
     displayWorkAreas: null,
+    headless: desktopHeadless,
     icon: nativeImage.createFromPath(iconPath),
     isLinuxTransparent: hasLinuxWindowArgument({
       argument: LINUX_TRANSPARENT_WINDOW_ARGUMENT,

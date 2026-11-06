@@ -1565,6 +1565,12 @@ and `--perf-diagnostics` ([Experiments](#experiments)).
 
 ## Source Development
 
+### Desktop headless mode
+
+Set `BB_DESKTOP_HEADLESS=1` in the unpackaged desktop process environment before launch to keep its windows hidden. Only the exact value `1` enables this mode. Packaged builds ignore the variable. Restart the desktop process after changing it; no server setting or live-reload endpoint controls this option.
+
+Headless mode still loads app windows and applies the saved layout and zoom in memory. It suppresses app-window focus, display, and layout or zoom persistence. Browser popups, sign-in windows, the log viewer, and the server URL dialog also stay hidden. On macOS the Dock can flash before it is hidden. Native About, server-moved, and permission dialogs can still appear. Hidden sign-in or server dialogs can wait for input indefinitely. See [desktop development](../apps/desktop/README.md) for the test and launch details.
+
 `pnpm mobile:apk:dev` builds the standalone Android development app, **bb dev**,
 with orange icons and package `app.getbb.mobile.dev`. Output is
 `apps/mobile/build-output/bb-dev.apk`; append `-- x86_64` for an Intel emulator.

@@ -1,5 +1,6 @@
 import { ipcMain, type BrowserWindow } from "electron";
 import { escapeHtmlText } from "@bb/text-utils";
+import { isDesktopHeadlessProcess } from "./desktop-headless-runtime.js";
 import {
   createDesktopDialogWindow,
   DESKTOP_DIALOG_BASE_CSS,
@@ -122,7 +123,7 @@ export function openServerUrlDialog(
   args: OpenServerUrlDialogArgs,
 ): Promise<ServerUrlDialogResult> {
   if (openDialog !== null && !openDialog.window.isDestroyed()) {
-    openDialog.window.focus();
+    if (!isDesktopHeadlessProcess()) openDialog.window.focus();
     return openDialog.result;
   }
 

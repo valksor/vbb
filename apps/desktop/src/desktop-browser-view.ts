@@ -273,6 +273,7 @@ interface DispatchDesktopBrowserAppCommandArgs {
 export interface CreateDesktopBrowserViewManagerArgs {
   dispatchAppCommand: (args: DispatchDesktopBrowserAppCommandArgs) => void;
   focusHostWebContents: (hostWebContentsId: number) => void;
+  headless?: boolean;
   pagePreloadPath: string | null;
   partition?: string;
   resolveAppCommand: (
@@ -928,7 +929,7 @@ export function createDesktopBrowserViewManager(
         POPUP_MIN_HEIGHT,
         POPUP_MAX_HEIGHT,
       ),
-      show: true,
+      show: !args.headless,
       transparent: false,
       webContents: options.webContents,
       webPreferences: hardenedWebPreferences(),
@@ -1562,7 +1563,7 @@ export function createDesktopBrowserViewManager(
           if (popup.isDestroyed()) continue;
           setDesktopBrowserServerActive(popup.webContents, true);
           popup.webContents.setAudioMuted(false);
-          popup.showInactive();
+          if (!args.headless) popup.showInactive();
         }
       }
       notifyAutomationTabs();

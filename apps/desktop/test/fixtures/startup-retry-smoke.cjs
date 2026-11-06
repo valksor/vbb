@@ -17,6 +17,7 @@ app.setVersion(require(join(desktopRoot, "package.json")).version);
 const scenario = process.env.BB_STARTUP_SMOKE_SCENARIO ?? "custom";
 const channel = "bb-desktop:startup-action";
 const loads = [];
+const shownWindowTitles = [];
 let contents;
 let recovered = false;
 let mintCount = 0;
@@ -28,6 +29,32 @@ async function until(check) {
     assert.ok(Date.now() < deadline, "Timed out waiting for startup recovery");
     await new Promise((resolve) => setTimeout(resolve, 20));
   }
+}
+
+function finishSmoke() {
+  if (shownWindowTitles.length > 0) {
+    console.error(
+      `STARTUP_RETRY_SMOKE_FAILED: windows were shown: ${JSON.stringify(
+        shownWindowTitles,
+      )}`,
+    );
+    app.exit(1);
+    return;
+  }
+  const visibleWindows = BrowserWindow.getAllWindows().filter((window) =>
+    window.isVisible(),
+  );
+  if (visibleWindows.length > 0) {
+    console.error(
+      `STARTUP_RETRY_SMOKE_FAILED: visible windows remain: ${JSON.stringify(
+        visibleWindows.map((window) => window.getTitle()),
+      )}`,
+    );
+    app.exit(1);
+    return;
+  }
+  console.log("STARTUP_RETRY_SMOKE_OK");
+  app.exit(0);
 }
 
 async function run() {
@@ -116,6 +143,19 @@ async function run() {
   app.setAppPath(desktopRoot);
   app.on("browser-window-created", (_event, window) => {
     contents ??= window.webContents;
+    if (window.isVisible()) {
+      shownWindowTitles.push(window.getTitle());
+    }
+    const showWindow = window.show.bind(window);
+    window.show = () => {
+      shownWindowTitles.push(window.getTitle());
+      return showWindow();
+    };
+    const showInactiveWindow = window.showInactive.bind(window);
+    window.showInactive = () => {
+      shownWindowTitles.push(window.getTitle());
+      return showInactiveWindow();
+    };
     const loadURL = window.webContents.loadURL.bind(window.webContents);
     window.webContents.loadURL = (url, options) => {
       loads.push(url);
@@ -139,8 +179,7 @@ async function run() {
     await contents.executeJavaScript("window.bbDesktop.openServerDaemonLogs()");
     await verifyLocalLogs();
     server.close();
-    console.log("STARTUP_RETRY_SMOKE_OK");
-    app.exit(0);
+    finishSmoke();
     return;
   }
   if (scenario === "crashed") {
@@ -153,8 +192,7 @@ async function run() {
       savedLogs.includes("bb-app native module failed to load"),
       "bb-app output from a failed startup must be persisted",
     );
-    console.log("STARTUP_RETRY_SMOKE_OK");
-    app.exit(0);
+    finishSmoke();
     return;
   }
   const errorTitle =
@@ -202,8 +240,7 @@ async function run() {
     await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(loads.length, before, "A fatal startup error cannot retry");
     server.close();
-    console.log("STARTUP_RETRY_SMOKE_OK");
-    app.exit(0);
+    finishSmoke();
     return;
   }
   assert.equal(
@@ -317,8 +354,7 @@ async function run() {
     "Runtime changes must preserve the local log viewer",
   );
   server.close();
-  console.log("STARTUP_RETRY_SMOKE_OK");
-  app.exit(0);
+  finishSmoke();
 }
 
 async function verifyLocalLogs() {

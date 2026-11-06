@@ -110,9 +110,11 @@ pnpm exec turbo run test --filter=@bb/desktop --filter=bb-app --force
 pnpm exec turbo run dev --filter=@bb/desktop
 ```
 
-The desktop tests include an Electron startup smoke that opens a real window.
-On Linux it runs only when `DISPLAY` is set; on a headless host, wrap the test
-command in `xvfb-run -a`, as CI does.
+The desktop tests include an Electron startup smoke that runs the real app
+with `BB_DESKTOP_HEADLESS=1` set by the test itself, so every window stays
+hidden. On Linux it runs
+only when `DISPLAY` is set; on a headless host, wrap the test command in
+`xvfb-run -a`, as CI does.
 
 ## Packaging
 
@@ -433,6 +435,16 @@ Use the View menu to toggle DevTools. To open them automatically on launch, set
 ```bash
 BB_DESKTOP_OPEN_DEVTOOLS=1 apps/desktop/release/mac-arm64/bb.app/Contents/MacOS/bb
 ```
+
+`BB_DESKTOP_HEADLESS=1` keeps every app window hidden in unpackaged builds so
+the Electron smoke test does not take over the screen. Native OS dialogs
+(About, server-moved notices, microphone consent) are not gated and still
+appear, and the Dock icon may flash briefly at startup before it hides.
+Interactive flows that wait for input (server dialogs, Connect sign-in) stall
+while hidden and fail closed; the sign-in window intentionally keeps its
+constructor-only `show` because a hung remote load never fires
+`ready-to-show`. Window layout and zoom changes made during a headless run
+are not persisted. Packaged launches ignore the variable.
 
 Unpackaged runs use `assets/icon-dev.png` for the Dock and window icon. Set
 `BB_DESKTOP_DEV_ICON=1` to use it in a packaged build too; `pnpm

@@ -1,10 +1,12 @@
 import { app, BrowserWindow, ipcMain } from "electron";
+import { isDesktopHeadlessProcess } from "./desktop-headless-runtime.js";
 import { BB_DESKTOP_FOCUS_WINDOW_CHANNEL } from "./desktop-window-command-ipc.js";
 
 export function registerDesktopWindowFocusIpc(
   applicationWindowWebContentsIds: ReadonlySet<number>,
 ): void {
   ipcMain.on(BB_DESKTOP_FOCUS_WINDOW_CHANNEL, (event) => {
+    if (isDesktopHeadlessProcess()) return;
     if (!applicationWindowWebContentsIds.has(event.sender.id)) return;
     const browserWindow = BrowserWindow.fromWebContents(event.sender);
     if (browserWindow === null || browserWindow.isDestroyed()) return;

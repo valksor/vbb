@@ -113,6 +113,7 @@ interface CreateDesktopWindowFactoryArgs {
   browserWindowCreator: DesktopBrowserWindowCreator;
   createWindowStateKey(): WindowStateKey;
   displayWorkAreas: DisplayWorkArea[] | null;
+  headless: boolean;
   icon: DesktopWindowIcon;
   isLinuxTransparent: boolean;
   isMac: boolean;
@@ -166,6 +167,7 @@ interface LoadUrlIntoWindowArgs {
 interface CreateWindowOptionsArgs {
   backgroundColor: string;
   bounds: WindowBounds;
+  headless: boolean;
   icon: DesktopWindowIcon;
   isLinuxTransparent: boolean;
   isMac: boolean;
@@ -219,6 +221,7 @@ function createWindowOptions(
     show: false,
     title: "bb",
     webPreferences: {
+      ...(args.headless ? { backgroundThrottling: false } : {}),
       contextIsolation: true,
       nodeIntegration: false,
       preload: args.preloadPath,
@@ -270,6 +273,7 @@ export function createDesktopWindowFactory(
   }
 
   function writeEntries(windows: PersistedWindowStateEntry[]): Promise<void> {
+    if (args.headless) return settledWrite();
     pendingWrite = settledWrite().then(() =>
       writePersistedWindowStateFile({
         file: { windows, zoomFactor: zoomFactor ?? 1 },
@@ -320,6 +324,7 @@ export function createDesktopWindowFactory(
         createWindowOptions({
           backgroundColor: args.shouldUseDarkColors() ? "#151515" : "#ffffff",
           bounds: restoredState.bounds,
+          headless: args.headless,
           icon: args.icon,
           isLinuxTransparent: args.isLinuxTransparent,
           isMac: args.isMac,
@@ -350,15 +355,15 @@ export function createDesktopWindowFactory(
 
       activeWindows.set(stateKey, browserWindow);
 
-      if (restoredState.isMaximized) {
+      if (!args.headless && restoredState.isMaximized) {
         browserWindow.maximize();
       }
-      if (restoredState.isFullScreen) {
+      if (!args.headless && restoredState.isFullScreen) {
         browserWindow.setFullScreen(true);
       }
 
       browserWindow.once("ready-to-show", () => {
-        browserWindow.show();
+        if (!args.headless) browserWindow.show();
       });
       let closing = false;
       const saveOnChange = () => {
@@ -461,10 +466,10 @@ export function createDesktopWindowFactory(
 
   function focusFirstWindow(): boolean {
     for (const browserWindow of activeWindows.values()) {
-      if (browserWindow.isMinimized()) {
+      if (!args.headless && browserWindow.isMinimized()) {
         browserWindow.restore();
       }
-      browserWindow.focus();
+      if (!args.headless) browserWindow.focus();
       return true;
     }
     return false;
