@@ -36,6 +36,7 @@ import {
   NewThreadComposer,
   type NewThreadComposerState,
 } from "@/components/promptbox/NewThreadComposer";
+import { projectDefaultProviderId } from "@/components/promptbox/NewThreadComposer.fork";
 import { setComposerSelectionSettleTimeoutForTest } from "@/components/promptbox/composer-selection-settle";
 import type { PluginComposerHost } from "@/components/plugin/plugin-composer-host";
 import {
@@ -44,6 +45,7 @@ import {
 } from "@/lib/plugin-slots";
 import { encodeReuseValue } from "@/components/pickers/environment-picker-value";
 import { useRootComposeReuseEnvironment } from "@/lib/root-compose-selection";
+import { getProjectScopedStorageKey } from "@/lib/project-scoped-storage";
 import { getPromptDraftAccessor } from "@/hooks/usePromptDraftStorage";
 import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
 import { createDeferredPromise } from "@bb/test-helpers";
@@ -107,7 +109,51 @@ const mocks = vi.hoisted(() => ({
   modelsLoading: false,
   permissionCeiling: undefined as "accept-edits" | "auto" | "full" | undefined,
   modelSessionOptions: undefined as ThreadSessionOption[] | undefined,
+  defaultProviderId: null as string | null,
+  projectDefaultsQuery: { data: undefined } as Record<string, unknown>,
 }));
+
+describe("projectDefaultProviderId", () => {
+  it.each([
+    {
+      projectDefaults: null,
+      defaultProviderId: "claude-code",
+      expected: "claude-code",
+    },
+    {
+      projectDefaults: undefined,
+      defaultProviderId: "claude-code",
+      expected: undefined,
+    },
+    {
+      projectDefaults: { providerId: "codex" },
+      defaultProviderId: "claude-code",
+      expected: "codex",
+    },
+    {
+      projectDefaults: {},
+      defaultProviderId: "claude-code",
+      expected: undefined,
+    },
+    {
+      projectDefaults: null,
+      defaultProviderId: null,
+      expected: undefined,
+    },
+    {
+      projectDefaults: null,
+      defaultProviderId: undefined,
+      expected: undefined,
+    },
+  ])(
+    "returns $expected for the provided project defaults and configured value",
+    ({ projectDefaults, defaultProviderId, expected }) => {
+      expect(projectDefaultProviderId(projectDefaults, defaultProviderId)).toBe(
+        expected,
+      );
+    },
+  );
+});
 
 vi.mock("@/views/RootComposePanelCommandHandlers", () => ({
   RootComposePanelCommandHandlers: ({
@@ -284,7 +330,10 @@ vi.mock("@/hooks/queries/system-queries", () => ({
   useSystemConfig: () => ({
     data: {
       primaryHostId: "host_1",
-      generalSettings: defaultAppSettings,
+      generalSettings: {
+        ...defaultAppSettings,
+        defaultProviderId: mocks.defaultProviderId,
+      },
       serverAccess: {
         providers: [
           {
@@ -419,7 +468,7 @@ vi.mock("@/hooks/queries/project-queries", () => ({
 }));
 
 vi.mock("@/hooks/queries/project-default-execution-options-query", () => ({
-  useProjectDefaultExecutionOptions: () => ({ data: undefined }),
+  useProjectDefaultExecutionOptions: () => mocks.projectDefaultsQuery,
 }));
 
 vi.mock("@/hooks/mutations/project-mutations", () => ({
@@ -2927,6 +2976,8 @@ describe("NewThreadComposer setSelection", () => {
   afterEach(() => {
     cleanup();
     setComposerSelectionSettleTimeoutForTest(null);
+    mocks.defaultProviderId = null;
+    mocks.projectDefaultsQuery = { data: undefined };
     vi.restoreAllMocks();
   });
 
@@ -2967,6 +3018,35 @@ describe("NewThreadComposer setSelection", () => {
     expect(host.setSelection).toBeDefined();
     return host;
   }
+
+  it("opens a project without remembered defaults on the configured default provider", async () => {
+    window.localStorage.setItem("bb.promptbox.provider", "codex");
+    mocks.defaultProviderId = "claude-code";
+    mocks.projectDefaultsQuery = {
+      data: null,
+      isSuccess: true,
+      isPlaceholderData: false,
+      isError: false,
+    };
+    mocks.extraProjects = [
+      {
+        ...PROJECT,
+        id: "proj_blank",
+        name: "Project Blank",
+        defaultExecutionOptions: null,
+        sources: [
+          { ...PROJECT.sources[0], id: "src_blank", projectId: "proj_blank" },
+        ],
+      },
+    ];
+    render(rootLikeElement("proj_blank"));
+
+    await waitFor(() => {
+      expect(latestPromptBoxProps().execution.provider.selectedId).toBe(
+        "claude-code",
+      );
+    });
+  });
 
   it("keeps root-compose drafts isolated while switching projects", async () => {
     const projectOneDraft = {
@@ -3306,9 +3386,11 @@ describe("NewThreadComposer setSelection", () => {
       model: "gpt-5.6-sol",
       reasoningLevel: "high",
     });
-    expect(window.localStorage.getItem("bb.promptbox.provider")).toBe(
-      "claude-code",
-    );
+    expect(
+      window.localStorage.getItem(
+        getProjectScopedStorageKey("bb.promptbox.provider", "proj_1"),
+      ),
+    ).toBe("claude-code");
     expect(
       window.localStorage.getItem("bb.promptbox.model-claude-code-1"),
     ).toBe("gpt-5.6-sol");
