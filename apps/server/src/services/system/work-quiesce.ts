@@ -139,7 +139,17 @@ export class WorkQuiesceService {
         `work maintenance is held by ${acquired.lease.operationId}`,
       );
     }
-    await this.options.local?.quiesce();
+    try {
+      await this.options.local?.quiesce();
+    } catch (error) {
+      await this.releaseExclusive({
+        operationId: input.operationId,
+        ownerSecret: input.ownerSecret,
+        resolution: "force-aborted",
+        now,
+      }).catch(() => undefined);
+      throw error;
+    }
     await this.establishBarrier(acquired.lease, ownerSecretHash);
     return {
       ...(await this.status(now)),

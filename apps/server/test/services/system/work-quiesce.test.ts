@@ -5,6 +5,7 @@ import {
   WorkQuiesceService,
   hashWorkQuiesceOwnerSecret,
   type WorkQuiesceBarrierTransport,
+  type WorkQuiesceLocalBarrier,
 } from "../../../src/services/system/work-quiesce.js";
 
 function createHarness(hostIds: string[] = ["host-1"]) {
@@ -353,6 +354,61 @@ describe("WorkQuiesceService", () => {
 
     expect(readWorkQuiesceLease(db, Date.now())).toBeNull();
     expect(local.release).toHaveBeenCalledTimes(1);
+    db.$client.close();
+  });
+
+  it("unwinds a rejected local quiesce before any host barrier and preserves the rejection", async () => {
+    const db = createMigratedConnection();
+    const failure = new Error("local work hold failed");
+    let localHoldActive = false;
+    const local = {
+      quiesce: vi
+        .fn<WorkQuiesceLocalBarrier["quiesce"]>()
+        .mockImplementationOnce(async () => {
+          localHoldActive = true;
+          throw failure;
+        })
+        .mockResolvedValueOnce(undefined),
+      release: vi.fn(() => {
+        expect(localHoldActive).toBe(true);
+        expect(readWorkQuiesceLease(db, 1_000)).toBeNull();
+        localHoldActive = false;
+      }),
+    };
+    const send = vi.fn<WorkQuiesceBarrierTransport["send"]>();
+    const service = new WorkQuiesceService({
+      db,
+      local,
+      transport: { listConnectedHostIds: () => [], send },
+    });
+
+    await expect(
+      service.acquire({
+        operationId: "update-1",
+        ownerSecret: "owner-secret",
+        reason: "desktop local update",
+        ttlMs: 60_000,
+        now: 1_000,
+      }),
+    ).rejects.toBe(failure);
+    expect(readWorkQuiesceLease(db, 1_000)).toBeNull();
+    expect(local.release).toHaveBeenCalledTimes(1);
+    expect(send).not.toHaveBeenCalled();
+
+    await service.acquire({
+      operationId: "update-2",
+      ownerSecret: "owner-secret",
+      reason: "desktop local update",
+      ttlMs: 60_000,
+      now: 1_001,
+    });
+
+    expect(readWorkQuiesceLease(db, 1_001)).toMatchObject({
+      operationId: "update-2",
+      phase: "draining",
+    });
+    expect(local.release).toHaveBeenCalledTimes(1);
+    expect(send).not.toHaveBeenCalled();
     db.$client.close();
   });
 
