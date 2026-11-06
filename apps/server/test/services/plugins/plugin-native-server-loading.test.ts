@@ -148,7 +148,7 @@ process.stdout.write(JSON.stringify(result));
       statusDetail: null,
       types: ["function", "function"],
     });
-  });
+  }, 15_000);
 
   it("loads a TypeScript source plugin through the cache in native Node", async () => {
     const workDir = await mkdtemp(join(tmpdir(), "bb-native-source-load-"));

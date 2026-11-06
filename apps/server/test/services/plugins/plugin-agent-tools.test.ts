@@ -751,6 +751,8 @@ describe("plugin tools reach thread runtime config", () => {
 
     const command = await buildCommand(1);
     expect(command.dynamicTools.map((tool) => tool.name)).toEqual([
+      ENTER_WORKTREE_TOOL_NAME,
+      KEEP_CHECKOUT_TOOL_NAME,
       UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
       "demo_lookup",
       "quiet_tool",
@@ -925,10 +927,14 @@ describe("plugin tools reach thread runtime config", () => {
     const alphaCommand = await build(alpha, 10);
     const betaCommand = await build(beta, 11);
     expect(alphaCommand.dynamicTools.map((tool) => tool.name)).toEqual([
+      ENTER_WORKTREE_TOOL_NAME,
+      KEEP_CHECKOUT_TOOL_NAME,
       UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
       "alpha_tool",
     ]);
     expect(betaCommand.dynamicTools.map((tool) => tool.name)).toEqual([
+      ENTER_WORKTREE_TOOL_NAME,
+      KEEP_CHECKOUT_TOOL_NAME,
       UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
       "beta_tool",
     ]);
@@ -998,7 +1004,9 @@ describe("plugin tools reach thread runtime config", () => {
     });
     const sideCommand = await build({ ...alpha, thread: sideThread }, 12);
     expect(sideCommand.dynamicTools.map((tool) => tool.name)).toEqual([
-      "update_environment_directory",
+      ENTER_WORKTREE_TOOL_NAME,
+      KEEP_CHECKOUT_TOOL_NAME,
+      UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
       "alpha_tool",
     ]);
     expect(sideCommand.instructions).toContain(
@@ -1042,7 +1050,12 @@ describe("plugin tools reach thread runtime config", () => {
     });
     expect(
       turnSubmit.resumeContext.dynamicTools.map((tool) => tool.name),
-    ).toEqual([UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME, "beta_tool"]);
+    ).toEqual([
+      ENTER_WORKTREE_TOOL_NAME,
+      KEEP_CHECKOUT_TOOL_NAME,
+      UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
+      "beta_tool",
+    ]);
     expect(
       turnSubmit.resumeContext.injectedSkillSources.map((skill) => skill.name),
     ).toContain("beta-skill");
