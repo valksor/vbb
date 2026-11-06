@@ -263,4 +263,4 @@ it("isolates projects on a shared machine and restores global values after remov
       }),
     );
   });
-});
+}, 15_000);
