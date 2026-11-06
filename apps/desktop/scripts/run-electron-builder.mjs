@@ -3,6 +3,10 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  applyKeychainMacTimestamp,
+  resolveDesktopLocalBuild,
+} from "./desktop-local-build.fork.mjs";
+import {
   createDesktopReleaseConfig,
   createDesktopUpdateReleaseBaseUrl,
   resolveDesktopReleaseChannel,
@@ -161,7 +165,8 @@ function createSigningPlan(env) {
 function resolveElectronBuilderConfig(baseConfig, env, electronBuilderArgs) {
   const signingPlan = createSigningPlan(env);
   const releaseChannel = resolveDesktopReleaseChannel(env);
-  const releaseConfig = createDesktopReleaseConfig(releaseChannel);
+  const localBuild = resolveDesktopLocalBuild(env);
+  const releaseConfig = createDesktopReleaseConfig(releaseChannel, localBuild);
   const config = cloneJson(baseConfig);
   const mac = {
     ...config.mac,
@@ -177,6 +182,8 @@ function resolveElectronBuilderConfig(baseConfig, env, electronBuilderArgs) {
     // Let electron-builder resolve the identity (CSC_LINK or keychain).
     delete mac.identity;
   }
+
+  applyKeychainMacTimestamp(mac, signingPlan);
 
   config.mac = mac;
   config.linux = {
@@ -204,6 +211,7 @@ function resolveElectronBuilderConfig(baseConfig, env, electronBuilderArgs) {
       url: createDesktopUpdateReleaseBaseUrl(releaseConfig.releaseTag),
     },
   ];
+  if (localBuild) config.publish = [];
 
   return {
     config,

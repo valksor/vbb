@@ -8,6 +8,18 @@
   ],
   "tasks": {
     "@bb/db#db:generate": { "cache": false },
+    "@bb/desktop#test:fork-pure": {
+      "cache": false,
+      "dependsOn": [],
+      "env": ["BB_DESKTOP_LOCAL_BUILD", "BB_DESKTOP_RELEASE_CHANNEL", "VITEST_MAX_WORKERS"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/vitest*.ts",
+        "$TURBO_ROOT$/packages/desktop-contract/package.json",
+        "$TURBO_ROOT$/packages/desktop-contract/src/**"
+      ],
+      "outputs": []
+    },
     "//#test:fork-pure": {
       "cache": false,
       "inputs": [
@@ -274,7 +286,7 @@
     },
     "@bb/desktop#build": {
       "dependsOn": ["bb-app#build"],
-      "env": ["BB_DESKTOP_RELEASE_CHANNEL"],
+      "env": ["BB_DESKTOP_LOCAL_BUILD", "BB_DESKTOP_RELEASE_CHANNEL"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/apps/desktop/**",
@@ -315,7 +327,7 @@
     "@bb/desktop#smoke:packaged-npm": {
       "cache": false,
       "outputs": [],
-      "passThroughEnv": ["BB_DESKTOP_RELEASE_CHANNEL"]
+      "passThroughEnv": ["BB_DESKTOP_LOCAL_BUILD", "BB_DESKTOP_RELEASE_CHANNEL"]
     },
     "@bb/desktop#package": {
       "dependsOn": ["bb-app#build", "@bb/desktop#build"],

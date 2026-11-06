@@ -3,6 +3,10 @@
 Desktop updater and deployment usage remain pending Slice 07, Slice 08, and
 Slice 22. Those slices are required migration work, not excluded functionality.
 
+## Local desktop packaging
+
+On macOS, `pnpm desktop:local:package` builds an unpacked `bb Local.app` under `apps/desktop/release/`. The command sets `BB_DESKTOP_LOCAL_BUILD=1`. The app uses bundle ID `dev.bb.desktop.local`, runtime app ID `dev.bb.desktop.local`, and product name `bb Local`. The local builder config uses the stable icon and metadata names, but publishes no update feed. The runtime disables official auto-update and version checks for explicit local builds. Its Electron user data is separate from the stable app; its embedded bb runtime still uses the normal `~/.bb` data (or `BB_DATA_DIR`) and getbb.app services. The local-build flag is separate from the latest/nightly release channel. This command builds a local app; it does not install or update a running app.
+
 ## Rebase on upstream
 
 Fork changes live in new files so that upstream files keep only small hooks:

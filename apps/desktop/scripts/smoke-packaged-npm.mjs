@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+import { resolveDesktopLocalBuild } from "./desktop-local-build.fork.mjs";
 import {
   createDesktopReleaseConfig,
   resolveDesktopReleaseChannel,
@@ -301,6 +302,7 @@ if (
 ) {
   const releaseConfig = createDesktopReleaseConfig(
     resolveDesktopReleaseChannel(process.env),
+    resolveDesktopLocalBuild(process.env),
   );
   const appBinary =
     process.argv[2] ??
