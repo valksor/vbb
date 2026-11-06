@@ -29,6 +29,9 @@
         "$TURBO_ROOT$/scripts/fork-footprint.fork.mjs",
         "$TURBO_ROOT$/scripts/fork-footprint.fork.test.mjs",
         "$TURBO_ROOT$/scripts/fork-footprint.mjs",
+        "$TURBO_ROOT$/scripts/update-local-desktop.mjs",
+        "$TURBO_ROOT$/scripts/update-local-desktop.fork.mjs",
+        "$TURBO_ROOT$/scripts/update-local-desktop.fork.test.mjs",
         "$TURBO_ROOT$/turbo.json"
       ],
       "outputs": []
