@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "clean": "rimraf tsconfig.tsbuildinfo",
+    "generate:registry": "node scripts/build-registry.mjs",
     "typecheck": "node ./scripts/build-registry.mjs --check && tsrs --noEmit",
     "test": "node ./scripts/build-registry.mjs --check && vitest run --config vitest.config.ts"
   },

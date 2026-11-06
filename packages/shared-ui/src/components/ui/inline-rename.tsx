@@ -10,9 +10,16 @@ import {
 } from "react";
 import { useIsCompactViewport } from "./hooks/use-compact-viewport";
 import { usePointerCoarse } from "./hooks/use-pointer-coarse";
+import type { ForkInlineRenameKind } from "./inline-rename.fork";
 
 export interface InlineRenameArgs {
-  kind: "thread" | "project" | "section" | "environment" | "machine";
+  kind:
+    | "thread"
+    | "project"
+    | "section"
+    | "environment"
+    | "machine"
+    | ForkInlineRenameKind;
   id: string;
   name: string;
   label: string;

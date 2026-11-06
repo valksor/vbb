@@ -1,0 +1,15 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "inline-rename.fork",
+  "type": "registry:ui",
+  "title": "inline-rename.fork",
+  "description": "BB ui \"inline-rename.fork\" — vendored from the BB app's own source (version-matched to this BB release).",
+  "files": [
+    {
+      "path": "registry/components/ui/inline-rename.fork.ts",
+      "content": "export type ForkInlineRenameKind = \"projectGroup\";\n",
+      "type": "registry:ui",
+      "target": "components/ui/inline-rename.fork.ts"
+    }
+  ]
+}

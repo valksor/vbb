@@ -389,7 +389,20 @@
       "passThroughEnv": ["*"]
     },
     "@bb/mobile#theme:generate": {
-      "cache": false
+      "cache": false,
+      "dependsOn": ["@bb/domain#topo"],
+      "inputs": [
+        "scripts/generate-native-theme.ts",
+        "src/theme/mobile-overrides.css",
+        "$TURBO_ROOT$/apps/app/src/components/ui/theme.css",
+        "$TURBO_ROOT$/apps/app/src/lib/themes/*.ts",
+        "$TURBO_ROOT$/packages/domain/src/**",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/apps/mobile/package.json",
+        "$TURBO_ROOT$/packages/domain/package.json",
+        "$TURBO_ROOT$/pnpm-lock.yaml"
+      ],
+      "outputs": ["src/theme/theme.native.ts"]
     },
     "@bb/mobile#test": {
       "env": ["VITEST_MAX_WORKERS"],
@@ -1741,13 +1754,29 @@
       ]
     },
     "@bb/plugin-registry#typecheck": {
-      "dependsOn": ["topo"],
+      "dependsOn": ["@bb/plugin-registry#generate:registry", "topo"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/shared-ui/src/**"]
     },
     "@bb/plugin-registry#test": {
       "env": ["VITEST_MAX_WORKERS"],
-      "dependsOn": ["//#ensure-native-modules", "topo"],
+      "dependsOn": [
+        "@bb/plugin-registry#generate:registry",
+        "//#ensure-native-modules",
+        "topo"
+      ],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/shared-ui/src/**"]
+    },
+    "@bb/plugin-registry#generate:registry": {
+      "inputs": [
+        "scripts/build-registry.mjs",
+        "registry.json",
+        "flavors/**",
+        "$TURBO_ROOT$/packages/shared-ui/src/**",
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/packages/*/package.json",
+        "$TURBO_ROOT$/pnpm-lock.yaml"
+      ],
+      "outputs": ["r/**"]
     }
   }
 }
