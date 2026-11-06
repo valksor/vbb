@@ -59,6 +59,7 @@ import {
   claudeCodeParentToolUseId,
   createParentedStreams,
   parentRefField,
+  refinedCommandOpen,
   resolveParentRef,
   withParent,
 } from "./delta-translation.parent-ref.fork.js";
@@ -789,6 +790,18 @@ export function createAcpDeltaTranslator(
           ];
         }
         const mergedType = classifyCall(context, merged).item.type;
+        const refinedCommand = refinedCommandOpen({
+          classify: (callEvent) => classifyCall(context, callEvent),
+          open,
+          merged,
+          toolCallId: event.toolCallId,
+          noTurnFallback: noTurnFallbackFor(rawEvent),
+          parentRef,
+        });
+        const refinedOrUnhandled = (): ThreadDelta[] =>
+          refinedCommand.length > 0
+            ? refinedCommand
+            : suppressedUnhandled(rawEvent);
         mergedToolCalls.set(key, {
           event: merged,
           openedType: open?.openedType ?? mergedType,
@@ -812,8 +825,9 @@ export function createAcpDeltaTranslator(
             dialect.normalizeCommandEvent?.(event, merged) ?? event;
           const streamed = extractAcpStreamedCommandOutput(normalizedEvent);
           return streamed === undefined
-            ? suppressedUnhandled(rawEvent)
+            ? refinedOrUnhandled()
             : [
+                ...refinedCommand,
                 {
                   kind: "command.outputSnapshot",
                   key: withParent(
@@ -828,7 +842,7 @@ export function createAcpDeltaTranslator(
           dialect.normalizeToolCallEvent?.(event, merged) ?? event;
         const progressText = extractAcpToolCallOutputText(progressEvent);
         if (progressText === undefined) {
-          return suppressedUnhandled(rawEvent);
+          return refinedOrUnhandled();
         }
         if (mergedType !== "command" && mergedType !== "fileChange") {
           return [
@@ -843,7 +857,7 @@ export function createAcpDeltaTranslator(
             },
           ];
         }
-        return suppressedUnhandled(rawEvent);
+        return refinedOrUnhandled();
       }
 
       case "plan": {
