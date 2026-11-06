@@ -480,7 +480,7 @@ vi.mock(
   }),
 );
 
-vi.mock("@/components/promptbox/banner/ThreadBackgroundCommandsCard", () => ({
+vi.mock("@/components/promptbox/banner/ThreadBackgroundCommandsCard.fork", () => ({
   ThreadBackgroundCommandsCard: () => null,
 }));
 
