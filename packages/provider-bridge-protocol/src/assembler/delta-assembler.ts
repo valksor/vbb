@@ -18,7 +18,7 @@ import type {
 } from "../thread-delta.js";
 import { THREAD_DELTA_KEY_SEPARATOR } from "../thread-delta.js";
 import { THREAD_DELTA_GRAMMAR_V3 } from "../version.js";
-import { executionReportedEvent } from "./execution-reported-event.js";
+import { executionReportedEvent } from "./delta-assembler.fork.js";
 
 export const ASSEMBLER_GRAMMAR_VERSIONS: BridgeGrammarVersions = [
   THREAD_DELTA_GRAMMAR_V3,
