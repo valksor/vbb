@@ -50,7 +50,7 @@ bb.providers.register({
   id: "claude-code", // flat; first registration wins; no reservation
   displayName: "Claude Code",
   family: undefined, // optional grouping key (the ACP agents share one)
-  icon: "./icons/claude.svg", // a plugin SVG, served as logoUrl; a glyph name; or "<pluginId>/<name>"
+  icon: "./icons/claude.svg", // a plugin SVG, served as logoUrl; a glyph name; "<pluginId>/<name>"; or a base64 image data URI
   strings: {
     signInHint: "Run `claude` on the machine to sign in.",
     expiredHint: "Your Claude session expired. Run `claude`, then reload.",

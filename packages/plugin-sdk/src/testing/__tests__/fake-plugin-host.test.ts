@@ -1917,6 +1917,9 @@ describe("providers.register", () => {
       /icon looks like a path but does not start with "\.\/"/,
     );
     expect(() =>
+      register(agentDeclaration({ icon: "data:image/gif;base64,R0lGOD==" })),
+    ).toThrow(/icon data URI must be a base64 SVG, PNG, or WebP image/);
+    expect(() =>
       register(agentDeclaration({ composerActions: ["plan", "plan"] })),
     ).toThrow(/composerActions entry "plan" is duplicated/);
     expect(() =>
@@ -1938,6 +1941,42 @@ describe("providers.register", () => {
       ),
     ).toThrow(/experimental_bridgeOptions\.timeout must be finite JSON/);
     expect(() => register(agentDeclaration({ icon: "Zap" }))).not.toThrow();
+  });
+
+  it("accepts an image data URI provider icon", () => {
+    const { bb, harness } = createFakePluginHost({ pluginId: "tooled" });
+    const icon = `data:image/svg+xml;base64,${btoa("<svg/>")}`;
+    bb.providers.register(agentDeclaration({ icon }));
+    expect(harness.registrations.providerRegistrations[0]?.icon).toBe(icon);
+  });
+
+  it("names the image data URI form when a provider icon is blank", () => {
+    const { bb } = createFakePluginHost({ pluginId: "tooled" });
+    expect(() =>
+      bb.providers.register(agentDeclaration({ icon: "  " })),
+    ).toThrow(
+      'provider "my-agent" icon must be a non-blank string — a named host glyph ("Zap"), a plugin-relative path ("./icons/agent.svg"), a declared icon ("<pluginId>/<name>"), or an image data URI ("data:image/svg+xml;base64,...")',
+    );
+  });
+
+  it.each([
+    ["image/png", "png"],
+    ["image/webp", "webp"],
+  ])("accepts a %s data URI provider icon", (contentType, bytes) => {
+    const { bb, harness } = createFakePluginHost({ pluginId: "tooled" });
+    const icon = `data:${contentType};base64,${btoa(bytes)}`;
+    bb.providers.register(agentDeclaration({ icon }));
+    expect(harness.registrations.providerRegistrations[0]?.icon).toBe(icon);
+  });
+
+  it.each([
+    "data:image/png;base64,not base64!",
+    `data:image/png;base64,${btoa("x".repeat(32 * 1024 + 1))}`,
+  ])("rejects malformed or oversized image data URI provider icons", (icon) => {
+    const { bb } = createFakePluginHost({ pluginId: "tooled" });
+    expect(() => bb.providers.register(agentDeclaration({ icon }))).toThrow(
+      /icon data URI must be a base64 SVG, PNG, or WebP image/,
+    );
   });
 
   it("refuses a provider icon naming an undeclared or foreign icon, like production", () => {

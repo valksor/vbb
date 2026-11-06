@@ -8,6 +8,8 @@ export const PLUGIN_ICON_NAME_MAX_LENGTH = 48;
 
 export const PLUGIN_ICON_MAX_BYTES = 32 * 1024;
 
+export * from "./plugin-icon-data-uri.fork.js";
+
 export const PLUGIN_ICONS_MAX_COUNT = 64;
 
 export const NAMESPACED_GLYPH_PATTERN = /^[a-z0-9-]+\/[a-z0-9][a-z0-9-]*$/u;

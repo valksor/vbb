@@ -3,10 +3,12 @@ import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
 import { z } from "zod";
 import {
+  isImageDataUri,
   isNamespacedGlyph,
   isPluginOwnedIconPath,
   parseNamespacedGlyph,
 } from "@bb/domain/plugin-icon";
+import { validateProviderIconDataUri } from "./host-policy.fork.js";
 import { RESERVED_BB_CLI_COMMANDS } from "@bb/domain/plugin-cli";
 import {
   PLUGIN_INTERACTION_MAX_PAYLOAD_BYTES,
@@ -1420,7 +1422,7 @@ export function validatePluginProviderDeclaration(
       declaration.icon.trim() === ""
     ) {
       throw new Error(
-        `provider "${id}" icon must be a non-blank string — a named host glyph ("Zap"), a plugin-relative path ("./icons/agent.svg"), or a declared icon ("<pluginId>/<name>")`,
+        `provider "${id}" icon must be a non-blank string — a named host glyph ("Zap"), a plugin-relative path ("./icons/agent.svg"), a declared icon ("<pluginId>/<name>"), or an image data URI ("data:image/svg+xml;base64,...")`,
       );
     }
     // The `bb.branding.icon` forms plus one: a leading "./" means a
@@ -1432,6 +1434,8 @@ export function validatePluginProviderDeclaration(
     // otherwise be read as a glyph name that resolves to nothing.
     if (isPluginOwnedIconPath(declaration.icon)) {
       icon = validateProviderRelativePath(declaration.icon, `"${id}" icon`);
+    } else if (isImageDataUri(declaration.icon)) {
+      icon = validateProviderIconDataUri(id, declaration.icon);
     } else if (isNamespacedGlyph(declaration.icon)) {
       icon = declaration.icon;
     } else if (/[/\\]/u.test(declaration.icon)) {
