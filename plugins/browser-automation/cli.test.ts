@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PluginCliContext, PluginCliResult } from "@get-bb/plugin-sdk";
+import {
+  PluginCliError,
+  type PluginCliContext,
+  type PluginCliResult,
+} from "@get-bb/plugin-sdk";
 import {
   browserCliFailure,
   createBrowserAutomationCli,
@@ -255,11 +259,14 @@ describe("CLI boundaries", () => {
     ]);
   });
 
-  it("reports a failed --json run as JSON on stdout and text on stderr", async () => {
+  it.each([
+    "Session stopped or expired; open a new session",
+    "Session stopped, expired, or worker restarted; open a new session",
+    "Session expired; open a new session",
+    "Browser work cancelled or timed out",
+  ])("reports a failed %j --json run as JSON on stdout and text on stderr", async (message) => {
     const execute = vi.fn(async (): Promise<PluginCliResult> => {
-      throw browserCliFailure(
-        new Error("Session stopped or expired; open a new session"),
-      );
+      throw browserCliFailure(new Error(message));
     });
     const registration = createBrowserAutomationCli({ execute });
     const json = await registration.run(["pages", id, "--json"], {
@@ -270,16 +277,38 @@ describe("CLI boundaries", () => {
       ok: false,
       error: {
         code: "session_unavailable",
-        message: "Session stopped or expired; open a new session",
+        message,
         hint: expect.stringContaining("bb browser-automation open"),
       },
     });
-    expect(json.stderr).toContain("Session stopped or expired");
+    expect(json.stderr).toContain(message);
 
     const text = await registration.run(["pages", id], { threadId: "thread" });
     expect(text.exitCode).toBe(1);
     expect(text.stdout).toBeUndefined();
-    expect(text.stderr).toContain("Session stopped or expired");
+    expect(text.stderr).toContain(message);
+  });
+
+  it.each([
+    "Session stopped or expired; open a new session",
+    "Session stopped, expired, or worker restarted; open a new session",
+    "Session expired; open a new session",
+    "Session does not belong to this thread",
+  ])("classifies %j as an unavailable session", (message) => {
+    expect(browserCliFailure(new Error(message))).toMatchObject({
+      code: "session_unavailable",
+    });
+  });
+
+  it("tells the user to raise --timeout when browser work is cancelled or times out", () => {
+    expect(
+      browserCliFailure(new Error("Browser work cancelled or timed out")),
+    ).toMatchObject({
+      code: "session_unavailable",
+      hint: expect.stringMatching(
+        /bb browser-automation open.*larger `--timeout`.*120 seconds/u,
+      ),
+    });
   });
 
   it("classifies capture-limit failures", () => {
@@ -291,5 +320,9 @@ describe("CLI boundaries", () => {
     expect(browserCliFailure(new Error("host unreachable"))).toMatchObject({
       code: "command_failed",
     });
+    const passthrough = new PluginCliError("already classified", {
+      code: "command_failed",
+    });
+    expect(browserCliFailure(passthrough)).toBe(passthrough);
   });
 });

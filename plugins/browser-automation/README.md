@@ -147,7 +147,10 @@ Each operation renews expiry at its start and completion, up to eight hours from
 creation; active scripts do not count as idle. The hard deadline also stops running
 work. Desktop control leases and connections cannot be renewed through the current
 API, so desktop sessions retain their earlier deadline (at most 30 minutes from
-creation). `list` and live preview do not renew expiry. Archiving, deleting, or failing a thread
+creation). `list` and live preview do not renew expiry. Local sessions keep cookies and
+site data until the session is closed or expires (up to eight hours), so close
+them when done. Desktop sessions use the BB browser's profile, so sign-ins made
+there remain after the session closes. Archiving, deleting, or failing a thread
 closes its sessions; normal idle turns preserve them. Externally invoked CLI
 runs remain subject to the same per-run timeout and absolute session expiry. Run timeouts default to 30 seconds and are
 bounded to 1–120 seconds. Runs are serialized per session.
