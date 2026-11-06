@@ -51,6 +51,7 @@ import {
   parseEnvironmentValue,
   REUSE_VALUE_WITHOUT_ENVIRONMENT,
 } from "@/components/pickers/environment-picker-value";
+import { useProjectDefaultSelection } from "./NewThreadComposer.fork";
 import { providerInputsControlRequired } from "@/components/pickers/environment-provider-inputs";
 import { useMachineProviderInputs } from "@/components/pickers/machine-provider-inputs";
 import { formatModelLoadErrorText } from "@/components/pickers/model-load-error-message";
@@ -1849,6 +1850,8 @@ export function NewThreadComposer({
   const handleSelectReuse = useCallback(() => {
     changeEnvironment(REUSE_VALUE_WITHOUT_ENVIRONMENT);
   }, [changeEnvironment]);
+  const handleSelectProjectDefault =
+    useProjectDefaultSelection(changeEnvironment);
 
   const pickerLocksRef = useRef<NewThreadComposerLocks>({});
   const selectionState =
@@ -2084,6 +2087,7 @@ export function NewThreadComposer({
               onSelectProvider: handleSelectProvider,
               onSelectHost: handleSelectHost,
               onSelectReuse: handleSelectReuse,
+              onSelectProjectDefault: handleSelectProjectDefault,
               ...(!isProjectless && options.onRequestMachineSetup
                 ? { onRequestMachineSetup: options.onRequestMachineSetup }
                 : {}),
@@ -2223,6 +2227,7 @@ export function NewThreadComposer({
       handleReasoningChange,
       handleSelectProvider,
       handleSelectHost,
+      handleSelectProjectDefault,
       handleSelectReuse,
       handleServiceTierChange,
       handleSubmit,

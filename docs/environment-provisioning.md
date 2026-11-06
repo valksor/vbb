@@ -26,3 +26,5 @@ A thread's first message stays queued while its environment is prepared, and
 is consumed when provisioning is admitted. Once agent start has been handed to
 the daemon, recovery never resends an uncertain start automatically; use the
 normal interruption and retry behavior.
+
+Fork additions: see [environment-provisioning.fork.md](environment-provisioning.fork.md).

@@ -6,6 +6,8 @@ import type {
   ThreadOriginKind,
   ThreadParentNotifications,
   ThreadVisibility,
+  ThreadWorktreePromotion,
+  ThreadPromotionTarget,
 } from "@bb/domain";
 import type {
   CreateThreadEnvironmentArgs,
@@ -59,4 +61,6 @@ export interface ThreadCreateServiceRequest extends Omit<
   parentNotifications: ThreadParentNotifications;
   titleFallback: string | null;
   visibility: ThreadVisibility;
+  worktreePromotion: ThreadWorktreePromotion;
+  promotionTarget: ThreadPromotionTarget;
 }

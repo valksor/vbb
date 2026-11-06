@@ -42,11 +42,13 @@ import {
 } from "./helpers.js";
 import { parseSpawnSessionOptions } from "./session-state.js";
 import { SEND_AT_HELP, parseSendAt } from "./send-time.js";
+import { parsePromotionOption } from "./promotion.fork.js";
 
 const PROVIDER_HELP =
   "Provider ID for the thread. Omit to use the project's remembered provider choice";
 
 interface ThreadSpawnCommandOptions {
+  promote?: string;
   prompt?: string;
   promptFile?: string;
   json?: boolean;
@@ -134,12 +136,15 @@ function resolveSpawnParentThreadId(args: {
 }
 
 export function buildSpawnEnvironment(args: {
+  promotion?: "worktree" | "branch";
   defaultPersonalWorkspace: boolean;
   environmentValue?: string;
   newEnvironmentKind?: string;
   hostId: string | null;
   baseBranch?: string;
 }): CreateThreadEnvironmentArgs {
+  if (args.promotion)
+    return { type: "project-default", promotion: args.promotion };
   const environmentValue = args.environmentValue?.trim();
   const newEnvironmentKind = args.newEnvironmentKind?.trim();
   const trimmedBaseBranch = args.baseBranch?.trim();
@@ -341,6 +346,10 @@ export function registerSpawnCommand(
     .option("--json", "Print machine-readable JSON output")
     .requiredOption("--project <id>", "Project ID")
     .option(
+      "--promote <target>",
+      "Start in the shared project checkout, then promote to worktree or branch",
+    )
+    .option(
       "--environment <id-or-path>",
       "Existing environment ID or unmanaged workspace path",
     )
@@ -421,6 +430,7 @@ export function registerSpawnCommand(
     )
     .action(
       action(async (opts: ThreadSpawnCommandOptions) => {
+        const promotion = parsePromotionOption(opts);
         const prompt = await requireTextInput({
           file: opts.promptFile,
           fileLabel: "--prompt-file",
@@ -548,6 +558,7 @@ export function registerSpawnCommand(
               resolveDefaultHostId: resolveLocalHostId,
             })
           : buildSpawnEnvironment({
+              promotion,
               defaultPersonalWorkspace: projectId === PERSONAL_PROJECT_ID,
               environmentValue,
               newEnvironmentKind: opts.newEnvironment,

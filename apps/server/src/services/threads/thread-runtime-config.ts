@@ -29,6 +29,7 @@ import {
 import { resolveSkillCatalog } from "../skills/skill-catalog.js";
 import { discoverPluginSkillIds } from "../skills/injected-skills.js";
 import { UPDATE_ENVIRONMENT_DIRECTORY_TOOL } from "./thread-environment-directory.js";
+import { resolvePromotionToolContributions } from "./thread-runtime-config.fork.js";
 import {
   DATA_DIR_AGENT_INSTRUCTIONS_RELATIVE_PATH,
   WORKSPACE_AGENT_INSTRUCTIONS_RELATIVE_PATH,
@@ -212,9 +213,10 @@ export async function resolveThreadRuntimeCommandConfig(
     deps.logger,
     deps.config.dataDir,
   );
-  const dynamicToolContributions = resolveDynamicTools(
-    conditionalConfiguration.tools,
-  );
+  const dynamicToolContributions = [
+    ...resolvePromotionToolContributions(args.thread, project, environment),
+    ...resolveDynamicTools(conditionalConfiguration.tools),
+  ];
   const dynamicTools = dynamicToolContributions.map(
     (contribution) => contribution.tool,
   );

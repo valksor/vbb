@@ -28,6 +28,7 @@ import {
 } from "../plugins/plugin-thread-events.js";
 import { toThreadQueuedMessage } from "./thread-queued-messages.js";
 import { assertThreadHostAcceptsWork } from "./thread-host-admission.js";
+import { deleteSupersededWorktreeContinuation } from "./worktree-promotion.js";
 
 type QueueWaitDeps = { db: DbQueryConnection; hub: DbNotifier };
 
@@ -125,6 +126,7 @@ export function recordQueuedMessageWait(
     row = deps.db.transaction(
       (tx) => {
         assertThreadHostAcceptsWork(tx, args.thread);
+        deleteSupersededWorktreeContinuation(tx, args);
         const created = createQueuedThreadMessageInTransaction(tx, {
           threadId: args.thread.id,
           content: args.message.input,

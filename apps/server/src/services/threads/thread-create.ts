@@ -730,6 +730,7 @@ export async function createThreadFromRequest(
     environment: requestedEnvironment,
     providerId,
     titleFallback: deriveTitleFallback(requestInput.input),
+    ...forkCreateRequestFields(requestInput, requestedEnvironment),
   };
   if (
     request.title === undefined &&
@@ -768,6 +769,11 @@ export async function createThreadFromRequest(
   if (childHostId !== null) {
     await ensureHostSessionReadyForWork(deps, { hostId: childHostId });
   }
+  await validateBranchPromotionPlacement(
+    deps,
+    requestedEnvironment,
+    requestInput.environment,
+  );
   const modelCatalogCwd =
     resolvedEnvironment !== null
       ? modelCatalogCwdForResolvedEnvironment(resolvedEnvironment)
@@ -887,3 +893,5 @@ export async function createThreadFromRequest(
   }
   return thread;
 }
+import { validateBranchPromotionPlacement } from "./thread-environment-branch.fork.js";
+import { forkCreateRequestFields } from "./thread-create.fork.js";

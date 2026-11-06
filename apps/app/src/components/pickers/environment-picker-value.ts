@@ -15,6 +15,7 @@ const ENVIRONMENT_PROVIDER_ID_PATTERN = /^[a-zA-Z0-9_-]{1,64}$/;
 export type ParsedEnvironmentValue =
   | ParsedReuseEnvironmentValue
   | ParsedProviderEnvironmentValue
+  | ParsedProjectDefaultEnvironmentValue
   | null;
 
 export function encodeReuseValue(environmentId: string): string {
@@ -36,6 +37,8 @@ function parseProviderValue(
 }
 
 export function parseEnvironmentValue(value: string): ParsedEnvironmentValue {
+  const projectDefault = parseProjectDefaultValue(value);
+  if (projectDefault) return projectDefault;
   if (value === REUSE_VALUE_WITHOUT_ENVIRONMENT) {
     return { type: "reuse", environmentId: null };
   }
@@ -50,3 +53,9 @@ export function parseEnvironmentValue(value: string): ParsedEnvironmentValue {
   }
   return null;
 }
+import {
+  parseProjectDefaultValue,
+  type ParsedProjectDefaultEnvironmentValue,
+} from "./environment-picker-value.fork";
+
+export * from "./environment-picker-value.fork";

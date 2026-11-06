@@ -275,7 +275,7 @@ describe("newThreadEnvironmentArgsToSeed round trip", () => {
   it("documented limits: unrepresentable variants seed nothing", () => {
     expect(
       newThreadEnvironmentArgsToSeed({ type: "project-default" }),
-    ).toBeNull();
+    ).toMatchObject({ selectionValue: "project-default" });
     expect(
       newThreadEnvironmentArgsToSeed({
         type: "host",

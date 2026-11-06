@@ -650,7 +650,7 @@ function getPreviousUnclaimedQueuedThreadMessage(
   );
 }
 
-function clearPreviousQueuedMessageGroupEdgeInTransaction(
+export function clearPreviousQueuedMessageGroupEdgeInTransaction(
   db: DbTransaction,
   queuedMessage: QueuedThreadMessageRow,
   now = Date.now(),

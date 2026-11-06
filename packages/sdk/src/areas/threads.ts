@@ -86,6 +86,10 @@ import type {
   UpdateQueuedMessageRequest,
 } from "@bb/server-contract";
 import { signalRequestArgs, type CreateSdkAreaArgs } from "./common.js";
+import {
+  createForkThreadsMethods,
+  type ForkThreadsArea,
+} from "./threads.fork.js";
 import type { BackgroundTaskOutputResponse } from "@bb/server-contract";
 import type { ThreadExecutionProfileResponse } from "@bb/server-contract";
 
@@ -623,7 +627,7 @@ export interface ThreadQueueArea {
   list(args?: ThreadQueueListArgs): Promise<ThreadQueueListResult>;
 }
 
-export interface ThreadsArea {
+export interface ThreadsArea extends ForkThreadsArea {
   experimental_backgroundTaskOutput(
     args: ThreadBackgroundTaskOutputArgs,
   ): Promise<ThreadBackgroundTaskOutputResult>;
@@ -1308,6 +1312,7 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
     },
   };
   return {
+    ...createForkThreadsMethods(args),
     async experimental_executionProfile(input) {
       return transport.readJson(
         transport.api.v1.threads[":id"]["execution-profile"].$get(

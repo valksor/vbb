@@ -122,6 +122,8 @@ export function makeThread(overrides: MakeThreadArgs): Thread {
     originPluginId: null,
     visibility: "visible",
     parentNotifications: "auto",
+    worktreePromotion: "declined",
+    promotionTarget: "worktree",
     archivedAt: null,
     pinnedAt: null,
     deletedAt: null,

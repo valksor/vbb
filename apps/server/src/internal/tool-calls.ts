@@ -19,6 +19,7 @@ import {
   UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME,
 } from "../services/threads/thread-environment-directory.js";
 import { requireAuthenticatedDaemonSession } from "./session-state.js";
+import { invokeForkEnvironmentTool } from "./tool-calls.fork.js";
 
 const textEncoder = new TextEncoder();
 
@@ -74,6 +75,19 @@ export function registerInternalToolCallRoutes(app: Hono, deps: AppDeps): void {
           "Thread does not belong to the session host",
         );
       }
+
+      const forkResponse = await invokeForkEnvironmentTool(
+        deps,
+        payload.tool,
+        payload.arguments,
+        {
+          currentEnvironment: environment,
+          thread,
+          turnId: payload.turnId,
+          signal: context.req.raw.signal,
+        },
+      );
+      if (forkResponse) return context.json(forkResponse);
 
       if (payload.tool === UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME) {
         return context.json(

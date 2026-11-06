@@ -163,6 +163,8 @@ function toPublicThread(thread: Thread): Thread {
     originPluginId: thread.originPluginId,
     visibility: thread.visibility,
     parentNotifications: thread.parentNotifications,
+    worktreePromotion: thread.worktreePromotion,
+    promotionTarget: thread.promotionTarget,
     archivedAt: thread.archivedAt,
     pinnedAt: thread.pinnedAt,
     deletedAt: thread.deletedAt,

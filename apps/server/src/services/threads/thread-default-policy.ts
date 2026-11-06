@@ -14,11 +14,9 @@ import type {
   EnvironmentArgs,
   ProviderEnvironmentArgs,
 } from "@bb/server-contract";
-import { COMMAND_TIMEOUT_MS } from "../../constants.js";
 import type { WorkSessionDeps } from "../../types.js";
 import type { ProviderRegistryService } from "../providers/provider-registry.js";
 import { ApiError } from "../../errors.js";
-import { callHostRetryableOnlineRpc } from "../hosts/online-rpc.js";
 import {
   requireConnectedPrimaryHostId,
   resolvePrimaryHostId,
@@ -28,11 +26,8 @@ import {
   projectCheckoutPathOnHost,
   resolveProjectWorkspaceTarget,
 } from "../projects/project-workspace.js";
-import { resolveDefaultWorktreeBaseBranch } from "../projects/worktree-base-branch.js";
-import {
-  checkoutProviderInputs,
-  worktreeProviderInputs,
-} from "./thread-environment-placement.js";
+import { checkoutProviderInputs } from "./thread-environment-placement.js";
+import { assertBranchPromotionAllowed } from "./thread-default-policy.fork.js";
 import { isLiveParentThread, type ParentThread } from "./thread-parent.js";
 
 export const DEFAULT_REASONING_LEVEL: ReasoningLevel = "medium";
@@ -108,10 +103,10 @@ interface ResolveSupportedPermissionModeArgs {
   providerId: string;
 }
 
-type CreateThreadEnvironment =
+export type CreateThreadEnvironment =
   | EnvironmentArgs
   | ProviderEnvironmentArgs
-  | { type: "project-default" };
+  | { type: "project-default"; promotion?: "worktree" | "branch" };
 export type ResolvedCreateThreadEnvironment = Exclude<
   CreateThreadEnvironment,
   { type: "project-default" }
@@ -306,34 +301,13 @@ export async function resolveProjectDefaultThreadEnvironment(
     hostId,
     projectId: args.projectId,
   });
-  const checkout = await callHostRetryableOnlineRpc(deps, {
-    hostId,
-    timeoutMs: COMMAND_TIMEOUT_MS,
-    command: {
-      type: "host.inspect_git_source",
-      path: source.path,
-      remoteRefresh: "background",
-    },
-  });
-  const baseBranch = resolveDefaultWorktreeBaseBranch(checkout);
-  if (baseBranch === null) {
-    return {
-      type: "provider",
-      environmentProviderId: requireDefaultEnvironmentProvider(
-        DEFAULT_ENVIRONMENT_PROVIDER_ID.projectCheckout,
-      ),
-      machine: { type: "existing", hostId },
-      inputs: checkoutProviderInputs(source.path, undefined),
-    };
-  }
-
   return {
     type: "provider",
     environmentProviderId: requireDefaultEnvironmentProvider(
-      DEFAULT_ENVIRONMENT_PROVIDER_ID.gitWorktree,
+      DEFAULT_ENVIRONMENT_PROVIDER_ID.projectCheckout,
     ),
     machine: { type: "existing", hostId },
-    inputs: worktreeProviderInputs({ kind: "named", name: baseBranch }),
+    inputs: checkoutProviderInputs(source.path, undefined),
   };
 }
 
@@ -341,6 +315,7 @@ export async function resolveCreateThreadEnvironment(
   deps: WorkSessionDeps,
   args: ResolveCreateThreadEnvironmentArgs,
 ): Promise<ResolvedCreateThreadEnvironment> {
+  assertBranchPromotionAllowed(args);
   const parentThread = args.parentThread;
   const hasLiveParent = isLiveParentThread({ parentThread });
   if (
@@ -409,13 +384,17 @@ export async function resolveCreateThreadEnvironment(
     if (parentEnvironment === null) {
       throw new Error("Parent thread environment is missing");
     }
+    const parentSource = resolveProjectWorkspaceTarget(deps, {
+      hostId: parentEnvironment.hostId,
+      projectId: args.projectId,
+    });
     return {
       type: "provider",
       environmentProviderId: requireDefaultEnvironmentProvider(
-        DEFAULT_ENVIRONMENT_PROVIDER_ID.gitWorktree,
+        DEFAULT_ENVIRONMENT_PROVIDER_ID.projectCheckout,
       ),
       machine: { type: "existing", hostId: parentEnvironment.hostId },
-      inputs: worktreeProviderInputs({ kind: "default" }),
+      inputs: checkoutProviderInputs(parentSource.path, undefined),
     };
   }
   const environment =
@@ -439,36 +418,6 @@ export async function resolveCreateThreadEnvironment(
         hostId: requireHostEnvironmentId(environment),
       },
       inputs: null,
-    };
-  }
-
-  if (hasLiveParent && isImplicitHostDefaultEnvironment(environment)) {
-    return {
-      type: "provider",
-      environmentProviderId: requireDefaultEnvironmentProvider(
-        DEFAULT_ENVIRONMENT_PROVIDER_ID.gitWorktree,
-      ),
-      machine: {
-        type: "existing",
-        hostId: requireHostEnvironmentId(environment),
-      },
-      inputs: worktreeProviderInputs({ kind: "default" }),
-    };
-  }
-  if (
-    hasLiveParent &&
-    environment.type === "provider" &&
-    environment.environmentProviderId ===
-      DEFAULT_ENVIRONMENT_PROVIDER_ID.projectCheckout &&
-    args.requestedEnvironment.type === "project-default"
-  ) {
-    return {
-      type: "provider",
-      environmentProviderId: requireDefaultEnvironmentProvider(
-        DEFAULT_ENVIRONMENT_PROVIDER_ID.gitWorktree,
-      ),
-      machine: environment.machine,
-      inputs: worktreeProviderInputs({ kind: "default" }),
     };
   }
 

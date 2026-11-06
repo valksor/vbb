@@ -13,7 +13,7 @@ import {
   reasoningLevelSchema,
   serviceTierSchema,
 } from "./shared-types.js";
-import { threadStatusSchema, threadStatusValues } from "./thread-status.js";
+import { threadStatusSchema } from "./thread-status.js";
 import { threadPendingInteractionKindSchema } from "./pending-interaction-kind.fork.js";
 import { threadOriginKindSchema } from "./thread-origin-kind.js";
 import { threadParentNotificationsSchema } from "./thread-parent-notifications.js";
@@ -23,6 +23,10 @@ import {
   threadRuntimeStateSchema,
   threadActivityStateSchema,
 } from "./thread-runtime-state.js";
+import {
+  threadWorktreePromotionSchema,
+  threadPromotionTargetSchema,
+} from "./thread-worktree-promotion.js";
 export {
   threadRuntimeStateSchema,
   threadActivityStateSchema,
@@ -125,6 +129,8 @@ export const threadSchema = z.object({
   originPluginId: z.string().nullable(),
   visibility: threadVisibilitySchema,
   parentNotifications: threadParentNotificationsSchema,
+  worktreePromotion: threadWorktreePromotionSchema,
+  promotionTarget: threadPromotionTargetSchema,
   archivedAt: z.number().nullable(),
   pinnedAt: z.number().nullable(),
   deletedAt: z.number().nullable(),

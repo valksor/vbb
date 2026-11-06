@@ -1,5 +1,6 @@
 import { prepareCachedQuery } from "../connection.js";
 import { markThreadPruningPolicyWork } from "./thread-pruning-work.js";
+import { assertBranchPromotionEnvironmentAvailable, assertForkThreadUpdateAllowed, assertThreadPromotionMutable, assertThreadTreePromotionMutable, forkThreadInsertValues, forkThreadUpdateSet, threadEnvironmentChanged } from "./branch-promotions.fork.js";
 import { forkThreadPendingKindState, oldestPendingInteractionKindColumns } from "./pending-interactions.fork.js";
 import { copyProjectAttachmentOwnership } from "./project-attachments.js";
 import {
@@ -30,6 +31,8 @@ import type {
   ThreadSearchSourceKind,
   ThreadStatus,
   ThreadVisibility,
+  ThreadWorktreePromotion,
+  ThreadPromotionTarget,
 } from "@bb/domain";
 import {
   evaluateThreadLifecycleEvent,
@@ -290,6 +293,8 @@ export interface CreateThreadInput {
   startupContext?: string;
   visibility?: ThreadVisibility;
   parentNotifications?: ThreadParentNotifications;
+  worktreePromotion?: ThreadWorktreePromotion;
+  promotionTarget?: ThreadPromotionTarget;
 }
 
 export class InvalidLifecycleOwnerError extends Error {
@@ -327,6 +332,7 @@ export function createThread(
           throw new InvalidLifecycleOwnerError();
         }
       }
+      if (input.environmentId) assertBranchPromotionEnvironmentAvailable(tx, input.environmentId);
       const createdThread = tx
         .insert(threads)
         .values({
@@ -357,6 +363,7 @@ export function createThread(
           originPluginId: input.originPluginId ?? null,
           visibility,
           parentNotifications: input.parentNotifications ?? "auto",
+          ...forkThreadInsertValues(input),
           lastReadAt: now,
           latestAttentionAt: now,
           createdAt: now,
@@ -1834,6 +1841,8 @@ export interface UpdateThreadInput {
   title?: string | null;
   visibility?: ThreadVisibility;
   parentNotifications?: ThreadParentNotifications;
+  worktreePromotion?: ThreadWorktreePromotion;
+  promotionTarget?: ThreadPromotionTarget;
 }
 
 export function updateThread(
@@ -1847,6 +1856,7 @@ export function updateThread(
   if (!existing) {
     return null;
   }
+  assertForkThreadUpdateAllowed(db, id, input);
   const changes: ThreadChangeKind[] = [];
   if ("title" in input || "sectionId" in input) changes.push("title-changed");
   if ("lastReadAt" in input) changes.push("read-state-changed");
@@ -1865,10 +1875,7 @@ export function updateThread(
   ) {
     changes.push("parent-changed");
   }
-  if (
-    "environmentId" in input &&
-    input.environmentId !== existing.environmentId
-  ) {
+  if (threadEnvironmentChanged(existing, input)) {
     changes.push("environment-changed");
   }
 
@@ -1886,6 +1893,7 @@ export function updateThread(
   if ("parentNotifications" in input) {
     set.parentNotifications = input.parentNotifications;
   }
+  Object.assign(set, forkThreadUpdateSet(input));
 
   const updated = db
     .update(threads)
@@ -2006,6 +2014,7 @@ export function deleteThread(
       .get()
   )
     return false;
+  assertThreadPromotionMutable(db, id);
   db.delete(threads).where(eq(threads.id, id)).run();
   notifier.notifyThread(id, ["thread-deleted"], {
     projectId: existing.projectId,
@@ -2118,7 +2127,7 @@ function lifecycleThreadTreeIds(seed: SQL): SQL {
   ) SELECT id FROM owned)`;
 }
 
-function lifecycleThreadTreeIdsForThread(threadId: string): SQL {
+export function lifecycleThreadTreeIdsForThread(threadId: string): SQL {
   return lifecycleThreadTreeIds(sql`SELECT ${threadId}`);
 }
 
@@ -2163,6 +2172,7 @@ export function markThreadDeleted(
   notifier: DbNotifier,
   args: MarkThreadDeletedArgs,
 ) {
+  assertThreadTreePromotionMutable(db, args.threadId, "deletion");
   const updated = db
     .update(threads)
     .set({
@@ -2208,6 +2218,7 @@ export function archiveThread(
   notifier: DbNotifier,
   id: string,
 ) {
+  assertThreadTreePromotionMutable(db, id, "lifecycle");
   const now = Date.now();
   const updated = db.transaction((tx) => {
     const archived = tx
@@ -2246,6 +2257,7 @@ export function unarchiveThread(
     (tx) => {
       const current = getThread(tx, id);
       if (current?.deletedAt !== null) return null;
+      if (current.environmentId) assertBranchPromotionEnvironmentAvailable(tx, current.environmentId);
       if (current.lifecycleOwnerThreadId) {
         const owner = getThread(tx, current.lifecycleOwnerThreadId);
         if (!owner || owner.archivedAt !== null || owner.deletedAt !== null)
@@ -2347,6 +2359,7 @@ export function applyThreadLifecycleEventInTransaction(
     };
   }
 
+  if (evaluation.to === "active" && thread.status !== "active" && thread.environmentId) assertBranchPromotionEnvironmentAvailable(db, thread.environmentId);
   const now = Date.now();
   const set: Partial<typeof threads.$inferInsert> = {
     status: evaluation.to,

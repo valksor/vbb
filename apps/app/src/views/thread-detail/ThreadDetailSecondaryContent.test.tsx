@@ -221,6 +221,8 @@ function makeThread(): ThreadDetailSecondaryContentProps["metadata"]["thread"] {
     originPluginId: null,
     visibility: "visible",
     parentNotifications: "auto",
+    worktreePromotion: "declined",
+    promotionTarget: "worktree",
     status: "idle",
     stopRequestedAt: null,
     title: null,

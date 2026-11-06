@@ -554,5 +554,7 @@ export {
 export * from "./project-attachments.js";
 
 export * from "./project-attachment-backfill.js";
+export * from "./branch-promotions.fork.js";
+export { deleteQueuedThreadMessageInTransaction } from "./queued-thread-messages.fork.js";
 
 export * from "./index.fork.js";

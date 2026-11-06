@@ -1,6 +1,7 @@
 import { experimental_defineHostEntry } from "@get-bb/plugin-sdk/host";
 import { createHostProgress } from "bb-environment-provider-host/progress";
 import { checkoutHostContract, checkoutHostSignals } from "./contract.js";
+import { branchPromotionHostMethods } from "./host.fork.js";
 import { attachCheckout, inspectCheckout } from "./host/checkout.js";
 
 export function createCheckoutHostEntry() {
@@ -8,6 +9,7 @@ export function createCheckoutHostEntry() {
     contract: checkoutHostContract,
     experimental_signals: checkoutHostSignals,
     handlers: {
+      ...branchPromotionHostMethods(),
       async attach(input, context) {
         try {
           const attached = await attachCheckout({

@@ -111,6 +111,8 @@ export function makeThreadResponse(
     originPluginId: null,
     visibility: "visible",
     parentNotifications: "auto",
+    worktreePromotion: "declined",
+    promotionTarget: "worktree",
     archivedAt: null,
     pinnedAt: null,
     deletedAt: null,

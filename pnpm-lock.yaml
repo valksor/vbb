@@ -1883,6 +1883,22 @@ importers:
         specifier: workspace:*
         version: link:../../plugins/workflows
 
+  packages/checkout-contract:
+    dependencies:
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@bb/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.10
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+
   packages/client-core:
     dependencies:
       '@bb/core-ui':
@@ -2136,6 +2152,9 @@ importers:
 
   packages/domain:
     dependencies:
+      bb-checkout-contract:
+        specifier: workspace:*
+        version: link:../checkout-contract
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -4494,6 +4513,9 @@ importers:
       '@bb/shared-ui':
         specifier: workspace:*
         version: link:../../packages/shared-ui
+      bb-checkout-contract:
+        specifier: workspace:*
+        version: link:../../packages/checkout-contract
       bb-environment-provider-host:
         specifier: workspace:*
         version: link:../../packages/environment-provider-host

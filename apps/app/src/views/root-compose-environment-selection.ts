@@ -273,6 +273,10 @@ export function resolveRootComposeEffectiveEnvironmentValue({
       ? encodeProviderValue(PROJECT_CHECKOUT_ENVIRONMENT_PROVIDER_ID)
       : "";
 
+  if (parsedSelection?.type === "project-default" && fallbackValue !== "") {
+    return environmentSelectionValue;
+  }
+
   if (parsedSelection?.type === "reuse") {
     if (parsedSelection.environmentId === null) {
       return environmentSelectionValue;

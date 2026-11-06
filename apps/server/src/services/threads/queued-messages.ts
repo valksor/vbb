@@ -60,6 +60,7 @@ import {
   QUEUED_MESSAGE_CLAIM_LOST_CODE,
 } from "./queue-waits.js";
 import { recordQueuedMessageDrainFailure } from "./queue-drain-failure.js";
+import { clearUserQueuedContinuations } from "./worktree-promotion.js";
 import {
   captureUserMessageSentTelemetry,
   ensureThreadQueueIsWritable,
@@ -215,6 +216,7 @@ export async function createQueuedMessageForThread(
           throw new ApiError(404, "thread_not_found", "Thread not found");
         }
         const { hasProviderSession } = admitQueuedMessage(tx, currentThread);
+        clearUserQueuedContinuations(tx, thread.id, senderThreadId);
         args.withinTransaction?.(tx);
         const queuedMessage = createQueuedThreadMessageInTransaction(tx, {
           threadId: thread.id,

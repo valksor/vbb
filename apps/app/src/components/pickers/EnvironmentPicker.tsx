@@ -43,6 +43,11 @@ import {
   parseEnvironmentValue,
 } from "./environment-picker-value";
 import { selectHosts } from "@/hooks/queries/host-queries";
+import {
+  ProjectDefaultEnvironmentOption,
+  projectCheckoutDescription,
+  projectDefaultSelected,
+} from "./EnvironmentPicker.fork";
 import { providerInputsControlRequired } from "./environment-provider-inputs";
 import { MACHINE_BADGE_CLASS_NAME, orderLocalHostFirst } from "./MachinePicker";
 import { ListLoadingPlaceholder } from "@bb/shared-ui/list-loading-placeholder";
@@ -97,6 +102,7 @@ export interface EnvironmentPickerUIProps {
   ) => void;
   onSelectHost?: (hostId: string) => void;
   onSelectReuse?: () => void;
+  onSelectProjectDefault?: (promotion: "worktree" | "branch") => void;
 }
 
 export const PROVIDER_INPUTS_CONTROL_MISSING_REASON =
@@ -135,7 +141,8 @@ function providerDescription(
     return provider.availability.message;
   }
   return (
-    providerDisabledReason(provider, inputsControlProviderIds) ?? undefined
+    providerDisabledReason(provider, inputsControlProviderIds) ??
+    projectCheckoutDescription(provider)
   );
 }
 
@@ -219,6 +226,7 @@ export function EnvironmentPickerUI({
   onSelectProvider,
   onSelectHost,
   onSelectReuse,
+  onSelectProjectDefault,
 }: EnvironmentPickerUIProps) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(
     defaultOpen ?? false,
@@ -316,6 +324,11 @@ export function EnvironmentPickerUI({
           ? `provider:${selectedProviderHostId}:${selectedProvider.id}`
           : "";
   const selected = useMemo((): SelectedEnvironment => {
+    const projectDefault = projectDefaultSelected(
+      parsed,
+      hostUnavailableReason,
+    );
+    if (projectDefault) return projectDefault;
     if (
       selectedProvider !== undefined &&
       (selectedProvider.machineProviderId || hostUnavailableReason === null)
@@ -492,6 +505,12 @@ export function EnvironmentPickerUI({
                 showSearch && "flex flex-col overflow-hidden",
               )}
             >
+              <ProjectDefaultEnvironmentOption
+                disabled={hostUnavailableReason !== null}
+                onSelect={onSelectProjectDefault}
+                projectless={projectless}
+                value={value}
+              />
               {isMachineMenu && availableMachines ? (
                 showSearch ? (
                   <MachineContextualEnvironmentOptions
@@ -1103,7 +1122,7 @@ interface EnvironmentMenuItemProps {
   alignIconWithMachine?: boolean;
 }
 
-function EnvironmentMenuItem({
+export function EnvironmentMenuItem({
   value,
   provider,
   label,

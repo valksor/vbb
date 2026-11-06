@@ -1079,6 +1079,13 @@
       "when": 1793912000559,
       "tag": "0153_broken_lockheed",
       "breakpoints": true
+    },
+    {
+      "idx": 154,
+      "version": "6",
+      "when": 1793926996170,
+      "tag": "0154_thread_checkout_promotion",
+      "breakpoints": true
     }
   ]
 }
