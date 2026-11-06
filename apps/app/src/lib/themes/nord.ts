@@ -14,6 +14,12 @@ export const nordThemeCss = `
   --warning: #d08770;
   --warning-text: #99543a;
   --attention: #ebcb8b;
+  --working: #628ab2;
+  --working-plan: color-mix(in oklch, #5e81ac 50%, #a6799d);
+  --working-workflow: #a6799d;
+  --working-agent: #579190;
+  --working-command: color-mix(in oklch, #a6799d 50%, #bf616a);
+  --working-goal: color-mix(in oklch, #579190 50%, #6f9655);
   --success: #6f9655;
   --success-foreground: #507535;
   --diff-added: #5e8a52;
@@ -65,6 +71,12 @@ export const nordThemeCss = `
   --warning: #d08770;
   --warning-text: #e0a48f;
   --attention: #ebcb8b;
+  --working: #88c0d0;
+  --working-plan: #5e81ac;
+  --working-workflow: #b48ead;
+  --working-agent: #8fbcbb;
+  --working-command: color-mix(in oklch, #b48ead 50%, #bf616a);
+  --working-goal: color-mix(in oklch, #8fbcbb 50%, #a3be8c);
   --success: #a3be8c;
   --success-foreground: #a3be8c;
   --diff-added: #a3be8c;

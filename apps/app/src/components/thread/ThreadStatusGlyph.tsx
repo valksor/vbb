@@ -11,6 +11,8 @@ import {
 } from "@get-bb/plugin-sdk/internal/thread-status";
 import { pluginIconName } from "@/components/plugin/PluginIcon";
 import {
+  SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES,
+  SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
   SIDEBAR_STATUS_ICON_CLASS,
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
   SIDEBAR_SUCCESS_STATUS_DOT_CLASS,
@@ -172,7 +174,7 @@ export function ThreadStatusGlyph({
           name={WORKING_ACTIVITY_ICONS[indicator]}
           className={cn(
             "animate-shine-icon",
-            SIDEBAR_WORKING_STATUS_COLOR_CLASS,
+            SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES[indicator],
             iconSizeClass,
           )}
           aria-label={threadIndicatorLabel(indicator) ?? undefined}
@@ -184,7 +186,7 @@ export function ThreadStatusGlyph({
           name="Loading"
           className={cn(
             "animate-spin motion-reduce:animate-none",
-            SIDEBAR_WORKING_STATUS_COLOR_CLASS,
+            SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
             iconSizeClass,
           )}
           aria-label={threadIndicatorLabel(indicator) ?? undefined}
