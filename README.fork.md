@@ -1,7 +1,6 @@
 # vbb fork maintenance
 
-Desktop deployment usage remains pending Slice 08 and Slice 22. Those slices are
-required migration work, not excluded functionality.
+Additional deployment discovery remains pending Slice 22. That slice is required migration work, not excluded functionality.
 
 ## Local desktop packaging
 
@@ -14,6 +13,10 @@ On macOS, `pnpm desktop:local:package` builds an unpacked `bb Local.app` under `
 The updater recovers a prior desktop update pause, pauses work with a maintenance lease, waits for the paused host cohort to reconnect, and releases the pause after the replacement app is healthy. It builds and smoke-tests `bb Local.app`, keeps a valid Team ID signature or signs ad hoc, then installs the app beside the official `bb.app`. It syncs the configured `lettland/bb-plugins` collection and then updates other eligible plugins. If activation fails, it restores the previous app from its Trash backup. A successful release precedes any fork push; that push uses the fetched fork head as a force-with-lease and targets the configured fork branch, which defaults to `main`. The plugin collection setting is separate from the Git upstream slug.
 
 `--check` fetches and reports counts; it does not install. `--current` uses the checkout without fetch or rebase and accepts uncommitted files. With a push enabled, `--current` requires a clean checkout on the configured fork branch and a fork tracking head. Use `--skip-push` for a dirty or different branch. `--skip-install`, `--skip-plugins`, and `--skip-other-plugins` omit their named operations. `--plugins-only` syncs the collection without Git, build, install, or push; it refuses an unfinished desktop update. `--recover` resumes the recorded maintenance pause after the app and cohort are healthy. The pause state is in `~/.bb/admin/desktop-update.json` (or the selected `BB_DATA_DIR`). Do not run the updater from inside bb when installation is enabled, because it quits `bb Local.app`.
+
+## Local VPS deployment
+
+The Linux ARM64 fork uses the `bb-local.service` systemd user service and the normal `~/.bb` data directory. See [the VPS guide](docs/linux-arm64-vps.fork.md) for prerequisites, service installation, updates, status, and recovery. `pnpm vps:local:service-install` installs the user unit. `pnpm vps:local:update` runs the guarded updater. These commands change the local service or release when invoked; importing their modules does not run them.
 
 ## Database migration history
 

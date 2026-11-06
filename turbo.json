@@ -32,6 +32,14 @@
         "$TURBO_ROOT$/scripts/update-local-desktop.mjs",
         "$TURBO_ROOT$/scripts/update-local-desktop.fork.mjs",
         "$TURBO_ROOT$/scripts/update-local-desktop.fork.test.mjs",
+        "$TURBO_ROOT$/scripts/install-local-vps-service.mjs",
+        "$TURBO_ROOT$/scripts/install-local-vps-service.fork.mjs",
+        "$TURBO_ROOT$/scripts/install-local-vps-service.fork.test.mjs",
+        "$TURBO_ROOT$/scripts/local-vps-operation.fork.mjs",
+        "$TURBO_ROOT$/scripts/local-vps-operation.fork.test.mjs",
+        "$TURBO_ROOT$/scripts/update-local-vps.mjs",
+        "$TURBO_ROOT$/scripts/update-local-vps.fork.mjs",
+        "$TURBO_ROOT$/scripts/update-local-vps.fork.test.mjs",
         "$TURBO_ROOT$/turbo.json"
       ],
       "outputs": []
