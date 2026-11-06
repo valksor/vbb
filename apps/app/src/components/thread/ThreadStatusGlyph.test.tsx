@@ -144,9 +144,13 @@ describe("ThreadStatusGlyph", () => {
     const { container, rerender } = render(
       <ThreadStatusGlyph indicator="unread-success" />,
     );
-    expect(screen.getByLabelText("Unread thread succeeded").tagName).toBe(
-      "SPAN",
-    );
+    const dot = screen.getByLabelText("Unread thread succeeded");
+    expect(dot.tagName).toBe("SPAN");
+    expect(dot.classList).toContain("size-1.5");
+    expect(dot.classList).toContain("bg-success");
+    expect(dot.classList).toContain("max-md:pointer-coarse:size-2");
+    expect(dot.classList).not.toContain("size-[5px]");
+    expect(dot.classList).not.toContain("bg-muted-foreground/60");
 
     rerender(<ThreadStatusGlyph indicator="none" />);
     expect(container.firstChild).toBeNull();
