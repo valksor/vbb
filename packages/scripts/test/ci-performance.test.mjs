@@ -67,6 +67,7 @@ it("isolates failed cache restores while preserving healthy caches through a rea
   const env = {
     ...process.env,
     npm_config_store_dir: join(root, "store"),
+    pnpm_config_store_dir: join(root, "store"),
     GITHUB_STEP_SUMMARY: join(root, "summary.md"),
     GITHUB_ENV: join(root, "github-env"),
     RUNNER_TEMP: root,
