@@ -159,6 +159,62 @@ describe("tab-local composer selections", () => {
     },
   );
 
+  it("pins legacy provider model and reasoning before another tab changes the legacy owner", () => {
+    window.localStorage.setItem("bb.promptbox.provider", "codex");
+    window.localStorage.setItem("bb.promptbox.model", "legacy-model");
+    window.localStorage.setItem("bb.promptbox.reasoning", "high");
+    const first = renderSelections();
+    expect(first.result.current.model.value).toBe("legacy-model");
+    expect(first.result.current.reasoning.value).toBe("high");
+    first.unmount();
+    window.localStorage.setItem("bb.promptbox.provider", "claude-code");
+    window.localStorage.removeItem("bb.promptbox.model");
+    window.localStorage.removeItem("bb.promptbox.reasoning");
+    const reloaded = renderSelections();
+    expect(reloaded.result.current.provider.value).toBe("codex");
+    expect(reloaded.result.current.model.value).toBe("legacy-model");
+    expect(reloaded.result.current.reasoning.value).toBe("high");
+  });
+
+  it("does not inherit legacy selections from another provider", () => {
+    window.localStorage.setItem("bb.promptbox.provider", "codex");
+    window.localStorage.setItem("bb.promptbox.model", "legacy-model");
+    window.localStorage.setItem("bb.promptbox.reasoning", "high");
+    const store = createStore();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <Provider store={store}>{children}</Provider>
+    );
+    const { result } = renderHook(
+      () => ({
+        model: usePromptBoxModelPreference("claude-code"),
+        reasoning: usePromptBoxReasoningLevelPreference("claude-code"),
+      }),
+      { wrapper },
+    );
+    expect(result.current.model.value).toBe("");
+    expect(result.current.reasoning.value).toBe("");
+  });
+
+  it.each([
+    {
+      model: "scoped-model",
+      reasoning: "low",
+    },
+    {
+      model: "",
+      reasoning: "",
+    },
+  ])("prefers scoped $model/$reasoning selections over legacy values", ({ model, reasoning }) => {
+    window.localStorage.setItem("bb.promptbox.provider", "codex");
+    window.localStorage.setItem("bb.promptbox.model", "legacy-model");
+    window.localStorage.setItem("bb.promptbox.reasoning", "high");
+    window.localStorage.setItem("bb.promptbox.model-codex-1", model);
+    window.localStorage.setItem("bb.promptbox.reasoning-codex-1", reasoning);
+    const selections = renderSelections();
+    expect(selections.result.current.model.value).toBe(model);
+    expect(selections.result.current.reasoning.value).toBe(reasoning);
+  });
+
   it("keeps provider and project memories when switching away and back after remote changes", () => {
     seedSelections();
     const { result, rerender } = renderSelections();
