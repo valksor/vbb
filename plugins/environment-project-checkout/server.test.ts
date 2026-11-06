@@ -165,23 +165,26 @@ describe("checkout provider validate", () => {
     });
   });
 
-  it("refuses a branch switch while the checkout has uncommitted changes", async () => {
-    const decision = await validateWith({
-      environments: [],
-      threads: [],
-      inputs: { branch: { kind: "existing", name: "release" } },
-      inspectCheckout: () => ({
-        isGitRepo: true,
-        checkout: { kind: "branch", branchName: "main", headSha: "abc123" },
-        hasUncommittedChanges: true,
-        operation: { kind: "none" },
-      }),
-    });
-    expect(decision).toEqual({
-      action: "refuse",
-      message: "Checkout blocked by uncommitted changes",
-    });
-  });
+  it.each([
+    { kind: "existing", name: "release" },
+    { kind: "new", baseBranch: "main" },
+  ] as const)(
+    "accepts $kind branch selection with uncommitted changes",
+    async (branch) => {
+      const decision = await validateWith({
+        environments: [],
+        threads: [],
+        inputs: { branch },
+        inspectCheckout: () => ({
+          isGitRepo: true,
+          checkout: { kind: "branch", branchName: "main", headSha: "abc123" },
+          hasUncommittedChanges: true,
+          operation: { kind: "none" },
+        }),
+      });
+      expect(decision).toEqual({ action: "accept" });
+    },
+  );
 
   it("refuses a branch switch while HEAD is detached", async () => {
     const decision = await validateWith({

@@ -146,14 +146,6 @@ export function checkoutBlocker(state: CheckoutState): CheckoutBlocker | null {
       guidance: `Finish or abort the ${name.toLowerCase()} to change branches.`,
     };
   }
-  if (state.dirty) {
-    return {
-      label: "Dirty",
-      reason: "Checkout blocked by uncommitted changes",
-      guidance:
-        "Commit or stash the uncommitted changes in this checkout to create or switch branches.",
-    };
-  }
   if (state.detached) {
     return {
       label: "Detached",
