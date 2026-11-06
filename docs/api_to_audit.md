@@ -1,7 +1,5 @@
 # APIs To Audit
 
-See [fork additions](./api_to_audit.fork.md).
-
 Every public plugin API member ships with an `experimental_` prefix and an
 entry here (see [AGENTS.md](../AGENTS.md), "CLI And Plugin API"). Each entry
 summarizes the API, names where its behavior is documented, and lists what
@@ -288,26 +286,7 @@ origin filtering, and render isolation during streaming and across messages.
 
 ## `bb.ui.requestInput` `experimental_holdToolCall`
 
-`bb.ui.requestInput`'s options accept an optional `experimental_holdToolCall`
-boolean. Default (`false`/absent) keeps today's behavior: inside a native tool's
-`execute`, the tool call is detached and answered at once with a waiting notice,
-and the eventual result reaches the agent as a later message. When set, the tool
-call instead stays blocked until the form settles, and the interaction is bound
-to the thread's active turn (`turnId` is populated from the active turn), so the
-turn-bound send/steer/dispatch guards treat the thread as busy. Direct starts
-are rejected while queued sends can wait for resolution, matching a provider's
-native question. Used by the
-bundled `ask-user-question` plugin so an unanswered question halts the turn
-rather than letting the agent proceed.
-
-Before stabilizing: audit the held-open tool-call transport (a blocking form can
-hold the daemon→server request open up to the form timeout; forwarded tool calls
-use a 65-minute transport ceiling), the turn-bound interaction lifecycle
-(steer/edit/queue while pending, and abort on thread stop/delete, plugin dispose,
-session revocation, and server-move), and concurrency (the
-one-active-interaction-per-thread guard is the only cap on held-open calls).
-Decide whether turn-binding should be inferred from the renderer/policy on the
-server rather than carried as a public option.
+See [fork additions](./api_to_audit.fork.md#bbuirequestinput-experimental_holdtoolcall).
 
 ## `bb.ui.requestInput` `experimental_requireAppAnswer`
 
@@ -1010,25 +989,19 @@ the cache TTL and the invalidation set against a real multi-host setup.
 ## `experimental_nativeRootsHostContract` (`@get-bb/plugin-sdk/host`)
 
 The one-method host RPC contract (`resolveNativeRoots`). Input is
-`{ providerId, cwd: string | null, bridgeOptions? }`; `bridgeOptions` is the
-provider's registered `experimental_bridgeOptions`, sent only when non-empty,
-so a plugin that registers several providers from one host entry (the Claude
-Code profiles) can resolve each provider's own roots. Compatibility limit: the
-server sends `bridgeOptions` whenever a provider declares non-empty
-`experimental_bridgeOptions` (ACP providers always do). A third-party resolver
-bundled with an older SDK whose input schema is strict rejects that input, and
-the server falls back to the declared roots with a warning. Output is `{ skills, commands }`, each a
+`{ providerId, cwd: string | null }`. Output is `{ skills, commands }`, each a
 list of host-absolute roots with `origin`, `recursive`, `ancestors`,
 `namePrefix`, and a `shape` that tells the daemon how to read the root.
+
+For fork bridge options and their compatibility limit, see [fork
+additions](./api_to_audit.fork.md#experimental_nativerootshostcontract-get-bbplugin-sdkhost).
 
 Docs: `providers.md`.
 
 **Audit before stabilizing.** Confirm the shape vocabulary covers a
 third-party agent's layouts; decide whether the contract should accept a
 relative path the daemon resolves (so a plugin need not know the host home)
-and whether the 256-root cap per side is right. Confirm that optional registered
-bridge options remain sufficient to distinguish profile providers without
-exposing unrelated registration data.
+and whether the 256-root cap per side is right.
 
 ## `experimental_filterResolvedNativeRoots` (`@get-bb/plugin-sdk/host`)
 
@@ -1228,11 +1201,7 @@ See [fork additions](./api_to_audit.fork.md).
 
 ## `bb.sdk.threads.experimental_executionProfile`
 
-**What it does.** `GET /threads/:id/execution-profile` returns `lastRequested`, thread `overrides`, `nextTurn`, and `executed`. `executed` is `null` until a provider reports its active execution. When present, it contains the provider model and nullable reasoning, permission, and service-tier values plus `reportedAt`, the server receipt time.
-
-**Core callers.** `bb thread show` uses this method. Older servers return 404, and the CLI omits the execution section.
-
-**Stabilization criteria.** Confirm provider report semantics and receipt-time meaning across supported providers. Then run the audit, rename project-wide, and remove this entry.
+See [fork additions](./api_to_audit.fork.md#bbsdkthreadsexperimental_executionprofile).
 
 ## `PluginSettingDescriptor.experimental_optionLabels`
 
@@ -1954,21 +1923,16 @@ Before stabilization, audit:
 ## `bb.providers.register` (`experimental_bridgeOptions`, `experimental_visibility`, and the `experimental_providerBridge` artifact export)
 
 **Kept experimental (2026-08-22).** `bb.providers.register` and the
-declaration's target-state fields are stable. The daemon bootstrap reads the `experimental_providerBridge` export name from
+declaration's target-state fields are stable. `experimental_visibility` has one
+consumer (the ACP plugin); see [fork additions](./api_to_audit.fork.md#bbprovidersregister-experimental_bridgeoptions-experimental_visibility-and-the-experimental_providerbridge-artifact-export)
+for `experimental_bridgeOptions` consumers and its stabilization assessment. The
+daemon bootstrap reads the `experimental_providerBridge` export name from
 every installed plugin. Renaming it needs a dual-name acceptance window plus a
 protocol bump, so it stabilizes with the bridge kit once that deprecation
 policy exists.
 
 `experimental_bridgeOptions` is bounded JSON, opaque to core, delivered to
 every bridge launch as provider-scoped static options.
-
-The Claude Code plugin is a second consumer: its profiles use it for
-plugin-owned profile config beyond launch metadata, either `{ claudeConfigDir }`
-(a login profile) or `{ claudeAuthTokenFile, claudeEnv }` (a token profile). The
-bridge re-validates both shapes with the same rule helpers as the plugin's
-settings schema, and a token profile carries only the token file's path and an
-allowlisted env, never the token. Weigh this use when deciding whether static
-options survive beside `deriveProviderOptions`.
 `experimental_visibility: "installed"` withholds a provider from unscoped
 listings until its `provider/health` is not `not_installed`. The bridge is the
 `experimental_providerBridge` export of the plugin's `bb.host` artifact.
@@ -1984,14 +1948,15 @@ Docs: `providers.md`, [provider-plugin-api.md](provider-plugin-api.md) §1–2.
    order (vs. first-load time). The user overlay (`providerOrder`) is an
    ordered id list that ignores unknown ids; decide whether stale ids should
    be pruned on write.
-2. **Icon URL shape.** A path, a declared icon, or a base64
-   `data:image/{svg+xml,png,webp}` URI of at most 32 KiB (artwork a plugin reads
-   at runtime, such as the ACP plugin's user-chosen icon files) is snapshotted
-   at registration and served from `/api/v1/system/providers/<id>/logo`; a host glyph name
+2. **Icon URL shape.** A path or declared icon is snapshotted at registration
+   and served from `/api/v1/system/providers/<id>/logo`; a host glyph name
    yields a null `logoUrl` and no server-side resolution. Decide whether the
    host should resolve declared glyph names for providers the way it does for
    plugin branding, and decide the logo route's cache policy, before either
    freezes into clients.
+
+   For fork data-URI provider icons, see [fork
+   additions](./api_to_audit.fork.md#bbprovidersregister-experimental_bridgeoptions-experimental_visibility-and-the-experimental_providerbridge-artifact-export).
 3. **Collision semantics.** Ids are first-come collision-rejected: a staged
    collision fails the whole plugin load; a post-activation registration
    throws to the plugin. A disabled first-party plugin leaves its id claimable

@@ -10,8 +10,9 @@ boolean. Default (`false`/absent) keeps today's behavior: inside a native tool's
 and the eventual result reaches the agent as a later message. When set, the tool
 call instead stays blocked until the form settles, and the interaction is bound
 to the thread's active turn (`turnId` is populated from the active turn), so the
-turn-bound send/steer/dispatch guards treat the thread as busy and reject a send
-until the form resolves — matching a provider's native question. Used by the
+turn-bound send/steer/dispatch guards treat the thread as busy. Direct starts
+are rejected while queued sends can wait for resolution, matching a provider's
+native question. Used by the
 bundled `ask-user-question` plugin so an unanswered question halts the turn
 rather than letting the agent proceed.
 
@@ -97,6 +98,7 @@ DTO. Stabilization includes the project-wide rename and removing this entry.
 
 Replaces the input description ("Input is `{ providerId, cwd: string | null }`. Output is `{ skills, commands }`, each a") in the entry for the one-method host RPC contract (`resolveNativeRoots`):
 
+The one-method host RPC contract (`resolveNativeRoots`). Input is
 `{ providerId, cwd: string | null, bridgeOptions? }`; `bridgeOptions` is the
 provider's registered `experimental_bridgeOptions`, sent only when non-empty,
 so a plugin that registers several providers from one host entry (the Claude
@@ -105,6 +107,13 @@ server sends `bridgeOptions` whenever a provider declares non-empty
 `experimental_bridgeOptions` (ACP providers always do). A third-party resolver
 bundled with an older SDK whose input schema is strict rejects that input, and
 the server falls back to the declared roots with a warning. Output is `{ skills, commands }`, each a
+list of host-absolute roots with `origin`, `recursive`, `ancestors`,
+`namePrefix`, and a `shape` that tells the daemon how to read the root.
+
+New text after the audit question about the 256-root cap:
+
+Confirm that optional registered bridge options remain sufficient to distinguish
+profile providers without exposing unrelated registration data.
 
 ## `bb.sdk.threads.experimental_backgroundTaskOutput`
 
@@ -113,6 +122,16 @@ the server falls back to the declared roots with a warning. Output is `{ skills,
 **Core callers.** The command-output panel on the background-commands banner (`useThreadBackgroundTaskOutput`) and `bb thread background --task`.
 
 **Stabilization criteria.** Decide whether other providers' background tasks should be readable, whether `tailBytes` and the `busy`/`pending` states belong in the stable contract, and whether output should stream instead of being polled. Then run the audit, rename project-wide, and remove this entry.
+
+## `bb.sdk.threads.experimental_executionProfile`
+
+Placement: before `PluginSettingDescriptor.experimental_optionLabels`.
+
+**What it does.** `GET /threads/:id/execution-profile` returns `lastRequested`, thread `overrides`, `nextTurn`, and `executed`. `executed` is `null` until a provider reports its active execution. When present, it contains the provider model and nullable reasoning, permission, and service-tier values plus `reportedAt`, the server receipt time.
+
+**Core callers.** `bb thread show` uses this method. Older servers return 404, and the CLI omits the execution section.
+
+**Stabilization criteria.** Confirm provider report semantics and receipt-time meaning across supported providers. Then run the audit, rename project-wide, and remove this entry.
 
 ## `bb.providers.register` (`experimental_bridgeOptions`, `experimental_visibility`, and the `experimental_providerBridge` artifact export)
 
@@ -126,12 +145,16 @@ settings schema, and a token profile carries only the token file's path and an
 allowlisted env, never the token. Weigh this use when deciding whether static
 options survive beside `deriveProviderOptions`.
 
-Replaces the first lines of audit item 2 in the same entry:
+Replaces audit item 2 in the same entry:
 
 2. **Icon URL shape.** A path, a declared icon, or a base64
    `data:image/{svg+xml,png,webp}` URI of at most 32 KiB (artwork a plugin reads
    at runtime, such as the ACP plugin's user-chosen icon files) is snapshotted
    at registration and served from `/api/v1/system/providers/<id>/logo`; a host glyph name
+   yields a null `logoUrl` and no server-side resolution. Decide whether the
+   host should resolve declared glyph names for providers the way it does for
+   plugin branding, and decide the logo route's cache policy, before either
+   freezes into clients.
 
 ## `experimental_useSidebarThreads` / `experimental_useSidebarThreadActions` (`@get-bb/plugin-sdk/app`)
 

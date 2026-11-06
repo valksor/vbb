@@ -1,14 +1,26 @@
 # Configuration (fork)
 
-## Client SSH Targets
+## Provider plugin profiles
 
-New subsection after "Client SSH Targets" and before "Provider availability":
+Use `bb plugin config <plugin-id>` for plugin settings. The Claude Code plugin
+accepts a `profiles` JSON array for additional native login providers. Each entry
+contains `id`, `displayName`, and `configDir`. The entry registers
+`claude-code-<id>` on hosts where the plugin runs. Use `bb provider list`,
+`bb provider models claude-code-<id>`, and `bb thread spawn --provider
+claude-code-<id>` to inspect and select it. SDK callers use the same provider ID
+through provider inventory, model access, and thread spawn operations.
+
+## Client SSH Targets
 
 ### Run Command Gate
 
-The `runCommandEnabled` key (default `on`) controls whether shell commands from
-thread messages may be executed in your local terminal. Turning it off hides
-the run button in the app and makes the local daemon reject run requests:
+The boolean `runCommandEnabled` key in the local `~/.bb/client.json`
+(default `true`) controls whether `bb run-in-terminal` can launch shell
+commands in your local terminal. This client configuration is local to that
+daemon; the remote server does not read it. When disabled, the daemon suppresses
+advertised command capability and rejects command execution, while ordinary
+opens remain available. A malformed client configuration also denies command
+execution.
 
 ```bash
 npx bb-app client run-command off
@@ -17,42 +29,70 @@ npx bb-app client run-command on
 
 ## Custom ACP Agents
 
-Replaces the `customAgents` example line:
+Add your own ACP agent through the ACP providers plugin's `customAgents`
+setting, a JSON array, in Settings → Plugins → ACP providers or:
 
+```bash
+bb plugin config provider-acp set customAgents '[
   {"id": "amp", "displayName": "Amp", "command": "amp", "args": ["acp"], "icon": "Sparkles"}
+]'
+```
 
-Replaces the line starting "own. Optional fields:":
-
-own. Optional fields: `icon`, `args`, `env`, `cwd`, `modelCli` (CLI model listing and
-
-New paragraph after the optional-fields list (after "`omp`, or `grok`)."):
+Each entry needs `id` (lowercase letters, digits, and dashes), `displayName`,
+and `command`. bb derives the provider id `acp-<id>`, which never changes once
+a thread has used it. `cursor` is reserved; an entry with an id bb lists only
+where the agent is installed (`opencode`, `omp`, `grok`, `hermes-agent`)
+replaces the shipped agent and keeps its `nativeSkillRoots` unless it sets its
+own. Optional fields: `icon`, `args`, `env`, `cwd`, `modelCli` (CLI model
+listing and selection), `reasoningCli` (launch-time reasoning flags),
+`nativeReasoning` (ACP `session/set_config_option` reasoning),
+`nativeSkillRoots` (`{"user": [...], "project": [...]}` relative paths; an
+entry is a path or `{"path": ..., "recursive": true, "ancestors": true}`),
+`permissionCli` (permission-mode launch flags), `supportsManualCompaction` (bb
+hides `/compact` otherwise), `providerUsage`, and `dialect` (`cursor`,
+`opencode`, `omp`, or `grok`).
 
 `icon` accepts a host glyph such as `Sparkles`, an ACP provider mark
 (`provider-acp/claude`, `provider-acp/glm`, `provider-acp/cursor`,
 `provider-acp/opencode`, `provider-acp/omp`, `provider-acp/grok`, or
 `provider-acp/hermes-agent`), or your own image: an absolute or `~/` path to an
-`.svg`, `.png`, or `.webp` file of at most 32 KiB on the machine running the bb
+`.svg`, `.png`, or `.webp` file of 1-32768 bytes on the machine running the bb
 server, or a `data:image/svg+xml;base64,...` (or `image/png`, `image/webp`) URI.
 bb reads the file when the setting changes or bb starts, so save the setting
 again after editing the file. The image is drawn as a single-color mask, like
 the bundled marks. Saving the setting fails when the icon file is missing,
 unreadable, or too large; if the file disappears later, the agent keeps its
-default icon and bb logs a warning. If omitted for a replacement of a shipped agent, the
-shipped icon is kept. Other custom agents use the Toolbox glyph by default.
+default icon and bb logs a warning. If omitted for a replacement of a shipped
+agent, the shipped icon is kept. A nonreplacement uses its registry icon when
+available, otherwise the Toolbox glyph.
 
 ## Custom Models
 
-Replaces the first sentences of the `providerId` paragraph:
+Register extra picker models with top-level `customModels` in
+`~/.bb/config.json`, for a model the provider accepts but does not list. There
+is no set/unset CLI: edit the JSON, then run `npx bb-app config refresh` or
+restart bb. `bb-app config list` prints the entries.
 
-`providerId` accepts `codex`, `claude-code`, `pi`, `acp-cursor`, any `acp-*`
-provider id, or a `claude-code-<id>` Claude Code profile id. `displayName` is
-optional. bb skips an invalid entry with a warning. Entries appear after the provider's own catalog in the model picker
+`providerId` accepts `codex`, `claude-code`, `pi`, `acp-cursor`, any
+`acp-*` provider id, or a Claude Code profile provider id such as
+`claude-code-work`. A profile suffix is at most 41 characters and consists
+of lowercase letters or digits, with single hyphens between groups.
+`displayName` is optional. bb skips an invalid entry with a warning. Entries
+appear after the provider's own catalog in the model picker and `bb provider
+models`; the provider catalog wins on an id collision, and `streamerMode` hides
+them. An entry only makes the id selectable: `claude-code` and `codex` accept
+unlisted ids, an ACP agent can reject one at session start, and OpenCode rejects
+ids outside its own catalog, so add OpenCode models (and default agents) to the
+OpenCode config instead.
 
 ## UI preferences
 
-Replaces the first sentence of the intro and the key table under "Sidebar preferences" (adds the `composer.provider` and `composer.quickReplies` keys; the fork heading is "UI preferences"):
-
-Core sidebar, Info panel, and composer preferences live in a server-side keyed registry shared by every
+Core UI preferences, including sidebar and Info panel layout, live in a server-side keyed registry shared by every
+window, device, and the CLI. Each key has a typed schema, a default, and a
+revision; a write that names a stale revision gets `409
+ui_preference_conflict`. Read and write them with `bb settings ui
+list|get|set|reset` or `sdk.system.uiPreferences` (see
+`bb guide customization`).
 
 | Key                           | Value                                                                                                                                                                              |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -63,7 +103,7 @@ Core sidebar, Info panel, and composer preferences live in a server-side keyed r
 | `sidebar.footerOrder`         | Footer action order                                                                                                                                                                |
 | `sidebar.hiddenFooterItems`   | Footer actions moved into More                                                                                                                                                     |
 | `composer.provider`           | Plugin key, or `__automatic__` (default): the first composer from a plugin you installed, then the bundled Composer plugin                                                         |
-| `composer.quickReplies`       | Messages shown as buttons above the composer on an idle thread; pressing one sends it. Default `["continue"]`; up to 50 messages of up to 1,024 characters; `[]` hides the buttons |
+| `composer.quickReplies`       | Ordered quick-reply messages. Defaults to `[]`; accepts up to 50 trimmed, nonblank strings, each at most 1,024 characters. Buttons show above the composer for idle or errored eligible threads, and an empty list hides them. |
 | `threadContextCard.pinned`    | `true` (default) keeps a thread pane's thread context card open beside the transcript when the pane is wide enough; `false` opens it only from the header                          |
 | `infoPanel.collapsedSections` | Collapsed thread Info panel sections (`commits`, `uncommittedChanges`, `childThreads`, `forks`, `threadStorage`, or `<pluginId>/<sectionId>`)                                      |
 
@@ -103,21 +143,28 @@ raise the interrupt threshold first. If you lower the interrupt threshold below
 the current notify threshold, lower the notify threshold first. The SDK uses the
 existing general settings update.
 
+## Maintenance
+
+Maintenance uses `<data-dir>/admin/maintenance.sock`, `<data-dir>/admin/capability`, and `<data-dir>/admin/operations/<id>.json`. Set `BB_MAINTENANCE_OWNER_SECRET` to provide the local maintenance owner secret instead of creating an operation owner file.
+
+## Desktop headless mode
+
+Set `BB_DESKTOP_HEADLESS=1` in the unpackaged desktop process environment before launch to keep its windows hidden. Only the exact value `1` enables this mode. Packaged builds ignore the variable. Restart the desktop process after changing it; no server setting or live-reload endpoint controls this option.
+
+Headless mode still loads app windows and applies the saved layout and zoom in memory. It suppresses app-window focus, display, and layout or zoom persistence. Browser popups, sign-in windows, the log viewer, and the server URL dialog also stay hidden. On macOS the Dock can flash before it is hidden. Native About, server-moved, and permission dialogs can still appear. Hidden sign-in or server dialogs can wait for input indefinitely. See [desktop development](../apps/desktop/README.md) for the test and launch details.
+
 ## Plugins: Claude Code provider
 
-New table row after the `fullAccessApprovalsEnabled` row:
-
-| `profiles`                   | empty   | JSON array of `{id, displayName, configDir}` (login) or `{id, displayName, authTokenFile, env}` (token) entries; each registers a native `claude-code-<id>` provider (see below).                                                                                     |
-
-Replaces the sentences "Two host-daemon environment variables reach the Claude Code bridge: `BB_CLAUDE_CODE_EXECUTABLE` picks the `claude` binary, and":
+The `profiles` setting defaults to an empty JSON array. Its entries are
+`{id, displayName, configDir}` login profiles or
+`{id, displayName, authTokenFile, env}` token profiles. Each entry registers a
+native `claude-code-<id>` provider.
 
 The Claude Code bridge inherits the host daemon's environment minus `BB_*`
 variables. `BB_CLAUDE_CODE_EXECUTABLE` picks the `claude` binary, and
 `CLAUDE_CODE_OAUTH_TOKEN` authenticates a machine with no interactive login,
 such as a CI runner (mint it with `claude setup-token`). See the
 `claude-code-provider` skill.
-
-New paragraphs after the `CLAUDE_CODE_OAUTH_TOKEN` paragraph and before "Account Pooler":
 
 `profiles` entries use an `id` of lowercase letters and digits joined by single
 hyphens (`^[a-z0-9]+(-[a-z0-9]+)*$`, at most 41 characters), a `displayName`, and
@@ -191,13 +238,12 @@ login profiles. Tool subprocesses in these threads can read
 
 ## Plugins: Thread list plugin
 
-The following text is retained from the local fork. This checkout has no named project-group implementation. These examples do not describe supported commands.
+The following text is retained source-only information. This checkout has no
+named project-group implementation. It does not describe supported commands.
 
-New table row after the `threadLifecycles` row:
-
+| Setting | Default | Value |
+| --- | --- | --- |
 | `projectGroups`       | `[]`                              | `{"id","name","projectIds"}` objects grouping projects when organized by project; see below                                                 |
-
-New paragraph and code block after the paragraph on row actions, before "Connect and bb account":
 
 When organized by project, a project's **Move to group** menu puts it in a
 named group, creates a new group, or removes it from its group. Grouped
