@@ -251,6 +251,7 @@ describe("pending interaction lifecycle", () => {
         threadId: thread.id,
         interactionId: interaction!.id,
         value: { values: { API_KEY: "sentinel-secret-value" } },
+        answeredVia: "api",
       });
 
       await expect(pending).resolves.toEqual({
@@ -263,7 +264,9 @@ describe("pending interaction lifecycle", () => {
         .where(eq(pendingInteractionTable.id, interaction!.id))
         .all();
       expect(JSON.stringify(stored)).not.toContain("sentinel-secret-value");
-      expect(stored?.resolution).toBe('{"kind":"plugin_submitted"}');
+      expect(stored?.resolution).toBe(
+        '{"kind":"plugin_submitted","answeredVia":"api"}',
+      );
       expect(
         JSON.stringify(harness.db.select().from(eventTable).all()),
       ).not.toContain("sentinel-secret-value");
@@ -289,6 +292,7 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: interaction!.id,
           value: { values: { API_KEY: "sentinel-secret-value" } },
+          answeredVia: "api",
         }),
       ).resolves.toMatchObject({ status: "resolved" });
       await expect(pending).resolves.toEqual({
@@ -336,12 +340,14 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: interaction!.id,
           value: { values: { API_KEY: "sentinel-secret-value" } },
+          answeredVia: "api",
         });
       expect(describeSubmission).toHaveBeenCalledExactlyOnceWith({
         values: { API_KEY: "sentinel-secret-value" },
       });
       expect(resolved.resolution).toEqual({
         kind: "plugin_submitted",
+        answeredVia: "api",
         description: {
           title: "Added API_KEY to .env",
           detail: "- API_KEY",
@@ -401,6 +407,7 @@ describe("pending interaction lifecycle", () => {
         threadId: thread.id,
         interactionId: interaction!.id,
         value: "first",
+        answeredVia: "api" as const,
       };
       const first =
         harness.deps.pendingInteractions.respondToPluginInteraction(args);
@@ -408,6 +415,7 @@ describe("pending interaction lifecycle", () => {
         harness.deps.pendingInteractions.respondToPluginInteraction({
           ...args,
           value: "second",
+          answeredVia: "api",
         });
       const rejection = expect(second).rejects.toMatchObject({ status: 409 });
       finishDescription({ title: "Added secrets" });
@@ -454,8 +462,12 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: interaction!.id,
           value: { values: {} },
+          answeredVia: "api",
         });
-      expect(resolved.resolution).toEqual({ kind: "plugin_submitted" });
+      expect(resolved.resolution).toEqual({
+        kind: "plugin_submitted",
+        answeredVia: "api",
+      });
       await expect(pending).resolves.toMatchObject({ outcome: "submitted" });
     });
   });
@@ -1811,6 +1823,7 @@ describe("pending interaction lifecycle", () => {
         threadId: thread.id,
         interactionId: pluginInteraction!.id,
         value: { values: { API_KEY: "x" } },
+        answeredVia: "api",
       });
       await pending;
       const pluginEvents = lifecycleEvents().filter(
@@ -1848,6 +1861,7 @@ describe("pending interaction lifecycle", () => {
       expect(JSON.stringify(pluginEvents)).not.toContain("SENTINEL_FIELD");
       expect(pluginEvents[1]?.interaction.resolution).toEqual({
         kind: "plugin_submitted",
+        answeredVia: "api",
       });
     });
   });
@@ -1995,6 +2009,7 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: created.interaction.id,
           value: oversized,
+          answeredVia: "api",
         }),
       ).rejects.toThrow(
         expect.objectContaining({
@@ -2036,6 +2051,7 @@ describe("pending interaction lifecycle", () => {
           threadId: thread.id,
           interactionId: created.interaction.id,
           value: { TOKEN: "sentinel-x" },
+          answeredVia: "api",
         });
       expect(responding).toMatchObject({
         id: created.interaction.id,
@@ -2663,6 +2679,7 @@ it("rejects a late answer when an abort callback settled the waiter but failed t
         threadId: thread.id,
         interactionId: interaction!.id,
         value: "lost answer",
+        answeredVia: "api",
       }),
     ).rejects.toThrow();
     expect(

@@ -63,8 +63,9 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
   },
   {
     reason:
-      "A submitted plugin form leaves on its row only what the plugin's describeSubmission returned, and the whole description is absent when the plugin declares no describeSubmission or when that call throws or times out. Within one, an absent title means the presentation's completed label stands, an absent detail means the title is the whole row, and an absent payload means the row renders without handing anything to the plugin's own timeline renderer. bb never stores the form's payload or the submitted value, so these fields are the entire record of what happened.",
+      "A submitted plugin form leaves on its row only what the plugin's describeSubmission returned, and the whole description is absent when the plugin declares no describeSubmission or when that call throws or times out. Within one, an absent title means the presentation's completed label stands, an absent detail means the title is the whole row, and an absent payload means the row renders without handing anything to the plugin's own timeline renderer. bb never stores the form's payload or the submitted value, so these fields are the entire record of what happened. The resolution also records how the answer reached bb (answeredVia: app for a bb app surface, api for any other caller) only for answers the server settled live; absence means a legacy or late answer whose origin was not recorded, never an api or app answer.",
     fields: [
+      "threadPendingInteractionsResponseSchema.resolution.answeredVia",
       "threadPendingInteractionsResponseSchema.resolution.description",
       "threadPendingInteractionsResponseSchema.resolution.description.detail",
       "threadPendingInteractionsResponseSchema.resolution.description.payload",
@@ -73,8 +74,9 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
   },
   {
     reason:
-      "The resolve route's body is the persisted resolution union, so it also admits the plugin_submitted arm and its description. No caller can send one: a plugin interaction is submitted through the respond route, and validatePendingInteractionResolution rejects every plugin interaction before a resolution is read. These four exist only because the request schema reuses the persisted shape.",
+      "The resolve route's body is the persisted resolution union, so it also admits the plugin_submitted arm and its description. No caller can send one: a plugin interaction is submitted through the respond route, which derives answeredVia from the request, and validatePendingInteractionResolution rejects every plugin interaction before a resolution is read. These five exist only because the request schema reuses the persisted shape.",
     fields: [
+      "resolvePendingInteractionRequestSchema.answeredVia",
       "resolvePendingInteractionRequestSchema.description",
       "resolvePendingInteractionRequestSchema.description.detail",
       "resolvePendingInteractionRequestSchema.description.payload",

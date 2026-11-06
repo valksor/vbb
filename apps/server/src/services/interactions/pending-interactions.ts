@@ -58,6 +58,10 @@ import {
   PendingInteractionSerializationError,
   toPendingInteraction,
 } from "./pending-interaction-serialization.js";
+import {
+  assertPluginAnswerOriginAllowed,
+  type PluginAnswerOrigin,
+} from "./pending-interactions-app-answer.js";
 import { heldToolCallTurnId } from "./pending-interactions-halt.fork.js";
 import {
   lateAnswerOrConflict,
@@ -144,6 +148,7 @@ interface RequestPluginInteractionArgs {
   timeoutMs: number;
   signal?: AbortSignal;
   holdToolCall?: boolean;
+  requireAppAnswer?: boolean;
   owner: PluginInteractionOwner;
 }
 
@@ -157,6 +162,7 @@ interface PluginInteractionWaiter {
   timer: ReturnType<typeof setTimeout>;
   removeAbortListener: () => void;
   describeSubmission: DescribePluginSubmission | null;
+  requireAppAnswer: boolean;
   submitting: boolean;
 }
 
@@ -606,6 +612,7 @@ export class PendingInteractionLifecycle {
         removeAbortListener: () =>
           args.signal?.removeEventListener("abort", abort),
         describeSubmission: args.describeSubmission,
+        requireAppAnswer: args.requireAppAnswer === true,
         submitting: false,
       });
       if (args.signal?.aborted) {
@@ -650,6 +657,7 @@ export class PendingInteractionLifecycle {
     interactionId: string;
     threadId: string;
     value: JsonValue;
+    answeredVia: PluginAnswerOrigin;
   }): Promise<PendingInteraction> {
     const current = this.getThreadInteraction(args);
     if (isPluginExtensionPendingInteraction(current)) {
@@ -666,6 +674,7 @@ export class PendingInteractionLifecycle {
     interactionId: string;
     threadId: string;
     value: JsonValue;
+    answeredVia: PluginAnswerOrigin;
   }): Promise<PendingInteraction> {
     const current = this.getThreadInteraction(args);
     if (!isPluginPendingInteraction(current)) {
@@ -683,6 +692,11 @@ export class PendingInteractionLifecycle {
       });
       throw buildResolveConflictError(interrupted);
     }
+    assertPluginAnswerOriginAllowed(this.deps, {
+      interaction: current,
+      requireAppAnswer: waiter.requireAppAnswer,
+      answeredVia: args.answeredVia,
+    });
     if (waiter.submitting) {
       throw new ApiError(
         409,
@@ -708,6 +722,7 @@ export class PendingInteractionLifecycle {
       id: current.id,
       resolution: JSON.stringify({
         kind: "plugin_submitted",
+        answeredVia: args.answeredVia,
         ...(description === undefined ? {} : { description }),
       }),
     });

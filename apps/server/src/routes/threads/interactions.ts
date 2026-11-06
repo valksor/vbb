@@ -1,4 +1,5 @@
 import { PLUGIN_INTERACTION_MAX_PAYLOAD_BYTES } from "@bb/domain";
+import { APP_SURFACE_HEADER_NAME } from "@bb/config/app-surface";
 import {
   publicApiRoutes,
   typedRoutes,
@@ -9,6 +10,7 @@ import { z } from "zod";
 import type { AppDeps } from "../../types.js";
 import { ApiError } from "../../errors.js";
 import { requirePublicThread } from "../../services/lib/entity-lookup.js";
+import { pluginAnswerOrigin } from "../../services/interactions/pending-interactions-app-answer.js";
 
 const pendingInteractionIdSchema = z
   .string()
@@ -87,6 +89,9 @@ export function registerThreadInteractionRoutes(
           context.req.param("interactionId"),
         ),
         value: payload.value,
+        answeredVia: pluginAnswerOrigin(
+          context.req.header(APP_SURFACE_HEADER_NAME),
+        ),
       }),
     );
   });
