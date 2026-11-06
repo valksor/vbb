@@ -97,7 +97,10 @@ again to retry cleanup. `run`, `pages`, and `screenshot` renew expiry at their s
 the hard deadline still stops running work. `list` and live preview do not renew
 expiry. Desktop leases and connections cannot be renewed through the current API,
 so desktop sessions still end at their earlier deadline (at most 30 minutes from
-creation). Timeouts default to 30 seconds, maximum 120 seconds: pass either
+creation). Local sessions keep cookies and site data until
+the session is closed or expires (up to eight hours), so close them when done.
+Desktop sessions use the BB browser's profile, so sign-ins made there
+remain after the session closes. Timeouts default to 30 seconds, maximum 120 seconds: pass either
 `--timeout-ms <1000-120000>` or `--timeout <duration>`, where a duration carries
 a unit (`90s`, `2m`, `1500ms`) and a bare number is read as seconds (1-120) or
 milliseconds (1000-120000).

@@ -386,7 +386,14 @@ export default async function browserAutomationPlugin(bb: BbPluginApi) {
       record.lastUsed + idleTimeoutMs,
       hardDeadline(record.session),
     );
-    await save(record);
+    if (active.get(record.session.id) !== record) return;
+    await save(record).catch((error: unknown) =>
+      bb.log.warn(
+        `Browser Automation session renewal could not be saved: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ),
+    );
   }
   async function run(
     input: z.output<typeof rpcContract.run.input>,
