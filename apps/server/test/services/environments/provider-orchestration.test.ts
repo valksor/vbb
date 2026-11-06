@@ -2466,6 +2466,10 @@ describe("existing-path provider selection", () => {
         environmentProviderId: fixture.record.provider.id,
         environmentProviderPluginId: "test",
         environmentProviderInstanceKey: "original-key",
+        environmentProviderSelection: {
+          machine: { type: "existing", hostId: "retired-host" },
+          inputs: { stale: true },
+        },
         mergeBaseBranch: "release",
       });
       harness.db
@@ -2481,7 +2485,10 @@ describe("existing-path provider selection", () => {
         resource: { original: true },
         mergeBaseBranch: "release",
         environmentProviderInstanceKey: "original-key",
-        environmentProviderSelection: existing.environmentProviderSelection,
+      });
+      expect(fixture.row().environmentProviderSelection).toEqual({
+        machine: { type: "existing", hostId: fixture.host.id },
+        inputs: null,
       });
       fixture.attach();
       await sweepProviderEnvironment(harness.deps, existing.id);

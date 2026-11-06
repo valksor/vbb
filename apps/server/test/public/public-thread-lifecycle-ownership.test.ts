@@ -18,7 +18,6 @@ import {
   waitForQueuedCommand,
 } from "../helpers/commands.js";
 import {
-  expireArchiveUndoGrace,
   seedEnvironment,
   seedHostSession,
   seedProjectWithSource,
@@ -329,7 +328,6 @@ it("environment archival stops cross-environment lifecycle dependents on their o
     expect(getThread(harness.db, child.id)?.archivedAt).toEqual(
       expect.any(Number),
     );
-    expireArchiveUndoGrace(harness.deps, child.id);
     await runThreadLifecycleSweep(harness.deps);
     const command = await waitForQueuedCommand(
       harness,
@@ -368,9 +366,7 @@ it("recovers archived active threads through the periodic sweep", async () => {
     });
     archiveThread(harness.db, harness.deps.hub, thread.id);
     await runThreadLifecycleSweep(harness.deps);
-    expect(getThread(harness.db, thread.id)?.status).toBe("active");
-    expireArchiveUndoGrace(harness.deps, thread.id);
-    await runThreadLifecycleSweep(harness.deps);
+    expect(getThread(harness.db, thread.id)?.status).toBe("stopping");
     const command = await waitForQueuedCommand(
       harness,
       ({ command }) =>

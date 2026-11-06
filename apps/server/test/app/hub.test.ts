@@ -772,6 +772,7 @@ describe("NotificationHub events-appended thread-list coalescing", () => {
     });
     hub.notifyThread("thread-1", ["events-appended"], {
       hasPendingInteraction: true,
+      pendingInteractionKind: "approval",
     });
     hub.notifyThread("thread-1", ["events-appended", "read-state-changed"], {
       eventTypes: ["item/agentMessage/delta"],
