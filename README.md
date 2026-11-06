@@ -143,6 +143,8 @@ pnpm exec turbo run dev --filter=@bb/desktop
 The desktop shell connects to this checkout's running dev app. Stop each command
 with Ctrl-C in its terminal.
 
+Fork additions: see [README.fork.md](README.fork.md).
+
 To use the dev app from another machine over Tailscale, start it with the
 Tailscale browser origin configured:
 

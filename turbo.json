@@ -8,6 +8,18 @@
   ],
   "tasks": {
     "@bb/db#db:generate": { "cache": false },
+    "//#test:fork-pure": {
+      "cache": false,
+      "inputs": [
+        "$TURBO_ROOT$/package.json",
+        "$TURBO_ROOT$/scripts/fork-copies.json",
+        "$TURBO_ROOT$/scripts/fork-footprint.fork.mjs",
+        "$TURBO_ROOT$/scripts/fork-footprint.fork.test.mjs",
+        "$TURBO_ROOT$/scripts/fork-footprint.mjs",
+        "$TURBO_ROOT$/turbo.json"
+      ],
+      "outputs": []
+    },
     "@bb/desktop#smoke:browser-broker": {
       "cache": false,
       "dependsOn": [
