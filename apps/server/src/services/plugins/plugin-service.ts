@@ -799,6 +799,7 @@ export function createPluginService(deps: PluginServiceDeps): PluginService {
     deps,
     safeModeActivationRefusal,
     registrationMutationKey: REGISTRATION_MUTATION_KEY,
+    withArtifactLock,
     withLifecycleLock,
     withPluginOperationLock,
     notifyPluginsChanged,

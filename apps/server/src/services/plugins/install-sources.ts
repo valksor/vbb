@@ -340,7 +340,7 @@ export function npmPackageRoot(prefix: string, packageName: string): string {
   return join(prefix, "node_modules", ...packageName.split("/"));
 }
 
-function resolveInside(
+export function resolveInside(
   root: string,
   segments: string[],
   label: string,
