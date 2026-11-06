@@ -60,6 +60,7 @@ import {
   QUEUED_MESSAGE_CLAIM_LOST_CODE,
 } from "./queue-waits.js";
 import { recordQueuedMessageDrainFailure } from "./queue-drain-failure.js";
+import { isAutomaticQueuedDispatchHeld } from "./queue-quiesce.fork.js";
 import { clearUserQueuedContinuations } from "./worktree-promotion.js";
 import {
   captureUserMessageSentTelemetry,
@@ -654,6 +655,7 @@ export async function sendNextQueuedMessageIfPresent(
   deps: LoggedPendingInteractionWorkSessionDeps,
   args: { threadId: string },
 ): Promise<boolean> {
+  if (isAutomaticQueuedDispatchHeld(deps)) return false;
   const initialThread = getThread(deps.db, args.threadId);
   if (!isQueuedMessageAutoSendCandidate(initialThread)) {
     return false;

@@ -2,6 +2,7 @@ import { createDesktopAppUpdateService } from "./services/system/desktop-app-upd
 import { createScheduledAppUpdateService } from "./services/system/app-update-schedule.js";
 import { createDesktopUpdateChannel } from "./services/system/desktop-update-channel.js";
 import { serve } from "@hono/node-server";
+import { createForkMaintenance } from "./start-server.fork.js";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -161,6 +162,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
         })
       : null;
   const hub = new NotificationHub();
+  const forkMaintenance = createForkMaintenance({ db, hub, logger });
   const watchInterests = new WatchInterestCoordinator({ db, hub });
   const sharedPorts = new HostSharedPortCoordinator({ db, hub });
   const lifecycleDedupers = createLifecycleDedupers();
@@ -348,6 +350,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
       terminalSessions,
       watchInterests,
       sharedPorts,
+      workQuiesce: forkMaintenance.workQuiesce,
     },
     {
       serverMove: {
@@ -426,6 +429,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     telemetry,
     terminalSessions,
   };
+  forkMaintenance.attach({ pluginService, sweepDeps });
   const providerModelCatalogPrewarm =
     pendingServerMove === null
       ? installProviderModelCatalogPrewarm(sweepDeps)
@@ -447,6 +451,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
     );
   }
 
+  const adminServer = await forkMaintenance.startAdminServer(serverConfig);
   const server = startHttpListener({
     fetch: app.fetch,
     serverConfig,
@@ -533,6 +538,7 @@ export async function runServer(serverConfig: ServerConfig): Promise<void> {
       await tunnelIngress.closeAll();
       await closeWebSockets();
       await closeServer;
+      await adminServer.close();
     })();
     return shutdownPromise;
   };

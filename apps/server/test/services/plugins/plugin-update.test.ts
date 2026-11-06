@@ -41,6 +41,7 @@ import {
   upsertPluginMarketplace,
   type DbConnection,
 } from "@bb/db";
+import { WorkQuiesceService } from "../../../src/services/system/work-quiesce.js";
 import { createMigratedConnection } from "@bb/db/testing";
 import type { Logger } from "@bb/logger";
 import { registerPluginRoutes } from "../../../src/routes/plugins.js";
@@ -97,6 +98,50 @@ async function commitPlugin(
 }
 
 describe("plugin update scheduling", () => {
+  it("defers periodic checks while sealed and schedules them after release", async () => {
+    const HOUR = 60 * 60 * 1_000;
+    const emptyDb = createMigratedConnection();
+    const scheduled: number[] = [];
+    const emptyService = createPluginService({
+      aiServices: createAiServiceRegistry(), telemetry: createNoopTelemetryService(), db: emptyDb,
+      hub: { getDaemonSessionIdForHost: () => null, notifyPluginChanged: () => {}, notifyPluginSignal: () => 0, notifySystem: () => {}, onWatchedTargets: () => () => {} },
+      logger, dataDir: join(tmpdir(), "bb-plugin-update-sealed-test"), appVersion: "1.0.0", stabilizationWindowMs: 0,
+      scheduleUpdateCheck: (delayMs) => { scheduled.push(delayMs); return () => {}; },
+    });
+    const quiesce = new WorkQuiesceService({ db: emptyDb, local: { quiesce: () => emptyService.quiesceBackgroundWork(), release: () => emptyService.resumeBackgroundWork() }, transport: { listConnectedHostIds: () => [], send: async () => { throw new Error("no host barrier expected"); } } });
+    try {
+      await quiesce.acquire({ operationId: "update-1", ownerSecret: "owner-secret", reason: "VPS update", ttlMs: 60_000 });
+      await quiesce.seal({ operationId: "update-1", ownerSecret: "owner-secret", candidateRelease: "candidate", previousRelease: "previous", allowActiveWork: false });
+      emptyService.startPeriodicUpdateChecks();
+      expect(scheduled).toEqual([]);
+      quiesce.transition({ operationId: "update-1", ownerSecret: "owner-secret", expectedPhase: "sealed", phase: "activating" });
+      quiesce.transition({ operationId: "update-1", ownerSecret: "owner-secret", expectedPhase: "activating", phase: "verifying" });
+      await quiesce.release({ operationId: "update-1", ownerSecret: "owner-secret", resolution: "completed" });
+      expect(scheduled).toEqual([6 * HOUR]);
+    } finally { await emptyService.stop(); emptyDb.$client.close(); }
+  });
+
+  it("rejects an elapsed periodic callback after maintenance closes admission", async () => {
+    const emptyDb = createMigratedConnection();
+    const scheduled: Array<{ delayMs: number; onElapsed: () => void }> = [];
+    const emptyService = createPluginService({
+      aiServices: createAiServiceRegistry(), telemetry: createNoopTelemetryService(), db: emptyDb,
+      hub: { getDaemonSessionIdForHost: () => null, notifyPluginChanged: () => {}, notifyPluginSignal: () => 0, notifySystem: () => {}, onWatchedTargets: () => () => {} },
+      logger, dataDir: join(tmpdir(), "bb-plugin-update-race-test"), appVersion: "1.0.0", stabilizationWindowMs: 0,
+      scheduleUpdateCheck: (delayMs, onElapsed) => { scheduled.push({ delayMs, onElapsed }); return () => {}; },
+    });
+    try {
+      emptyService.startPeriodicUpdateChecks();
+      const elapsed = scheduled.shift();
+      expect(elapsed).toBeDefined();
+      const quiesce = new WorkQuiesceService({ db: emptyDb, local: { quiesce: () => emptyService.quiesceBackgroundWork(), release: () => emptyService.resumeBackgroundWork() }, transport: { listConnectedHostIds: () => [], send: async () => { throw new Error("no host barrier expected"); } } });
+      await quiesce.acquire({ operationId: "update-race", ownerSecret: "owner-secret", reason: "VPS update", ttlMs: 60_000 });
+      elapsed?.onElapsed();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(scheduled).toEqual([]);
+    } finally { await emptyService.stop(); emptyDb.$client.close(); }
+  });
+
   it("waits one full interval when no plugins are eligible for update checks", async () => {
     const HOUR = 60 * 60 * 1_000;
     const emptyDb = createMigratedConnection();
@@ -1151,6 +1196,106 @@ describe("plugin update service and routes", () => {
       enabledFollowsDefault: false,
     });
   }
+
+  async function restartWithScheduler(clock: () => number) {
+    const scheduled: Array<{ delayMs: number; onElapsed: () => void }> = [];
+    await service.stop();
+    service = createPluginService({
+      aiServices: createAiServiceRegistry(),
+      telemetry: createNoopTelemetryService(),
+      db,
+      hub: {
+        getDaemonSessionIdForHost: () => null,
+        notifyPluginChanged: () => {},
+        notifyPluginSignal: () => 0,
+        notifySystem: () => {},
+        onWatchedTargets: () => () => {},
+      },
+      logger,
+      dataDir: join(workDir, "data"),
+      appVersion: "1.0.0",
+      stabilizationWindowMs: 0,
+      now: clock,
+      scheduleUpdateCheck: (delayMs, onElapsed) => {
+        const entry = { delayMs, onElapsed };
+        scheduled.push(entry);
+        return () => {
+          const index = scheduled.indexOf(entry);
+          if (index !== -1) scheduled.splice(index, 1);
+        };
+      },
+    });
+    await service.start();
+    return scheduled;
+  }
+
+  it("waits for an admitted periodic check before maintenance acquisition completes", async () => {
+    const scheduled = await restartWithScheduler(Date.now);
+    upsertNpmRow("slow-check", "https://slow-check.test");
+    let releaseFetch!: (response: Response) => void;
+    let markFetchStarted!: () => void;
+    const fetchStarted = new Promise<void>((resolve) => {
+      markFetchStarted = resolve;
+    });
+    vi.stubGlobal("fetch", () => {
+      markFetchStarted();
+      return new Promise<Response>((resolve) => {
+        releaseFetch = resolve;
+      });
+    });
+    const quiesce = new WorkQuiesceService({
+      db,
+      local: {
+        quiesce: () => service.quiesceBackgroundWork(),
+        release: () => service.resumeBackgroundWork(),
+      },
+      transport: {
+        listConnectedHostIds: () => [],
+        send: async () => {
+          throw new Error("no host barrier expected");
+        },
+      },
+    });
+
+    service.startPeriodicUpdateChecks();
+    const elapsed = scheduled.shift();
+    expect(elapsed).toBeDefined();
+    elapsed?.onElapsed();
+    await fetchStarted;
+
+    let acquired = false;
+    const acquisition = quiesce
+      .acquire({
+        operationId: "update-in-flight",
+        ownerSecret: "owner-secret",
+        reason: "VPS update",
+        ttlMs: 60_000,
+      })
+      .then(() => {
+        acquired = true;
+      });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(acquired).toBe(false);
+
+    releaseFetch(
+      new Response(
+        JSON.stringify({
+          versions: {
+            "1.0.0": {
+              version: "1.0.0",
+              dist: { integrity: "sha512-current" },
+            },
+          },
+          "dist-tags": { latest: "1.0.0" },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    await acquisition;
+
+    expect(acquired).toBe(true);
+    expect(scheduled).toEqual([]);
+  });
 
   it("shares one in-flight full sweep between concurrent callers", async () => {
     await installUpdater();

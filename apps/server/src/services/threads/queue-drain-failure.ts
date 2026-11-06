@@ -12,6 +12,7 @@ import type { LoggedPendingInteractionWorkSessionDeps } from "../../types.js";
 import { dispatchEnvironmentAndHost } from "./dispatch-hooks.js";
 import { isParentNotifiableChildThread } from "./thread-parent.js";
 import { queueChildThreadTurnNotificationBestEffort } from "./child-thread-notifications.js";
+import { isHeldWorkQuiescedError } from "./queue-quiesce.fork.js";
 
 type QueueDrainFailureDeps = LoggedPendingInteractionWorkSessionDeps;
 
@@ -64,6 +65,7 @@ export function recordQueuedMessageDrainFailure(
     thread: Thread;
   },
 ): void {
+  if (isHeldWorkQuiescedError(deps, args.error)) return;
   const { host } = dispatchEnvironmentAndHost(deps, args.thread.environmentId);
   if (host !== null && !deps.hub.hasDaemonForHost(host.id)) {
     setQueuedThreadMessageWaitingOn(deps.db, deps.hub, {

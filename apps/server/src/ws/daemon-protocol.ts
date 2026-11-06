@@ -38,6 +38,7 @@ import {
   isServerMoveSnapshotFenced,
 } from "../services/server-move/freeze-state.js";
 import { resumeEnvironmentProvisioningForHost } from "../services/environments/environment-engine.js";
+import { openDaemonSocketBehindMaintenanceGate } from "./daemon-protocol.fork.js";
 
 interface DaemonSocket {
   close(code?: number, reason?: string): void;
@@ -99,13 +100,20 @@ export const SERVER_MOVE_FENCED_DAEMON_MESSAGE_TYPES: ReadonlySet<
 
 export function onDaemonSocketOpen(
   deps: LoggedPendingInteractionWorkSessionDeps &
-    Pick<AppDeps, "hub" | "logger" | "sharedPorts" | "terminalSessions">,
+    Pick<
+      AppDeps,
+      "hub" | "logger" | "sharedPorts" | "terminalSessions" | "workQuiesce"
+    >,
   args: { hostId: string; sessionId: string; socket: DaemonSocket },
 ): void {
   deps.logger.info(
     { sessionId: args.sessionId, hostId: args.hostId },
     "Daemon WebSocket opened",
   );
+  if (deps.workQuiesce) {
+    openDaemonSocketBehindMaintenanceGate(deps, args, deps.workQuiesce);
+    return;
+  }
   deps.hub.registerDaemon(args.sessionId, args.hostId, args.socket);
   handleDaemonSocketOpened(deps, { hostId: args.hostId });
   deps.sharedPorts.pushCurrentSharedPortsForHost(args.hostId);

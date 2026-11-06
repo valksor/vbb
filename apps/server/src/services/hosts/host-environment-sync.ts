@@ -1,5 +1,6 @@
 import type { AppDeps } from "../../types.js";
 import { resolveHostEnvironment } from "./host-environment.js";
+import { deferRefreshWhileQuiesced } from "./host-environment-sync.fork.js";
 
 export class HostEnvironmentSync {
   private revision = 0;
@@ -45,6 +46,8 @@ export class HostEnvironmentSync {
       .then((environment) => {
         if (this.pending.get(hostId) !== revision) return;
         this.pending.delete(hostId);
+        const retry = () => this.refresh(hostId);
+        if (deferRefreshWhileQuiesced(this.deps.db, hostId, retry)) return;
         this.deps.hub.sendDaemonMessage(hostId, {
           type: "machine-environment.replace",
           environment,

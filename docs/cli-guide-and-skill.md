@@ -7,3 +7,5 @@ Keep the discoverable surfaces in sync whenever you add or change a `bb` CLI com
 - For plugin commands and settings, update the owning plugin's `skills/<name>/SKILL.md` or supporting reference, including built-in plugins. Configuration knobs also belong in `docs/configuration.md`.
 - Keep maintainer and repository-development instructions (source startup, release and publishing steps) in `docs/` and app READMEs, not in the guide or shipped skills.
 - Match the existing chapter/section style; keep entries concise and accurate against the implementation.
+
+Local maintenance commands must stay aligned across `bb guide maintenance` and the bb-cli command index.

@@ -152,6 +152,11 @@
       "source": "./src/desktop-app-update.ts",
       "types": "./src/desktop-app-update.ts",
       "default": "./src/desktop-app-update.ts"
+    },
+    "./admin-socket": {
+      "source": "./src/admin-socket.ts",
+      "types": "./src/admin-socket.ts",
+      "default": "./src/admin-socket.ts"
     }
   },
   "scripts": {

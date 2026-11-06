@@ -35,7 +35,7 @@ import type { ProviderRegistryService } from "../providers/provider-registry.js"
 import type { PluginHostArtifactRegistry } from "./plugin-host-artifact-registry.js";
 import type { EmitThreadTurnWatchdog } from "./plugin-thread-events.fork.js";
 
-type PluginServiceState = "running" | "backoff" | "stopped";
+type PluginServiceState = "running" | "backoff" | "quiesced" | "stopped";
 
 export interface ServiceRuntime {
   record: PluginBackgroundServiceRecord;

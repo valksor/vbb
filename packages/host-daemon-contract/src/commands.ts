@@ -35,6 +35,7 @@ import {
   gitSourceInspectionSchema,
 } from "@bb/domain";
 import { z } from "zod";
+import { forkHostDaemonCommandRegistry } from "./commands.fork.js";
 import {
   pathsExistRequestSchema,
   pathsExistResponseSchema,
@@ -1235,7 +1236,7 @@ type HostDaemonCommandTransport = "settled" | "onlineRpc";
 export type HostDaemonCommandEnvironmentLane = "read" | "write";
 type HostDaemonFlushEventsBeforeResult = boolean | "when-initiated";
 
-interface HostDaemonCommandDescriptor<
+export interface HostDaemonCommandDescriptor<
   Type extends string,
   Schema extends z.ZodTypeAny,
   ResultSchema extends z.ZodTypeAny,
@@ -1251,7 +1252,7 @@ interface HostDaemonCommandDescriptor<
   envLane: HostDaemonCommandEnvironmentLane | null;
 }
 
-function defineHostDaemonCommandDescriptor<
+export function defineHostDaemonCommandDescriptor<
   const Type extends string,
   Schema extends z.ZodTypeAny,
   ResultSchema extends z.ZodTypeAny,
@@ -1275,7 +1276,7 @@ function defineHostDaemonCommandDescriptor<
   return descriptor;
 }
 
-export const hostDaemonCommandRegistry = {
+export const coreHostDaemonCommandRegistry = {
   "desktop.broker.prove": defineHostDaemonCommandDescriptor({
     type: "desktop.broker.prove",
     schema: z
@@ -1930,6 +1931,11 @@ export const hostDaemonCommandRegistry = {
     flushEventsBeforeResult: false,
     envLane: null,
   }),
+};
+
+export const hostDaemonCommandRegistry = {
+  ...coreHostDaemonCommandRegistry,
+  ...forkHostDaemonCommandRegistry,
 };
 
 type HostDaemonCommandRegistry = typeof hostDaemonCommandRegistry;

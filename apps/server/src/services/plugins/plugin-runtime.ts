@@ -11,6 +11,7 @@ import {
   type ThreadQueuedMessage,
 } from "@bb/domain";
 import { logPluginBuildWarnings } from "./plugin-log.js";
+import { createBackgroundQuiesce } from "./plugin-runtime-quiesce.fork.js";
 import type { MachineEnrollmentService } from "../machines/machine-services.js";
 import { AsyncLocalStorage } from "node:async_hooks";
 import {
@@ -392,6 +393,12 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
     deps.serviceRestartBaseMs ?? DEFAULT_SERVICE_RESTART_BASE_MS;
 
   const loaded = new Map<string, LoadedPlugin>();
+  const backgroundQuiesce = createBackgroundQuiesce({
+    db: deps.db,
+    loaded,
+    runService,
+    stopTimeoutMs: serviceStopTimeoutMs,
+  });
   const initializedSourceBuiltinIds = new Set<string>();
   deps.pendingInteractions?.setPluginDirectory({
     isLoaded: (pluginId) => loaded.has(pluginId),
@@ -535,6 +542,8 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
   const serviceContext = new AsyncLocalStorage<ServiceInstance>();
 
   function runService(id: string, service: ServiceRuntime): void {
+    const admission = backgroundQuiesce.admit(id, service);
+    if (admission === null) return;
     const controller = new AbortController();
     service.controller = controller;
     service.state = "running";
@@ -546,7 +555,9 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
       uncaughtError: undefined,
     };
     const current = serviceContext.run(instance, async () => {
-      await service.record.start(controller.signal);
+      await backgroundQuiesce.run(admission, () =>
+        service.record.start(controller.signal),
+      );
     });
     service.current = current;
     current.then(
@@ -651,6 +662,9 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
     service.controller = null;
     if (service.disposed) return;
     const name = service.record.name;
+    if (backgroundQuiesce.settled(service, () => runService(id, service))) {
+      return;
+    }
     if (!outcome.crashed) {
       service.state = "stopped";
       logger.info(`[plugin:${id}] service ${name} stopped`);
@@ -2270,6 +2284,8 @@ export function createPluginRuntime(context: PluginRuntimeContext) {
     loadAll,
     loaded,
     loadOne,
+    quiesceBackgroundWork: backgroundQuiesce.quiesce,
+    resumeBackgroundWork: backgroundQuiesce.resume,
     brandingAssets,
     safeModeActivationRefusal,
     setDevBuildProblem,
