@@ -25,6 +25,15 @@ import {
 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createManagedProcessStop } from "./managed-process.mjs";
+import {
+  createPackedBridgeEnvironment,
+  createSmokeEnvironment,
+  installWorkspaceNativeArtifacts,
+  normalizeNpmPackOutput,
+  parseSingleNpmPackEntry,
+  useWorkspaceArtifacts,
+  workspaceTypescriptInvocation,
+} from "./smoke-tarball.fork.mjs";
 
 const HTTP_WAIT_TIMEOUT_MS = 60_000;
 const HTTP_WAIT_INTERVAL_MS = 250;
@@ -68,11 +77,12 @@ const PORT_COLLISION_PATTERN =
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(scriptsDir, "..");
-const tempRoot = await mkdtemp(join(tmpdir(), "bb-app-tarball-"));
+const tempRoot = await mkdtemp(join(tmpdir(), "bb-"));
 const smokeProcessEnv = {
   BB_TELEMETRY: "false",
 };
 const stopManagedProcess = createManagedProcessStop(PROCESS_STOP_TIMEOUT_MS);
+const smokeEnvironment = createSmokeEnvironment({ smokeProcessEnv, tempRoot });
 
 function formatElapsed(startedAt) {
   return `${((performance.now() - startedAt) / 1000).toFixed(1)}s`;
@@ -173,11 +183,7 @@ async function runCommand({ args, command, cwd = tempRoot, env = {}, label }) {
   const childProcess = spawn(launch.command, launch.args, {
     windowsVerbatimArguments: launch.windowsVerbatimArguments === true,
     cwd,
-    env: {
-      ...process.env,
-      ...env,
-      ...smokeProcessEnv,
-    },
+    env: smokeEnvironment(env),
     stdio: ["ignore", "pipe", "pipe"],
   });
   const output = collectProcessOutput(childProcess);
@@ -197,11 +203,7 @@ function spawnManagedProcess({ args, command, env = {}, label }) {
     windowsVerbatimArguments: launch.windowsVerbatimArguments === true,
     cwd: tempRoot,
     detached,
-    env: {
-      ...process.env,
-      ...env,
-      ...smokeProcessEnv,
-    },
+    env: smokeEnvironment(env),
     stdio: ["ignore", "pipe", "pipe"],
   });
   const output = collectProcessOutput(childProcess);
@@ -527,7 +529,7 @@ async function packTarball() {
       command: "npm",
       label: "npm pack",
     });
-    const packed = JSON.parse(stdout);
+    const packed = normalizeNpmPackOutput(JSON.parse(stdout));
     if (!Array.isArray(packed) || packed.length !== 1) {
       throw new Error(`Unexpected npm pack output: ${stdout}`);
     }
@@ -641,7 +643,11 @@ function spawnPackedBridge({ bridgePath, packageDir, pluginId }) {
       pluginId,
       dataDir,
     ],
-    { cwd: tempRoot, stdio: ["pipe", "pipe", "pipe"] },
+    {
+      cwd: tempRoot,
+      env: createPackedBridgeEnvironment({ pluginId, tempRoot }),
+      stdio: ["pipe", "pipe", "pipe"],
+    },
   );
 }
 
@@ -939,7 +945,7 @@ async function smokeSdkPackage(tarballPath) {
     runCommand({
       args: [
         "install",
-        "--ignore-scripts=false",
+        `--ignore-scripts=${useWorkspaceArtifacts ? "true" : "false"}`,
         "--no-audit",
         "--no-fund",
         `bb-app@file:${tarballPath}`,
@@ -949,6 +955,7 @@ async function smokeSdkPackage(tarballPath) {
       label: "install bb-app SDK smoke package",
     }),
   );
+  await installWorkspaceNativeArtifacts({ packageRoot, sdkDir });
   await runCommand({
     args: [
       "--input-type=module",
@@ -991,7 +998,7 @@ async function smokeSdkPackage(tarballPath) {
       "",
     ].join("\n"),
   );
-  await timed("npx typescript check", () =>
+  await timed("typescript check", () =>
     runCommand({
       args: [
         "--yes",
@@ -1011,6 +1018,7 @@ async function smokeSdkPackage(tarballPath) {
         "sdk-smoke.ts",
       ],
       command: "npx",
+      ...workspaceTypescriptInvocation({ packageRoot }),
       cwd: sdkDir,
       label: "bb-app SDK TypeScript import",
     }),
@@ -1025,8 +1033,7 @@ async function smokeInstalledRepack(installedPackageDir) {
     cwd: installedPackageDir,
     label: "repack installed bb-app",
   });
-  const [packed] = JSON.parse(stdout);
-  if (!Array.isArray(packed?.files)) throw new Error("Invalid npm pack output");
+  const packed = parseSingleNpmPackEntry(stdout);
   const chunkPrefix = "host-daemon/dist/bb-chunks/";
   const liveChunks = readdirSync(join(installedPackageDir, chunkPrefix))
     .filter((name) => name.endsWith(".js"))
@@ -1044,7 +1051,7 @@ async function smokeInstalledRepack(installedPackageDir) {
   }
 }
 
-async function smokeBuiltinPluginsRunning({ binDir, cliEnv }) {
+async function smokeBuiltinPluginsRunning({ binDir, cliEnv, processRef }) {
   const deadline = Date.now() + PLUGIN_LOAD_TIMEOUT_MS;
   let lastSummary = "no plugin list output yet";
   // Plugins load after the HTTP server starts listening, so poll until every
@@ -1090,7 +1097,7 @@ async function smokeBuiltinPluginsRunning({ binDir, cliEnv }) {
     await delay(PLUGIN_LOAD_INTERVAL_MS);
   }
   throw new Error(
-    `Timed out waiting for builtin plugins to run: ${lastSummary}`,
+    `Timed out waiting for builtin plugins to run: ${lastSummary}\n${formatProcessOutput(processRef.output)}`,
   );
 }
 
@@ -1159,7 +1166,7 @@ async function smokeFullStackAttempt(binDir, sdkDir, attempt) {
       env: cliEnv,
       label: "bb cli status",
     });
-    await smokeBuiltinPluginsRunning({ binDir, cliEnv });
+    await smokeBuiltinPluginsRunning({ binDir, cliEnv, processRef: stack });
     // Keep Awake reconciles even its default disabled state, so reaching this
     // log proves the packed daemon found its companion worker, downloaded the
     // plugin artifact, and started the worker for a host RPC call.
@@ -1304,7 +1311,7 @@ async function smokeDaemonJoinAttempt(binDir, attempt) {
       BB_HOST_DAEMON_PORT: String(firstDaemonReservation.port),
       BB_SERVER_URL: serverUrl,
     };
-    await smokeBuiltinPluginsRunning({ binDir, cliEnv });
+    await smokeBuiltinPluginsRunning({ binDir, cliEnv, processRef: server });
     // Both daemons joined a server in a different process and data directory.
     // Ready workers on both prove host-plugin artifacts and calls fan out to
     // enrolled machines instead of assuming server-local paths.
@@ -1336,7 +1343,10 @@ try {
   const smokeStartedAt = performance.now();
   const tarballPath = await timed("npm pack", () => packTarball());
   let sdkDir;
-  if (["win32", "linux", "darwin"].includes(process.platform)) {
+  if (
+    !useWorkspaceArtifacts &&
+    ["win32", "linux", "darwin"].includes(process.platform)
+  ) {
     const [npxResult, sdkResult] = await Promise.allSettled([
       timed("npx entrypoint", () => smokeNpxEntrypoint(tarballPath)),
       timed("sdk package", () => smokeSdkPackage(tarballPath)),
@@ -1345,7 +1355,9 @@ try {
     if (sdkResult.status === "rejected") throw sdkResult.reason;
     sdkDir = sdkResult.value;
   } else {
-    await timed("npx entrypoint", () => smokeNpxEntrypoint(tarballPath));
+    if (!useWorkspaceArtifacts) {
+      await timed("npx entrypoint", () => smokeNpxEntrypoint(tarballPath));
+    }
     sdkDir = await timed("sdk package", () => smokeSdkPackage(tarballPath));
   }
   const installedBinDir = join(sdkDir, "node_modules", ".bin");
