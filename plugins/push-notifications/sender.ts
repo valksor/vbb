@@ -24,7 +24,7 @@ import {
   type NotificationLevel,
   type PushNotificationKind,
 } from "./preferences.js";
-import { turnWatchdogMessage } from "./sender.fork.js";
+import { hasRunningChild, turnWatchdogMessage } from "./sender.fork.js";
 import type { PushSubscriptionStore } from "./subscriptions.js";
 
 type ThreadResponse = PluginThreadEventPayloads["thread.idle"]["thread"];
@@ -367,6 +367,9 @@ export function createPushSender(args: CreatePushSenderArgs): PushSender {
     }
     const kind = pickKind(kinds);
     if (kind === null) return null;
+    if (kind === "turn-finished" && (await hasRunningChild(bb, thread.id))) {
+      return null;
+    }
     if (kind === "pending-interaction") {
       return {
         kind,

@@ -25,6 +25,26 @@ type PendingInteraction =
   PluginThreadEventPayloads["interaction.pending"]["interaction"];
 
 const COALESCE_MS = 10;
+const CHILD_STATES = [
+  { name: "starting", status: "starting", queued: "none", silent: true },
+  { name: "active", status: "active", queued: "none", silent: true },
+  { name: "stopping", status: "stopping", queued: "none", silent: true },
+  {
+    name: "pending+waiting",
+    status: "pending",
+    queued: "waiting",
+    silent: true,
+  },
+  { name: "idle", status: "idle", queued: "none", silent: false },
+  { name: "error", status: "error", queued: "none", silent: false },
+  { name: "pending+none", status: "pending", queued: "none", silent: false },
+  {
+    name: "pending+failed",
+    status: "pending",
+    queued: "failed",
+    silent: false,
+  },
+] as const;
 const EXPO_URL = "http://expo.test/push";
 
 interface FakeExpo {
@@ -104,6 +124,36 @@ function pendingQuestion(threadId: string, prompt: string): PendingInteraction {
   };
 }
 
+function createThreadList(
+  threads: Map<string, ThreadResponse>,
+  queuedWork: Map<string, "none" | "waiting" | "failed">,
+  listCalls: (string | undefined)[],
+  listFailure: { error: Error | null },
+) {
+  return async (
+    filter: {
+      archived?: boolean;
+      includeHidden?: boolean;
+      parentThreadId?: string;
+    } = {},
+  ) => {
+    listCalls.push(filter.parentThreadId);
+    if (listFailure.error) throw listFailure.error;
+    return [...threads.values()]
+      .filter(
+        (thread) =>
+          (filter.parentThreadId === undefined ||
+            thread.parentThreadId === filter.parentThreadId) &&
+          (filter.archived !== false || thread.archivedAt === null) &&
+          (filter.includeHidden === true || thread.visibility === "visible"),
+      )
+      .map((thread) => ({
+        ...thread,
+        queuedWork: queuedWork.get(thread.id) ?? "none",
+      }));
+  };
+}
+
 interface SetupOptions {
   appUrl?: string | null;
   dismissReadNotifications?: boolean;
@@ -117,6 +167,9 @@ async function setup(options: SetupOptions = {}) {
   const threads = new Map<string, ThreadResponse>();
   const interactions = new Map<string, PendingInteraction[]>();
   const metadata = new Map<string, Record<string, unknown>>();
+  const queuedWork = new Map<string, "none" | "waiting" | "failed">();
+  const listCalls: (string | undefined)[] = [];
+  const listFailure: { error: Error | null } = { error: null };
   let nextId = 1;
   const listAncestors = vi.fn(
     async ({ threadIds }: { threadIds: readonly string[] }) => ({
@@ -186,6 +239,7 @@ async function setup(options: SetupOptions = {}) {
             return value === undefined ? [] : [{ threadId, metadata: value }];
           }),
         }),
+        list: createThreadList(threads, queuedWork, listCalls, listFailure),
         interactions: {
           list: async ({ threadId }) => interactions.get(threadId) ?? [],
         },
@@ -291,7 +345,10 @@ async function setup(options: SetupOptions = {}) {
     getLevel,
     interactions,
     listAncestors,
+    listCalls,
+    listFailure,
     listLevels,
+    queuedWork,
     setLevel,
     setThread,
     stopService,
@@ -470,6 +527,271 @@ describe("push subscription RPC and CLI", () => {
 });
 
 describe("push sender", () => {
+  describe("parent completion suppression", () => {
+    it.each(CHILD_STATES)(
+      "idle parent with a child that is $name: silent=$silent",
+      async ({ status, queued, silent }) => {
+        const host = await setup();
+        try {
+          await host.addSubscription();
+          const parent = host.setThread({ id: "parent" });
+          host.setThread({ id: "child", parentThreadId: parent.id, status });
+          host.queuedWork.set("child", queued);
+
+          await host.harness.behavior.emitThreadEvent("thread.idle", {
+            thread: parent,
+            lastAssistantText: "Parent turn done",
+          });
+          if (silent) {
+            await waitForCoalesce();
+            expect(host.expo.requests).toEqual([]);
+            expect(host.harness.realtimeSignals).toEqual([]);
+          } else {
+            await vi.waitFor(() =>
+              expect(host.expo.requests).toHaveLength(1),
+            );
+            expect(host.expo.requests[0]?.[0]).toMatchObject({
+              body: "Parent turn done",
+              data: { kind: "turn-finished", threadId: parent.id },
+            });
+            expect(host.harness.realtimeSignals).toHaveLength(1);
+          }
+        } finally {
+          await host.cleanup();
+        }
+      },
+    );
+
+    it.each([
+      {
+        name: "an unrelated top-level thread",
+        overrides: { id: "other", status: "active" as const },
+      },
+      {
+        name: "another parent's child",
+        overrides: {
+          id: "other",
+          parentThreadId: "someone-else",
+          status: "active" as const,
+        },
+      },
+      {
+        name: "a running grandchild below an idle child",
+        overrides: {
+          id: "other",
+          parentThreadId: "child",
+          status: "active" as const,
+        },
+      },
+      {
+        name: "a hidden child",
+        overrides: {
+          id: "other",
+          parentThreadId: "parent",
+          status: "active" as const,
+          visibility: "hidden" as const,
+        },
+      },
+      {
+        name: "an archived child",
+        overrides: {
+          id: "other",
+          parentThreadId: "parent",
+          status: "active" as const,
+          archivedAt: 5,
+        },
+      },
+    ])("does not mute an idle parent because of $name", async ({ overrides }) => {
+      const host = await setup();
+      try {
+        await host.addSubscription();
+        const parent = host.setThread({ id: "parent" });
+        if (
+          "parentThreadId" in overrides &&
+          overrides.parentThreadId === "child"
+        ) {
+          host.setThread({
+            id: "child",
+            parentThreadId: parent.id,
+            status: "idle",
+          });
+        }
+        host.setThread(overrides);
+
+        await host.harness.behavior.emitThreadEvent("thread.idle", {
+          thread: parent,
+          lastAssistantText: "Parent turn done",
+        });
+        await vi.waitFor(() => expect(host.expo.requests).toHaveLength(1));
+        expect(host.expo.requests[0]?.[0]).toMatchObject({
+          data: { kind: "turn-finished", threadId: parent.id },
+        });
+        expect(host.clientSignals()).toHaveLength(1);
+      } finally {
+        await host.cleanup();
+      }
+    });
+
+    it("fails open when the child lookup rejects", async () => {
+      const host = await setup();
+      try {
+        await host.addSubscription();
+        host.listFailure.error = new Error("list unavailable");
+        const parent = host.setThread({ id: "parent" });
+        host.setThread({
+          id: "child",
+          parentThreadId: parent.id,
+          status: "active",
+        });
+
+        await host.harness.behavior.emitThreadEvent("thread.idle", {
+          thread: parent,
+          lastAssistantText: "Parent turn done",
+        });
+        await vi.waitFor(() => expect(host.expo.requests).toHaveLength(1));
+        expect(host.expo.requests[0]?.[0]).toMatchObject({
+          body: "Parent turn done",
+          data: { kind: "turn-finished", threadId: parent.id },
+        });
+        expect(host.listCalls).toContain(parent.id);
+
+        const asking = host.setThread({ id: "asking" });
+        const interaction = pendingQuestion(asking.id, "Proceed?");
+        host.interactions.set(asking.id, [interaction]);
+        await host.harness.behavior.emitThreadEvent("thread.idle", {
+          thread: asking,
+          lastAssistantText: "Waiting",
+        });
+        await host.harness.behavior.emitThreadEvent("interaction.pending", {
+          thread: asking,
+          interaction,
+        });
+        await vi.waitFor(() => expect(host.expo.requests).toHaveLength(2));
+        expect(host.expo.requests[1]?.[0]).toMatchObject({
+          body: "Proceed?",
+          data: { kind: "pending-interaction", threadId: asking.id },
+        });
+      } finally {
+        await host.cleanup();
+      }
+    });
+
+    it("still sends the pending-interaction push for a parent with a running child", async () => {
+      const host = await setup();
+      try {
+        await host.addSubscription();
+        const parent = host.setThread({ id: "parent" });
+        host.setThread({
+          id: "child",
+          parentThreadId: parent.id,
+          status: "active",
+        });
+        const interaction = pendingQuestion(parent.id, "Proceed?");
+        host.interactions.set(parent.id, [interaction]);
+
+        await host.harness.behavior.emitThreadEvent("thread.idle", {
+          thread: parent,
+          lastAssistantText: "Waiting on the child",
+        });
+        await host.harness.behavior.emitThreadEvent("interaction.pending", {
+          thread: parent,
+          interaction,
+        });
+        await vi.waitFor(() => expect(host.expo.requests).toHaveLength(1));
+        expect(host.expo.requests[0]?.[0]).toMatchObject({
+          body: "Proceed?",
+          data: { kind: "pending-interaction", threadId: parent.id },
+        });
+        expect(host.listCalls).toEqual([]);
+      } finally {
+        await host.cleanup();
+      }
+    });
+
+    it("notifies on a later parent completion after the immediate child becomes idle", async () => {
+      const host = await setup();
+      try {
+        await host.addSubscription();
+        const parent = host.setThread({ id: "parent" });
+        const child = host.setThread({
+          id: "child",
+          parentThreadId: parent.id,
+          status: "active",
+        });
+        await host.harness.behavior.emitThreadEvent("thread.idle", {
+          thread: parent,
+          lastAssistantText: "Waiting on the child",
+        });
+        await waitForCoalesce();
+        expect(host.expo.requests).toEqual([]);
+        expect(host.clientSignals()).toEqual([]);
+        host.threads.set(child.id, { ...child, status: "idle" });
+        await waitForCoalesce();
+        expect(host.expo.requests).toEqual([]);
+        expect(host.clientSignals()).toEqual([]);
+        await host.harness.behavior.emitThreadEvent("thread.idle", {
+          thread: parent,
+          lastAssistantText: "Parent finished after the child",
+        });
+        await vi.waitFor(() => expect(host.expo.requests).toHaveLength(1));
+        expect(host.expo.requests[0]?.[0]).toMatchObject({
+          body: "Parent finished after the child",
+          data: { kind: "turn-finished", threadId: parent.id },
+        });
+        expect(host.clientSignals()).toHaveLength(1);
+      } finally {
+        await host.cleanup();
+      }
+    });
+
+    it.each(["thread-error", "turn-watchdog"] as const)(
+      "still sends %s while an immediate child is running",
+      async (kind) => {
+        const host = await setup();
+        try {
+          await host.addSubscription();
+          const parent = host.setThread({
+            id: "parent",
+            status: kind === "thread-error" ? "error" : "active",
+          });
+          host.setThread({
+            id: "child",
+            parentThreadId: parent.id,
+            status: "active",
+          });
+          if (kind === "thread-error") {
+            await host.harness.behavior.emitThreadEvent("thread.failed", {
+              thread: parent,
+              error: "Parent failed",
+            });
+          } else {
+            await host.harness.behavior.emitThreadEvent(
+              "experimental_thread.turnWatchdog",
+              {
+                thread: parent,
+                action: "notify",
+                elapsedMs: 6 * 60 * 60_000,
+                thresholdMs: 6 * 60 * 60_000,
+              },
+            );
+          }
+          await vi.waitFor(() => expect(host.expo.requests).toHaveLength(1));
+          expect(host.expo.requests[0]?.[0]).toMatchObject({
+            body:
+              kind === "thread-error"
+                ? "Parent failed"
+                : "Turn stalled — no activity for 6 hours",
+            data: { kind, threadId: parent.id },
+          });
+          expect(host.clientSignals()).toHaveLength(1);
+          expect(host.listCalls).toEqual([]);
+        } finally {
+          await host.cleanup();
+        }
+      },
+    );
+  });
+
   it.each([
     {
       action: "notify",
