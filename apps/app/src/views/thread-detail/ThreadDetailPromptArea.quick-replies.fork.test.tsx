@@ -5,6 +5,7 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
 } from "@testing-library/react";
 import { Provider, createStore } from "jotai";
@@ -60,6 +61,37 @@ function renderHarness(args: HookArgs, replies = ["continue"]) {
 afterEach(() => cleanup());
 
 describe("useQuickRepliesCard", () => {
+  it("returns the same node across renders while its inputs are unchanged", () => {
+    const args = createArgs();
+    const store = createStore();
+    store.set(quickRepliesAtom, ["Continue"]);
+    const { result, rerender } = renderHook(() => useQuickRepliesCard(args), {
+      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+    });
+
+    const first = result.current;
+    rerender();
+
+    expect(first).not.toBeNull();
+    expect(result.current).toBe(first);
+  });
+
+  it("returns a new node when the card visibility changes", () => {
+    let args = createArgs();
+    const store = createStore();
+    store.set(quickRepliesAtom, ["Continue"]);
+    const { result, rerender } = renderHook(() => useQuickRepliesCard(args), {
+      wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
+    });
+    const first = result.current;
+
+    args = createArgs({ shouldHideComposer: true });
+    rerender();
+
+    expect(first).not.toBeNull();
+    expect(result.current).toBeNull();
+  });
+
   it.each([
     ["queue mutation", { isQueueMutationPending: true }],
     ["handoff", { isHandoffSelection: true }],
