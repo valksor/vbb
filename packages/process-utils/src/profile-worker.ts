@@ -1,4 +1,4 @@
-import { summarizeStallWindows } from "./stall-attribution.js";
+import { clockOffsetMs, summarizeStallWindows } from "./stall-attribution.js";
 import {
   parseStallWindowBatch,
   type StallWindowBatch,
@@ -48,16 +48,28 @@ async function runProfileWorker(): Promise<void> {
     await setImmediate();
   };
   let startedAt = "";
+  let startedNs = 0n;
   let title = "";
   let finishedProfile: Profiler.Profile | undefined;
   session.on("Profiler.consoleProfileFinished", (event) => {
     if (event.params.title === title) finishedProfile = event.params.profile;
   });
-  const begin = async (name: string) => {
-    await session.post("Runtime.evaluate", {
-      expression: `process.getBuiltinModule("node:inspector").console.profile(${JSON.stringify(name)})`,
-    });
+  const takeFinishedProfile = (): Profiler.Profile | undefined => {
+    const profile = finishedProfile;
+    finishedProfile = undefined;
+    return profile;
   };
+  const readMonotonicNs = (result: { result: { value?: unknown } }) => {
+    if (typeof result.result.value !== "string")
+      throw new Error("Monotonic clock reading was not received");
+    return BigInt(result.result.value);
+  };
+  const begin = async (name: string) =>
+    readMonotonicNs(
+      await session.post("Runtime.evaluate", {
+        expression: `(() => { const now = process.hrtime.bigint(); process.getBuiltinModule("node:inspector").console.profile(${JSON.stringify(name)}); return String(now); })()`,
+      }),
+    );
   const respond = (
     fields: object,
     message: string,
@@ -100,7 +112,7 @@ async function runProfileWorker(): Promise<void> {
     await session.post("Profiler.enable");
     await session.post("Profiler.setSamplingInterval", { interval: 1_000 });
     title = `bb-performance-${randomUUID()}`;
-    await begin(title);
+    startedNs = await begin(title);
     startedAt = new Date().toISOString();
     respond(
       {
@@ -116,21 +128,25 @@ async function runProfileWorker(): Promise<void> {
   };
   const capture = async (restart: boolean, stalls: StallWindowBatch) => {
     const beginning = startedAt;
+    const beginningNs = startedNs;
     const nextTitle = `bb-performance-${randomUUID()}`;
     if (restart) {
-      await begin(nextTitle);
+      startedNs = await begin(nextTitle);
       startedAt = new Date().toISOString();
     }
     finishedProfile = undefined;
-    await session.post("Runtime.evaluate", {
-      expression: `process.getBuiltinModule("node:inspector").console.profileEnd(${JSON.stringify(title)})`,
+    const ended = await session.post("Runtime.evaluate", {
+      expression: `(() => { const now = process.hrtime.bigint(); process.getBuiltinModule("node:inspector").console.profileEnd(${JSON.stringify(title)}); return String(now); })()`,
     });
-    const profile = finishedProfile;
-    finishedProfile = undefined;
+    const profile = takeFinishedProfile();
     if (!profile) throw new Error("CPU profile completion was not received");
+    const offsets = {
+      startMs: clockOffsetMs(beginningNs, profile.startTime),
+      endMs: clockOffsetMs(readMonotonicNs(ended), profile.endTime),
+    };
     title = nextTitle;
     const endedAt = new Date().toISOString();
-    for (const fields of summarizeStallWindows(profile, stalls)) {
+    for (const fields of summarizeStallWindows(profile, stalls, offsets)) {
       respond(fields, "Event loop stall attribution", "info", false);
     }
     const contents = JSON.stringify(profile);
