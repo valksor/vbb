@@ -1529,8 +1529,11 @@ export interface PluginProviderDeclaration {
    * plugin's declared icons by its namespaced glyph (`"<pluginId>/<name>"`,
    * an entry of the manifest's `bb.branding.experimental_icons` map; the
    * plugin id must be this plugin's and the name must be declared, else the
-   * plugin fails to load). Paths follow the manifest entry-path escape rules
-   * — no leading "/", no ".." segments, no backslashes.
+   * plugin fails to load), or a base64 image data URI
+   * (`"data:image/svg+xml;base64,..."`, also `image/png` and `image/webp`, at
+   * most 32 KiB decoded) for artwork the plugin reads at runtime, such as a
+   * user-chosen icon. Paths follow the manifest entry-path escape rules — no
+   * leading "/", no ".." segments, no backslashes.
    */
   icon?: string;
   /**

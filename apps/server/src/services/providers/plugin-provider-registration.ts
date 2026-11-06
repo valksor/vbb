@@ -1,5 +1,6 @@
 import {
   EMPTY_PROVIDER_NATIVE_ROOTS,
+  isImageDataUri,
   isNamespacedGlyph,
   isPluginOwnedIconPath,
 } from "@bb/domain";
@@ -170,12 +171,14 @@ export function buildPluginProviderRegistration(args: {
     logoUrl:
       declaration.icon !== undefined &&
       (isPluginOwnedIconPath(declaration.icon) ||
-        isNamespacedGlyph(declaration.icon))
+        isNamespacedGlyph(declaration.icon) ||
+        isImageDataUri(declaration.icon))
         ? buildProviderLogoUrl(declaration.id, args.iconHash)
         : null,
     ...(declaration.icon !== undefined &&
     !isPluginOwnedIconPath(declaration.icon) &&
-    !isNamespacedGlyph(declaration.icon)
+    !isNamespacedGlyph(declaration.icon) &&
+    !isImageDataUri(declaration.icon)
       ? { icon: { glyph: declaration.icon } }
       : {}),
     capabilities: {

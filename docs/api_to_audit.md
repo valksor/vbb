@@ -1987,8 +1987,10 @@ Docs: `providers.md`, [provider-plugin-api.md](provider-plugin-api.md) §1–2.
    order (vs. first-load time). The user overlay (`providerOrder`) is an
    ordered id list that ignores unknown ids; decide whether stale ids should
    be pruned on write.
-2. **Icon URL shape.** A path or declared icon is snapshotted at registration
-   and served from `/api/v1/system/providers/<id>/logo`; a host glyph name
+2. **Icon URL shape.** A path, a declared icon, or a base64
+   `data:image/{svg+xml,png,webp}` URI of at most 32 KiB (artwork a plugin reads
+   at runtime, such as the ACP plugin's user-chosen icon files) is snapshotted
+   at registration and served from `/api/v1/system/providers/<id>/logo`; a host glyph name
    yields a null `logoUrl` and no server-side resolution. Decide whether the
    host should resolve declared glyph names for providers the way it does for
    plugin branding, and decide the logo route's cache policy, before either

@@ -3,7 +3,9 @@ import {
   realtimeSubscriptionTargetKey,
   type PluginReadSubscriptionTarget,
   calculateExponentialBackoffDelay,
+  isImageDataUri,
   isPluginOwnedIconPath,
+  parseImageDataUri,
   parseNamespacedGlyph,
   PLUGIN_SDK_MAJOR,
   PLUGIN_SDK_VERSION,
@@ -228,6 +230,12 @@ export function readPluginProviderIcon(
   rootDir: string,
   icon: string | undefined,
 ): { bytes: Uint8Array; contentType: string; hash: string } | null {
+  if (icon !== undefined && isImageDataUri(icon)) {
+    const image = parseImageDataUri(icon);
+    return image === null
+      ? null
+      : { ...image, hash: brandingAssetHash(image.bytes) };
+  }
   if (icon === undefined || !isPluginOwnedIconPath(icon)) {
     return null;
   }
