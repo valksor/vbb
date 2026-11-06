@@ -7,6 +7,7 @@ import {
 } from "react";
 import { usePointerCoarse } from "@bb/shared-ui/hooks/use-pointer-coarse";
 import { selectionClipboard } from "@/lib/markdown-clipboard";
+import { selectionClipboardBare } from "@/lib/markdown-clipboard.fork";
 import {
   anchorPointFromMouseEvent,
   firstClientRect,
@@ -233,7 +234,7 @@ export function SecondaryPanelSelectionActions({
         !node.contains(range.endContainer)
       )
         return;
-      const payload = selectionClipboard(range, node, "text");
+      const payload = selectionClipboardBare(range, node, "text");
       if (!payload.text) return;
       event.clipboardData.setData("text/plain", payload.text);
       event.clipboardData.setData("text/html", payload.html);
