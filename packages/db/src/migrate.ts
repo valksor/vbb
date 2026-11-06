@@ -8,12 +8,19 @@ import {
   compatibleMigrationHashes,
   publishedMigrationWhensByTag,
 } from "./migration-history.js";
+import {
+  inspectForkMigrations,
+  prepareForkMigrations,
+  resolveForkMigrationsFolder,
+  runForkCompatibleMigrations,
+} from "./migrate.fork.js";
 
 export interface ResolveMigrationsFolderForModuleDirArgs {
   moduleDir: string;
 }
 
 interface SqliteTableInfoColumn {
+  defaultValue: string | null;
   name: string;
   type: string;
   notNull: boolean;
@@ -64,7 +71,7 @@ interface MigrationJournal {
   entries: MigrationJournalEntry[];
 }
 
-interface ExpectedAppliedMigration {
+export interface ExpectedAppliedMigration {
   createdAt: number;
   hash: string;
   sql: string[];
@@ -109,7 +116,7 @@ interface AppliedMigrationCreatedAtRow {
   createdAt: number;
 }
 
-interface AppliedMigrationIdentityRow {
+export interface AppliedMigrationIdentityRow {
   createdAt: number | null;
   hash: string;
 }
@@ -271,11 +278,13 @@ function parseTableInfoColumn(value: unknown): SqliteTableInfoColumn {
 
   const name = value.name;
   const type = value.type;
+  const defaultValue = value.dflt_value;
   const notNull = value.notnull;
   const primaryKey = value.pk;
   if (
     typeof name !== "string" ||
     typeof type !== "string" ||
+    (typeof defaultValue !== "string" && defaultValue !== null) ||
     typeof notNull !== "number" ||
     typeof primaryKey !== "number"
   ) {
@@ -283,6 +292,7 @@ function parseTableInfoColumn(value: unknown): SqliteTableInfoColumn {
   }
 
   return {
+    defaultValue,
     name,
     type: type.toLowerCase(),
     notNull: notNull !== 0,
@@ -376,7 +386,7 @@ function readMigrationJournal(migrationsFolder: string): MigrationJournal {
   return parseMigrationJournal(journal);
 }
 
-function getTableInfo(
+export function getTableInfo(
   db: DbConnection,
   tableName: string,
 ): SqliteTableInfoColumn[] {
@@ -388,7 +398,7 @@ function getTableInfo(
   return rows.map(parseTableInfoColumn);
 }
 
-function tableExists(db: DbConnection, tableName: string): boolean {
+export function tableExists(db: DbConnection, tableName: string): boolean {
   return (
     db.$client
       .prepare<[string], ExistingTableRow>(
@@ -403,7 +413,7 @@ function tableExists(db: DbConnection, tableName: string): boolean {
   );
 }
 
-function columnExists(
+export function columnExists(
   db: DbConnection,
   tableName: string,
   columnName: string,
@@ -443,7 +453,7 @@ function getIndexColumnNames(db: DbConnection, indexName: string): string[] {
   return rows.map(parseIndexColumnName);
 }
 
-function indexExists(
+export function indexExists(
   db: DbConnection,
   tableName: string,
   indexName: string,
@@ -451,7 +461,7 @@ function indexExists(
   return getIndexes(db, tableName).some((index) => index.name === indexName);
 }
 
-function readExpectedAppliedMigrations(
+export function readExpectedAppliedMigrations(
   migrationsFolder: string,
 ): ExpectedAppliedMigration[] {
   const migrationFiles = readMigrationFiles({ migrationsFolder });
@@ -480,7 +490,7 @@ function readExpectedAppliedMigrations(
   });
 }
 
-function readAppliedMigrationCreatedAts(db: DbConnection): Set<number> {
+export function readAppliedMigrationCreatedAts(db: DbConnection): Set<number> {
   if (!tableExists(db, "__drizzle_migrations")) {
     return new Set();
   }
@@ -532,7 +542,7 @@ function readLatestAppliedMigrationCreatedAt(db: DbConnection): number | null {
   return row?.createdAt ?? null;
 }
 
-function requireExpectedAppliedMigration(
+export function requireExpectedAppliedMigration(
   migrations: ExpectedAppliedMigration[],
   tag: string,
 ): ExpectedAppliedMigration {
@@ -544,7 +554,7 @@ function requireExpectedAppliedMigration(
   return migration;
 }
 
-function markMigrationApplied(
+export function markMigrationApplied(
   db: DbConnection,
   migration: ExpectedAppliedMigration,
 ): void {
@@ -571,7 +581,7 @@ function markMigrationApplied(
     .run(migration.hash, migration.createdAt);
 }
 
-function applyMigrationStatements(
+export function applyMigrationStatements(
   db: DbConnection,
   migration: ExpectedAppliedMigration,
 ): void {
@@ -624,7 +634,7 @@ function hasCompatibleMigrationHash(
   );
 }
 
-function findAppliedMigrationHistoryViolation(
+export function findAppliedMigrationHistoryViolation(
   expectedMigration: ExpectedAppliedMigration,
   appliedMigrations: AppliedMigrationIdentityRow[],
   appliedCreatedAts: Set<number>,
@@ -1411,6 +1421,14 @@ function validateAppliedMigrationHistory(
 
 export function migrate(db: DbConnection, options: MigrateOptions = {}): void {
   const migrationsFolder = resolveMigrationsFolder();
+  const forkMigrationsFolder = resolveForkMigrationsFolder();
+  const expectedForkMigrations =
+    readExpectedAppliedMigrations(forkMigrationsFolder);
+  const forkInspection = inspectForkMigrations(
+    db,
+    migrationsFolder,
+    expectedForkMigrations,
+  );
   const sqlite = db.$client;
 
   const existingInstallation =
@@ -1443,6 +1461,11 @@ export function migrate(db: DbConnection, options: MigrateOptions = {}): void {
   }
   sqlite.pragma("foreign_keys = OFF");
   try {
+    const forkMigrations = prepareForkMigrations(
+      db,
+      migrationsFolder,
+      forkInspection,
+    );
     assertNoDuplicatePendingInteractionProviderRequests(db);
     applyDeferredDestructiveLegacyCleanup(db, migrationsFolder);
     skipEventLargeValuesRoundTripForInlineEvents(db, migrationsFolder);
@@ -1454,7 +1477,9 @@ export function migrate(db: DbConnection, options: MigrateOptions = {}): void {
     const stagedThreadStorageDeletedAt =
       stageExistingThreadStorageDeletedAtColumn(db, migrationsFolder);
     try {
-      drizzleMigrate(db, { migrationsFolder });
+      runForkCompatibleMigrations(db, migrationsFolder, forkMigrations, () =>
+        drizzleMigrate(db, { migrationsFolder }),
+      );
     } finally {
       if (stagedConnectMachineId) restoreStagedConnectMachineIdColumn(db);
       if (stagedThreadStorageDeletedAt)

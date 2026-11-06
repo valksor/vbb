@@ -8,6 +8,7 @@
   ],
   "tasks": {
     "@bb/db#db:generate": { "cache": false },
+    "@bb/db#db:generate:fork": { "cache": false },
     "@bb/desktop#test:fork-pure": {
       "cache": false,
       "dependsOn": [],
@@ -176,6 +177,7 @@
         "$TURBO_ROOT$/packages/*/src/**",
         "$TURBO_ROOT$/packages/*/tsconfig.json",
         "$TURBO_ROOT$/packages/db/drizzle/**",
+        "$TURBO_ROOT$/packages/db/drizzle-fork/**",
         "$TURBO_ROOT$/packages/tsconfig/*.json",
         "$TURBO_ROOT$/pnpm-lock.yaml",
         "$TURBO_ROOT$/pnpm-workspace.yaml",
@@ -190,6 +192,8 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/plugins/bb-guide/skills/**",
+        "$TURBO_ROOT$/packages/db/drizzle/**",
+        "$TURBO_ROOT$/packages/db/drizzle-fork/**",
         "$TURBO_ROOT$/package.json",
         "$TURBO_ROOT$/packages/tsconfig/*.json",
         "$TURBO_ROOT$/pnpm-lock.yaml",

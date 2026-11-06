@@ -7,6 +7,12 @@ Slice 22. Those slices are required migration work, not excluded functionality.
 
 On macOS, `pnpm desktop:local:package` builds an unpacked `bb Local.app` under `apps/desktop/release/`. The command sets `BB_DESKTOP_LOCAL_BUILD=1`. The app uses bundle ID `dev.bb.desktop.local`, runtime app ID `dev.bb.desktop.local`, and product name `bb Local`. The local builder config uses the stable icon and metadata names, but publishes no update feed. The runtime disables official auto-update and version checks for explicit local builds. Its Electron user data is separate from the stable app; its embedded bb runtime still uses the normal `~/.bb` data (or `BB_DATA_DIR`) and getbb.app services. The local-build flag is separate from the latest/nightly release channel. This command builds a local app; it does not install or update a running app.
 
+## Database migration history
+
+`packages/db/drizzle/` is the only forward migration sequence. `packages/db/drizzle-fork/` retains the five private migrations as immutable history. The migrator validates recognized private history before adoption, preserves its provenance, and converts the four historical `fork_` tables into the public schema. Conflicting duplicate rows fail instead of selecting a winner. Public migrations 0152–0155 remain the canonical continuation.
+
+Generate future migrations with `pnpm --filter @bb/db db:generate`. The compatibility command `pnpm --filter @bb/db db:generate:fork` and `drizzle-fork.config.ts` both use the canonical configuration. Do not generate new migrations into `drizzle-fork` or rewrite either applied history.
+
 ## Rebase on upstream
 
 Fork changes live in new files so that upstream files keep only small hooks:
