@@ -7,6 +7,7 @@ import {
   type BridgeRecordingDirection,
   type BridgeRecordingEntry,
 } from "../bridge-kit/bridge-recorder.js";
+import { resolveCurrentBridgeLanePath } from "./recording.fork.js";
 
 export const COMMITTED_RECORDINGS_ROOT = fileURLToPath(
   new URL("../../recordings", import.meta.url),
@@ -104,7 +105,7 @@ export const CURRENT_BRIDGE_LANE_FILE = "bridge→runtime.current.ndjson";
 export function readCurrentBridgeLane(
   dir: string,
 ): BridgeRecordingEntry[] | null {
-  const file = join(dir, CURRENT_BRIDGE_LANE_FILE);
+  const file = resolveCurrentBridgeLanePath(dir, CURRENT_BRIDGE_LANE_FILE);
   if (!existsSync(file)) {
     return null;
   }

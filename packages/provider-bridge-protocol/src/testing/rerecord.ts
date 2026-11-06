@@ -1,5 +1,4 @@
 import { writeFileSync } from "node:fs";
-import { join } from "node:path";
 import type { BridgeRecordingDirection } from "../bridge-kit/bridge-recorder.js";
 import {
   PARITY_INITIALIZE_ID,
@@ -7,6 +6,7 @@ import {
   type ReplayRecordingOptions,
 } from "./parity.js";
 import { CURRENT_BRIDGE_LANE_FILE, readBridgeRecording } from "./recording.js";
+import { resolveCurrentBridgeLanePath } from "./recording.fork.js";
 
 const BRIDGE_TO_RUNTIME: BridgeRecordingDirection = "bridge→runtime";
 
@@ -106,7 +106,10 @@ export async function rerecordCurrentBridgeLane(
       line,
     });
   });
-  const file = join(options.recordingDir, CURRENT_BRIDGE_LANE_FILE);
+  const file = resolveCurrentBridgeLanePath(
+    options.recordingDir,
+    CURRENT_BRIDGE_LANE_FILE,
+  );
   writeFileSync(
     file,
     entries.map((entry) => JSON.stringify(entry)).join("\n") +
