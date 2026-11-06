@@ -13,18 +13,44 @@ import type {
   TimelineWorkflowWorkRow,
 } from "@bb/server-contract";
 import type { ReactNode } from "react";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
 import type { PromptDraftAttachment } from "@bb/client-core";
 import type { TypeaheadConfig } from "@/components/promptbox/ComposerBox";
 import type { PluginComposerHost } from "@/components/plugin/plugin-composer-host";
+
+let realFetch: typeof globalThis.fetch | undefined;
+
+beforeEach(() => {
+  realFetch = globalThis.fetch;
+  globalThis.fetch = (input) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    return Promise.reject(
+      new Error(`Unmocked network request in a prompt area test: ${url}`),
+    );
+  };
+});
+
+afterEach(() => {
+  if (realFetch) globalThis.fetch = realFetch;
+  realFetch = undefined;
+});
 
 export const promptAreaMocks = {
   unknownReasoning: false,
   cancelThreadPlanMutate: vi.fn(),
   clearThreadGoalMutate: vi.fn(),
   createThreadMutateAsync: vi.fn(),
-  defaultExecutionOptions: null as ResolvedThreadExecutionOptions | null,
+  defaultExecutionOptions: null as
+    | ResolvedThreadExecutionOptions
+    | null
+    | undefined,
   executionInputSources: {} as ExistingThreadExecutionInputSources,
+  deleteQueuedMessageIsPending: false,
   deleteQueuedMessageMutateAsync: vi.fn(),
   navigate: vi.fn(),
   pluginComposerHost: null as PluginComposerHost | null,
@@ -101,6 +127,7 @@ vi.mock("@/components/promptbox/FollowUpPromptBox", async () => {
       environmentSummary,
       execution,
       executionReadOnly,
+      focusEndKey,
       pendingInteraction,
       permission,
       permissionReadOnly,
@@ -146,6 +173,7 @@ vi.mock("@/components/promptbox/FollowUpPromptBox", async () => {
           active: boolean;
           onStart: () => void;
           onExit: () => void;
+          onChangeTarget: () => void;
           onSelect: (selection: {
             providerId: string;
             model: string;
@@ -165,6 +193,7 @@ vi.mock("@/components/promptbox/FollowUpPromptBox", async () => {
         };
       };
       executionReadOnly?: boolean;
+      focusEndKey?: string | number;
       pendingInteraction?: ReactNode;
       permission: { value?: string; onChange?: (value: "full") => void };
       permissionReadOnly?: boolean;
@@ -206,6 +235,7 @@ vi.mock("@/components/promptbox/FollowUpPromptBox", async () => {
         <div data-testid="submit-title">
           {composer?.submitTitle ?? "Submit"}
         </div>
+        <div data-testid="focus-end-key">{focusEndKey}</div>
         <div data-testid="submit-label">{composer?.submitLabel ?? ""}</div>
         <div data-testid="submit-icon">{composer?.submitIcon ?? ""}</div>
         <div data-testid="plugin-customizations-suppressed">
@@ -373,9 +403,17 @@ vi.mock("@/components/promptbox/FollowUpPromptBox", async () => {
         {execution.handoff ? (
           <>
             {execution.handoff.active ? (
-              <button type="button" onClick={execution.handoff.onExit}>
-                Exit handoff
-              </button>
+              <>
+                <button type="button" onClick={execution.handoff.onExit}>
+                  Exit handoff
+                </button>
+                <button
+                  type="button"
+                  onClick={execution.handoff.onChangeTarget}
+                >
+                  Change handoff target
+                </button>
+              </>
             ) : null}
             <button type="button" onClick={execution.handoff.onStart}>
               Start handoff
@@ -507,7 +545,19 @@ vi.mock("@/components/promptbox/banner/ThreadGoalCard", () => ({
 }));
 
 vi.mock("@/components/promptbox/banner/ThreadPromptContextBanner", () => ({
-  ThreadPromptContextBanner: () => null,
+  ThreadPromptContextBanner: ({
+    environmentGoneSection,
+  }: {
+    environmentGoneSection: { onContinueInNewThread?: () => void } | null;
+  }) =>
+    environmentGoneSection?.onContinueInNewThread ? (
+      <button
+        type="button"
+        onClick={environmentGoneSection.onContinueInNewThread}
+      >
+        Continue in new thread
+      </button>
+    ) : null,
   ThreadChildThreadsBanner: ({
     childThreads,
   }: {
@@ -581,6 +631,16 @@ vi.mock(
     ThreadPendingInteractionBanners: () => (
       <div data-testid="composer-stack-item">Pending interaction</div>
     ),
+  }),
+);
+
+vi.mock(
+  "@/components/thread/composer/useQueuedMessageEditHold",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("@/components/thread/composer/useQueuedMessageEditHold")
+    >()),
+    useQueuedMessageEditHold: () => {},
   }),
 );
 
@@ -686,7 +746,7 @@ vi.mock("@/hooks/mutations/thread-runtime-mutations", () => ({
     mutateAsync: promptAreaMocks.createThreadMutateAsync,
   }),
   useDeleteThreadQueuedMessage: () => ({
-    isPending: false,
+    isPending: promptAreaMocks.deleteQueuedMessageIsPending,
     mutateAsync: promptAreaMocks.deleteQueuedMessageMutateAsync,
   }),
   useReorderThreadQueuedMessage: () => ({
