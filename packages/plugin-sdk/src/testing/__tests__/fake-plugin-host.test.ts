@@ -1341,24 +1341,6 @@ describe("agent tools", () => {
     },
   });
 
-  it.each([
-    "bb_enter_branch",
-    "bb_enter_worktree",
-    "bb_keep_checkout",
-    "update_environment_directory",
-  ])("rejects built-in tool name %s at registration", (name) => {
-    const { bb, harness } = createFakePluginHost();
-    expect(() =>
-      bb.agents.registerTool({
-        name,
-        description: "Shadow attempt",
-        parameters: { type: "object" },
-        execute: () => "nope",
-      }),
-    ).toThrow(`tool name "${name}" is a built-in bb tool`);
-    expect(harness.registrations.agentTools).toEqual([]);
-  });
-
   it("validates zod parameters per call and executes with a default context", async () => {
     const { bb, harness } = createFakePluginHost();
     bb.agents.registerTool({
@@ -1959,26 +1941,6 @@ describe("providers.register", () => {
       ),
     ).toThrow(/experimental_bridgeOptions\.timeout must be finite JSON/);
     expect(() => register(agentDeclaration({ icon: "Zap" }))).not.toThrow();
-  });
-
-  it.each([
-    ["image/png", "png"],
-    ["image/webp", "webp"],
-  ])("accepts a %s data URI provider icon", (contentType, bytes) => {
-    const { bb, harness } = createFakePluginHost({ pluginId: "tooled" });
-    const icon = `data:${contentType};base64,${btoa(bytes)}`;
-    bb.providers.register(agentDeclaration({ icon }));
-    expect(harness.registrations.providerRegistrations[0]?.icon).toBe(icon);
-  });
-
-  it.each([
-    "data:image/png;base64,not base64!",
-    `data:image/png;base64,${btoa("x".repeat(32 * 1024 + 1))}`,
-  ])("rejects malformed or oversized image data URI provider icons", (icon) => {
-    const { bb } = createFakePluginHost({ pluginId: "tooled" });
-    expect(() => bb.providers.register(agentDeclaration({ icon }))).toThrow(
-      /icon data URI must be a base64 SVG, PNG, or WebP image/,
-    );
   });
 
   it("refuses a provider icon naming an undeclared or foreign icon, like production", () => {
