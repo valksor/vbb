@@ -30,7 +30,7 @@
     },
     "packages/config/src/bb-app-managed-config.ts": {
       "count": 4,
-      "reason": "BUNDLED_PROVIDER_IDS: `customModelProviderIdSchema` (live `customModels` config) accepts only a bundled id or an `acp-*` id, so a third-party provider cannot carry custom models today.",
+      "reason": "BUNDLED_PROVIDER_IDS: `customModelProviderIdSchema` (live `customModels` config) accepts only a bundled id, an `acp-*` id, or a `claude-code-*` profile id, so any other third-party provider cannot carry custom models today.",
       "owner": "core config (customModels enum)",
       "diesAt": "when customModels accepts any registered provider id"
     },
