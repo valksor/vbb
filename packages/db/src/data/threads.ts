@@ -795,6 +795,8 @@ function toThreadWithPendingInteractionState(
     environmentPath,
     environmentProviderId,
     hasPendingInteraction,
+    pendingInteractionPayloadKind,
+    pendingInteractionApprovalSubjectKind,
     ...thread
   } = row;
   return {
