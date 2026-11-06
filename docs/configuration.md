@@ -679,8 +679,11 @@ restart bb. `bb-app config list` prints the entries.
 }
 ```
 
-`providerId` accepts `codex`, `claude-code`, `pi`, `acp-cursor`, or any
-`acp-*` provider id. `displayName` is optional. bb skips an invalid entry with
+`providerId` accepts `codex`, `claude-code`, `pi`, `acp-cursor`, any
+`acp-*` provider id, or a Claude Code profile provider id such as
+`claude-code-work`. A profile suffix is at most 41 characters and consists
+of lowercase letters or digits, with single hyphens between groups.
+`displayName` is optional. bb skips an invalid entry with
 a warning. Entries appear after the provider's own catalog in the model picker
 and `bb provider models`; the provider catalog wins on an id collision, and
 `streamerMode` hides them. An entry only makes the id selectable:

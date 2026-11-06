@@ -49,10 +49,17 @@ const bbAppManagedConfigValuesSchema = z
   .strict();
 
 const ACP_PROVIDER_ID_PATTERN = /^acp-[a-z0-9][a-z0-9-]*$/u;
+const CLAUDE_CODE_PROFILE_PROVIDER_ID_PATTERN =
+  /^claude-code-[a-z0-9]+(-[a-z0-9]+)*$/u;
+const CLAUDE_CODE_PROFILE_PROVIDER_ID_MAX_LENGTH = "claude-code-".length + 41;
 
 const customModelProviderIdSchema = z.union([
   z.enum(BUNDLED_PROVIDER_IDS),
   z.string().regex(ACP_PROVIDER_ID_PATTERN),
+  z
+    .string()
+    .max(CLAUDE_CODE_PROFILE_PROVIDER_ID_MAX_LENGTH)
+    .regex(CLAUDE_CODE_PROFILE_PROVIDER_ID_PATTERN),
 ]);
 
 export const customProviderModelSchema = z
