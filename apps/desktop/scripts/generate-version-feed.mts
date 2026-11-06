@@ -8,6 +8,10 @@ import {
   type BbDesktopVersionFeed,
 } from "@bb/desktop-contract";
 import {
+  resolveDesktopLocalBuild,
+  resolveDesktopUpdateMetadataFileName,
+} from "./desktop-local-build.fork.mjs";
+import {
   createDesktopReleaseConfig,
   resolveDesktopBuildPlatform,
   resolveDesktopReleaseChannel,
@@ -16,10 +20,13 @@ import {
 const packageRoot = process.cwd();
 const packageJsonPath = resolve(packageRoot, "package.json");
 const releaseChannel = resolveDesktopReleaseChannel(process.env);
-const releaseConfig = createDesktopReleaseConfig(releaseChannel);
+const localBuild = resolveDesktopLocalBuild(process.env);
+const releaseConfig = createDesktopReleaseConfig(releaseChannel, localBuild);
 const buildPlatform = resolveDesktopBuildPlatform(process.platform);
-const updateMetadataFileName =
-  releaseConfig.updateMetadataFileNames[buildPlatform];
+const updateMetadataFileName = resolveDesktopUpdateMetadataFileName(
+  releaseConfig,
+  buildPlatform,
+);
 const updateMetadataPath = resolve(
   packageRoot,
   "release",

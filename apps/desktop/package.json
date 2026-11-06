@@ -27,6 +27,7 @@
     "smoke:browser-cdp": "node scripts/smoke-browser-cdp.mjs",
     "start": "pnpm run package && node scripts/run-packaged-app.mjs",
     "test": "install-electron && vitest run --config vitest.config.ts",
+    "test:fork-pure": "vitest run --config vitest.config.ts",
     "typecheck": "tsrs --noEmit",
     "smoke:browser-broker": "node scripts/smoke-browser-broker.mjs",
     "smoke:browser-address": "node scripts/smoke-browser-address.mjs"

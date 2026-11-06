@@ -1,6 +1,12 @@
+import {
+  createLocalDesktopReleaseConfig,
+  resolveDesktopLocalBuild,
+} from "./desktop-local-build.fork.mjs";
+
 const DESKTOP_RELEASE_CHANNEL_ENV_NAME = "BB_DESKTOP_RELEASE_CHANNEL";
 
 export function resolveDesktopReleaseChannel(env) {
+  resolveDesktopLocalBuild(env);
   const rawChannel = env[DESKTOP_RELEASE_CHANNEL_ENV_NAME]?.trim();
   if (rawChannel === undefined || rawChannel.length === 0) {
     return "latest";
@@ -30,7 +36,9 @@ export function resolveDesktopBuildPlatform(nodePlatform) {
   );
 }
 
-export function createDesktopReleaseConfig(channel) {
+export function createDesktopReleaseConfig(channel, localBuild = false) {
+  if (localBuild) return createLocalDesktopReleaseConfig();
+
   if (channel === "nightly") {
     return {
       appId: "dev.bb.desktop.nightly",

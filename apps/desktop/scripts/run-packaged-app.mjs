@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { forwardSignalsAndMirrorExit } from "./child-process-helpers.mjs";
+import { resolveDesktopLocalBuild } from "./desktop-local-build.fork.mjs";
 import {
   createDesktopReleaseConfig,
   resolveDesktopReleaseChannel,
@@ -12,6 +13,7 @@ const packageRoot = process.cwd();
 const releaseDir = join(packageRoot, "release");
 const releaseConfig = createDesktopReleaseConfig(
   resolveDesktopReleaseChannel(process.env),
+  resolveDesktopLocalBuild(process.env),
 );
 
 function createElectronAppEnv(env) {
