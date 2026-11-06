@@ -34,7 +34,7 @@ import type { HostDaemonLogger } from "./logger.js";
 import type { EventPostResult } from "./event-sink.js";
 import { runtimeErrorLogFields } from "./error-utils.js";
 import { resolveHostPlatform } from "./host-platform.js";
-import { toolCallDispatcher } from "./server-client-tool-call-transport.js";
+import { toolCallDispatcher } from "./server-client.fork.js";
 import type {
   FetchedProjectAttachment,
   FetchProjectAttachmentArgs,
