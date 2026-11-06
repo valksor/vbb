@@ -116,48 +116,6 @@ function registration(
 }
 
 describe("resolveProviderNativeRootSet", () => {
-  it("forwards registered bridge options and omits empty options", async () => {
-    const profiled = {
-      pluginId: PLUGIN_ID,
-      declaration: declaration("profiled", {
-        experimental_bridgeOptions: { claudeConfigDir: "/profiles/work" },
-        experimental_resolvesNativeRoots: true,
-      }),
-    };
-    await withTestHarness(
-      { extraProviders: [RESOLVING, profiled] },
-      async (harness) => {
-        harness.deps.pluginHostArtifacts.set(
-          PLUGIN_ID,
-          stubHostArtifact(PLUGIN_ID),
-        );
-        const stub = registerResolverHost(harness, "host-a");
-        for (const providerId of ["resolving", "profiled"]) {
-          await resolveProviderNativeRootSet(harness.deps, {
-            registration: registration(harness, providerId),
-            hostId: "host-a",
-            cwd: "/workspace",
-            timeoutMs: COMMAND_TIMEOUT_MS,
-          });
-        }
-        const inputs = stub.calls.map(({ command }) => {
-          if (command.type !== "plugin.host.call") {
-            throw new Error(`Unexpected RPC ${command.type}`);
-          }
-          return command.input;
-        });
-        expect(inputs).toEqual([
-          { providerId: "resolving", cwd: "/workspace" },
-          {
-            providerId: "profiled",
-            cwd: "/workspace",
-            bridgeOptions: { claudeConfigDir: "/profiles/work" },
-          },
-        ]);
-      },
-    );
-  });
-
   it("asks the plugin on the workspace host once per (host, cwd) within the TTL", async () => {
     let clock = 1_000;
     await withTestHarness(

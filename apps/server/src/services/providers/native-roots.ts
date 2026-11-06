@@ -18,7 +18,7 @@ import {
 } from "../hosts/online-rpc.js";
 import { callPluginHostRpc } from "../plugins/plugin-host-rpc.js";
 import type { ProviderRegistration } from "./provider-registry.js";
-import { nativeRootsInput } from "./native-roots-input.js";
+import { nativeRootsInput } from "./native-roots-input.fork.js";
 
 export const PROVIDER_NATIVE_ROOTS_CACHE_TTL_MS = 10_000;
 
