@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createInterface } from "node:readline";
+import { resolvedSessionSettings } from "./fake-codex-app-server.fork.mjs";
 
 let threadCounter = 0;
 let turnCounter = 0;
@@ -64,22 +65,6 @@ function firstInputText(input) {
   return first && first.type === "text" ? first.text : undefined;
 }
 
-function resolvedSessionSettings(params) {
-  return {
-    model: params.model ?? "fake-codex-model",
-    modelProvider: "openai",
-    serviceTier: params.serviceTier ?? null,
-    approvalPolicy: params.approvalPolicy ?? "on-request",
-    approvalsReviewer: params.approvalsReviewer ?? "user",
-    sandbox:
-      params.sandbox === "workspace-write"
-        ? { type: "workspaceWrite" }
-        : params.sandbox === "read-only"
-          ? { type: "readOnly" }
-          : { type: "dangerFullAccess" },
-    reasoningEffort: "medium",
-  };
-}
 
 const FIXED_TOKEN_USAGE = {
   total: {
