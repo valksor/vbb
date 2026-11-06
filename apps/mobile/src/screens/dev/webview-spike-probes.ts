@@ -1,3 +1,5 @@
+import { SPIKE_REPORT_FAILURE } from "./webview-spike-probes.fork";
+
 export const SPIKE_HARNESS = String.raw`
 (function () {
   if (window.__bbSpike) return;
@@ -5,7 +7,7 @@ export const SPIKE_HARNESS = String.raw`
     try {
       window.ReactNativeWebView.postMessage(JSON.stringify(payload));
     } catch (error) {
-      // A page navigation can tear the bridge down mid-report.
+      ${SPIKE_REPORT_FAILURE}
     }
   };
   var marks = {};
