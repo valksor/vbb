@@ -617,7 +617,7 @@ setting, a JSON array, in Settings → Plugins → ACP providers or:
 
 ```bash
 bb plugin config provider-acp set customAgents '[
-  {"id": "amp", "displayName": "Amp", "command": "amp", "args": ["acp"]}
+  {"id": "amp", "displayName": "Amp", "command": "amp", "args": ["acp"], "icon": "Sparkles"}
 ]'
 ```
 
@@ -626,7 +626,7 @@ and `command`. bb derives the provider id `acp-<id>`, which never changes once
 a thread has used it. `cursor` is reserved; an entry with an id bb lists only
 where the agent is installed (`opencode`, `omp`, `grok`, `hermes-agent`)
 replaces the shipped agent and keeps its `nativeSkillRoots` unless it sets its
-own. Optional fields: `args`, `env`, `cwd`, `modelCli` (CLI model listing and
+own. Optional fields: `icon`, `args`, `env`, `cwd`, `modelCli` (CLI model listing and
 selection), `reasoningCli` (launch-time reasoning flags), `nativeReasoning`
 (ACP `session/set_config_option` reasoning), `nativeSkillRoots`
 (`{"user": [...], "project": [...]}` relative paths; an entry is a path or
@@ -634,6 +634,20 @@ selection), `reasoningCli` (launch-time reasoning flags), `nativeReasoning`
 (permission-mode launch flags), `supportsManualCompaction` (bb hides
 `/compact` otherwise), `providerUsage`, and `dialect` (`cursor`, `opencode`,
 `omp`, or `grok`).
+
+`icon` accepts a host glyph such as `Sparkles`, an ACP provider mark
+(`provider-acp/claude`, `provider-acp/glm`, `provider-acp/cursor`,
+`provider-acp/opencode`, `provider-acp/omp`, `provider-acp/grok`, or
+`provider-acp/hermes-agent`), or your own image: an absolute or `~/` path to an
+`.svg`, `.png`, or `.webp` file of 1-32768 bytes on the machine running the bb
+server, or a `data:image/svg+xml;base64,...` (or `image/png`, `image/webp`) URI.
+bb reads the file when the setting changes or bb starts, so save the setting
+again after editing the file. The image is drawn as a single-color mask, like
+the bundled marks. Saving the setting fails when the icon file is missing,
+unreadable, or too large; if the file disappears later, the agent keeps its
+default icon and bb logs a warning. If omitted for a replacement of a shipped
+agent, the shipped icon is kept. A nonreplacement uses its registry icon when
+available, otherwise the Toolbox glyph.
 
 Changes apply immediately, with no restart. A custom agent's command is local
 code execution and only works with a co-located daemon. The `customAcpAgents`

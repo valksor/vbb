@@ -14,7 +14,9 @@
     "branding": {
       "icon": "./icons/acp.svg",
       "experimental_icons": {
+        "claude": "./icons/claude.svg",
         "cursor": "./icons/cursor.svg",
+        "glm": "./icons/glm.svg",
         "opencode": "./icons/opencode.svg",
         "omp": "./icons/omp.svg",
         "grok": "./icons/grok.svg",
