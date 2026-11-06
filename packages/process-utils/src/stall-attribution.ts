@@ -6,6 +6,14 @@ import type { StallWindowBatch } from "./stall-windows.js";
 type StallWindow = StallWindowBatch["windows"][number];
 
 const MAX_SAMPLE_MS = 10;
+const MAX_CLOCK_OFFSET_DRIFT_MS = 50;
+
+export function clockOffsetMs(
+  monotonicNowNs: bigint,
+  profileTimeUs: number,
+): number {
+  return Number(monotonicNowNs) / 1e6 - profileTimeUs / 1_000;
+}
 
 export function createStallSampleSummarizer(profile: Profiler.Profile) {
   const nodes = new Map(profile.nodes.map((node) => [node.id, node]));
@@ -84,9 +92,14 @@ export function createStallSampleSummarizer(profile: Profiler.Profile) {
 export function summarizeStallWindows(
   profile: Profiler.Profile,
   batch: StallWindowBatch,
+  offsets: { startMs: number; endMs: number },
 ) {
   if (batch.windows.length === 0) return [];
-  const summarize = createStallSampleSummarizer(profile);
+  const sleptDuringProfile =
+    Math.abs(offsets.endMs - offsets.startMs) > MAX_CLOCK_OFFSET_DRIFT_MS;
+  const summarize = createStallSampleSummarizer(
+    sleptDuringProfile ? { ...profile, samples: [], timeDeltas: [] } : profile,
+  );
   return batch.windows.map((window) => ({
     pid: process.pid,
     startedAt: new Date(batch.epochOffsetMs + window.startedAt).toISOString(),
@@ -98,6 +111,9 @@ export function summarizeStallWindows(
     nativeFramesMayIncludeWaiting: true,
     maxSampleWeightMs: MAX_SAMPLE_MS,
     droppedWindows: batch.droppedWindows,
-    ...summarize(window),
+    ...summarize({
+      startedAt: window.startedAt - offsets.endMs,
+      endedAt: window.endedAt - offsets.endMs,
+    }),
   }));
 }
