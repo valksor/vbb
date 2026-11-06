@@ -410,6 +410,45 @@
           ]
         }
       ]
+    },
+    "composer-aside": {
+      "groupId": "app-shell",
+      "fidelity": "anchor",
+      "responsiveStrategy": "scale-together",
+      "requiredStates": ["anchor"],
+      "labels": {
+        "anchor": ["Checks"]
+      },
+      "fixtureClassAnchors": ["w-24 shrink-0 border border-border bg-card p-2"],
+      "sources": [
+        {
+          "path": "apps/app/src/components/plugin/PluginComposerAside.tsx",
+          "anchors": [
+            "slotKind=\"composerAside\"",
+            "role=\"region\"",
+            "max-h-48 overflow-y-auto",
+            "@min-[1240px]/page:block"
+          ]
+        },
+        {
+          "path": "apps/app/src/components/plugin/PluginPerThreadSlotMount.fork.tsx",
+          "anchors": ["crashFallback={null}", "instanceId={instanceId}"]
+        },
+        {
+          "path": "apps/app/src/views/thread-detail/ThreadDetailView.tsx",
+          "anchors": [
+            "<PluginComposerAside threadId={thread.id} projectId={projectId} />"
+          ]
+        },
+        {
+          "path": "apps/app/src/components/plugin/PluginComposerAside.test.tsx",
+          "anchors": [
+            "mounts one copy per thread and a crash removes only that pane's copy",
+            "hides the region while the output has no element child",
+            "adds a tab stop only while the content overflows"
+          ]
+        }
+      ]
     }
   }
 }
