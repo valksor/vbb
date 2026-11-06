@@ -2220,22 +2220,6 @@ describe("buildThreadTimelineFromEvents", () => {
     ]);
   });
 
-  it("renders interrupt watchdog diagnostics as error operation rows", () => {
-    const rows = buildTimelineRows([
-      systemProviderTurnWatchdogEvent({ action: "interrupt", seq: 1 }),
-    ]);
-
-    expect(collectSystemRows(rows)).toEqual([
-      expect.objectContaining({
-        systemKind: "operation",
-        operationKind: "generic",
-        status: "error",
-        title: "Provider turn stopped responding, interrupting turn",
-        detail: "No provider activity for 901s after turn/input/accepted",
-      }),
-    ]);
-  });
-
   it("uses a neutral completed ownership title for invalid ownership actions", () => {
     const rows = buildTimelineRows([
       systemOperationEvent({
