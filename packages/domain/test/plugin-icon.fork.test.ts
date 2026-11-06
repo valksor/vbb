@@ -6,6 +6,25 @@ import {
 } from "../src/index.js";
 
 describe("image data URIs", () => {
+  it("decodes PNG and WebP bytes and accepts the exact size limit", () => {
+    for (const [contentType, value] of [
+      ["image/png", "png"],
+      ["image/webp", "webp"],
+    ]) {
+      const parsed = parseImageDataUri(
+        `data:${contentType};base64,${btoa(value)}`,
+      );
+      expect(parsed?.contentType).toBe(contentType);
+      expect(new TextDecoder().decode(parsed?.bytes)).toBe(value);
+    }
+
+    expect(
+      parseImageDataUri(
+        `data:image/png;base64,${btoa("x".repeat(PLUGIN_ICON_MAX_BYTES))}`,
+      )?.bytes,
+    ).toHaveLength(PLUGIN_ICON_MAX_BYTES);
+  });
+
   it("decodes a base64 svg, png, or webp image", () => {
     const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
     const parsed = parseImageDataUri(`data:image/svg+xml;base64,${btoa(svg)}`);

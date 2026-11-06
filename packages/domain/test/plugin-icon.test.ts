@@ -1,34 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   isNamespacedGlyph,
-  parseImageDataUri,
   parseNamespacedGlyph,
-  PLUGIN_ICON_MAX_BYTES,
   PLUGIN_ICON_NAME_MAX_LENGTH,
   PLUGIN_ICONS_MAX_COUNT,
   pluginPackageJsonSchema,
 } from "../src/index.js";
-
-describe("image data URIs", () => {
-  it("decodes PNG and WebP bytes and accepts the exact size limit", () => {
-    for (const [contentType, value] of [
-      ["image/png", "png"],
-      ["image/webp", "webp"],
-    ]) {
-      const parsed = parseImageDataUri(
-        `data:${contentType};base64,${btoa(value)}`,
-      );
-      expect(parsed?.contentType).toBe(contentType);
-      expect(new TextDecoder().decode(parsed?.bytes)).toBe(value);
-    }
-
-    expect(
-      parseImageDataUri(
-        `data:image/png;base64,${btoa("x".repeat(PLUGIN_ICON_MAX_BYTES))}`,
-      )?.bytes,
-    ).toHaveLength(PLUGIN_ICON_MAX_BYTES);
-  });
-});
 
 describe("namespaced glyphs", () => {
   it("splits a declared-icon reference into its plugin id and name", () => {
