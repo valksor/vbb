@@ -14,6 +14,7 @@ import { requireThreadCommandEnvironment } from "./thread-command-environment.js
 import { assertThreadHostAcceptsWork } from "./thread-host-admission.js";
 import { runWithTurnTrace } from "../system/turn-trace.js";
 import { assertProviderAcceptsPromptActions } from "../providers/provider-plan-command.js";
+import { clearEnterWorktreeContinuationsAfterSend } from "./worktree-promotion.js";
 
 interface AcceptThreadSendRequestArgs {
   payload: SendMessageRequest;
@@ -47,6 +48,7 @@ export async function acceptThreadSendRequest(
       startedOnBehalfOf: null,
       trigger: "user",
     });
+    clearEnterWorktreeContinuationsAfterSend(deps, args.thread.id);
     return { ok: true, delivery: "sent" };
   }
 
@@ -83,6 +85,7 @@ export async function acceptThreadSendRequest(
       }),
   );
   if (outcome.kind === "dispatched") {
+    clearEnterWorktreeContinuationsAfterSend(deps, args.thread.id);
     return { ok: true, delivery: "sent" };
   }
   return {

@@ -15,6 +15,7 @@ import {
   type CheckoutBranchSelection,
 } from "./contract.js";
 import { PROJECT_CHECKOUT_ENVIRONMENT_PROVIDER_ID } from "./provider-id.js";
+import { createPromotion, refusePromotionInput } from "./server.fork.js";
 
 const ATTACH_TIMEOUT_MS = 15 * 60 * 1000;
 const LIVE_THREAD_STATUSES = new Set([
@@ -33,6 +34,7 @@ const DIRTY_MESSAGE = "Checkout blocked by uncommitted changes";
 export const checkoutInputsSchema = z.object({
   path: z.string().min(1).optional(),
   branch: checkoutBranchSelectionSchema.optional(),
+  promotion: branchPromotionRequestSchema.optional(),
 });
 
 type CheckoutOperation = Pick<
@@ -226,6 +228,8 @@ export default async function checkoutPlugin(bb: BbPluginApi): Promise<void> {
     experimental_existingPath: (inputs) =>
       inputs.branch === undefined ? (inputs.path ?? null) : null,
     async validate(context) {
+      const refused = refusePromotionInput(context.inputs);
+      if (refused) return refused;
       const branch = context.inputs.branch;
       const path = context.inputs.path ?? context.projectCheckout.path;
       const foreignEnvironmentId = await foreignEnvironmentAtPath({
@@ -260,6 +264,17 @@ export default async function checkoutPlugin(bb: BbPluginApi): Promise<void> {
         : { action: "refuse", message: blocker };
     },
     async create(context) {
+      if (context.inputs.promotion !== undefined) {
+        return createPromotion({
+          context,
+          promotion: context.inputs.promotion,
+          reports,
+          host,
+          otherLiveThreadUsesPath,
+          liveThreadMessage: LIVE_THREAD_MESSAGE,
+          timeoutMs: ATTACH_TIMEOUT_MS,
+        });
+      }
       const branchInput = context.inputs.branch;
       const path = context.inputs.path ?? context.projectCheckout.path;
       if (branchInput === undefined) {
@@ -304,3 +319,4 @@ export default async function checkoutPlugin(bb: BbPluginApi): Promise<void> {
     },
   });
 }
+import { branchPromotionRequestSchema } from "bb-checkout-contract/branch-promotion";

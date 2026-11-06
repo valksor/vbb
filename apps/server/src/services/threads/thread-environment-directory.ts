@@ -23,6 +23,13 @@ import { appendThreadEventInTransaction } from "./thread-events.js";
 import { buildEnvironmentProvisionCommand } from "./thread-create-helpers.js";
 import { findHostDataDir } from "../lib/entity-lookup.js";
 import { suppliedWorkspacePathRefusal } from "./workspace-path-claims.js";
+import {
+  attachChangeKinds,
+  confirmCurrentDirectory,
+  declineCheckoutPromotion,
+  promotionDeclinedFailure,
+  type AttachEnvironmentHooks,
+} from "./thread-environment-directory.fork.js";
 
 export const UPDATE_ENVIRONMENT_DIRECTORY_TOOL_NAME =
   "update_environment_directory";
@@ -73,8 +80,9 @@ interface HandleUpdateEnvironmentDirectoryToolCallArgs {
 type ReadyEnvironment = EnvironmentRow & { path: string; status: "ready" };
 
 type AttachEnvironmentResult =
-  | { kind: "attached"; changed: boolean }
+  | { kind: "attached"; changed: boolean; queuedContinuation?: boolean }
   | { kind: "environment_changed" }
+  | { kind: "promotion_declined" }
   | { kind: "thread_unavailable"; message: string };
 
 function toolCallTextResponse(
@@ -154,6 +162,7 @@ function attachReadyEnvironment(
     targetEnvironment: ReadyEnvironment;
     thread: Thread;
     turnId: string;
+    hooks?: AttachEnvironmentHooks;
   },
 ): AttachEnvironmentResult {
   const result = deps.db.transaction(
@@ -170,6 +179,9 @@ function attachReadyEnvironment(
       if (writableFailure) {
         return { kind: "thread_unavailable", message: writableFailure };
       }
+
+      const hookResult = args.hooks?.beforeAttach?.(tx, latestThread);
+      if (hookResult) return hookResult;
 
       if (latestThread.environmentId === args.targetEnvironment.id) {
         return { kind: "attached", changed: false };
@@ -201,13 +213,15 @@ function attachReadyEnvironment(
           },
         },
       });
-      return { kind: "attached", changed: true };
+      const queuedContinuation =
+        args.hooks?.afterAttach?.(tx, latestThread) ?? false;
+      return { kind: "attached", changed: true, queuedContinuation };
     },
     { behavior: "immediate" },
   );
 
   if (result.kind === "attached" && result.changed) {
-    deps.hub.notifyThread(args.thread.id, ["events-appended"], {
+    deps.hub.notifyThread(args.thread.id, attachChangeKinds(result), {
       timelineSequence: getLatestThreadSequence(deps.db, {
         threadId: args.thread.id,
       }),
@@ -299,13 +313,8 @@ export async function handleUpdateEnvironmentDirectoryToolCall(
     );
   }
 
-  if (
-    getEnvironment(deps.db, args.currentEnvironment.id)?.path === normalizedPath
-  ) {
-    return toolCallSuccess(
-      `This thread is already using ${normalizedPath} as its environment directory.`,
-    );
-  }
+  const confirmed = confirmCurrentDirectory(deps, args, normalizedPath);
+  if (confirmed !== null) return confirmed;
 
   const existingEnvironment = findProjectEnvironmentByHostPath(
     deps.db,
@@ -370,12 +379,23 @@ export async function handleUpdateEnvironmentDirectoryToolCall(
 
   switch (attachResult.kind) {
     case "attached":
+      declineCheckoutPromotion(deps, args, targetEnvironment);
       return toolCallSuccess(successMessage(targetEnvironment.path));
     case "environment_changed":
       return toolCallFailure(
         "Thread environment changed while preparing the new directory. Try again with the desired path.",
       );
+    case "promotion_declined":
+      return promotionDeclinedFailure("new directory");
     case "thread_unavailable":
       return toolCallFailure(attachResult.message);
   }
 }
+
+export type { AttachEnvironmentResult, ReadyEnvironment };
+export {
+  attachReadyEnvironment,
+  resolveReadyEnvironment,
+  toolCallFailure,
+  toolCallSuccess,
+};

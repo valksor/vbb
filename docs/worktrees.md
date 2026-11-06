@@ -203,3 +203,5 @@ Fresh machine clones do not apply `.worktreeinclude`, because the new host has
 no local source checkout; supply local files and secrets through Machine
 environment settings. Restoring a machine filesystem does not rerun
 `.bb-env-setup.sh`.
+
+Fork additions: see [worktrees.fork.md](worktrees.fork.md).

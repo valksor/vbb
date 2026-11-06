@@ -146,6 +146,7 @@ describe("threads", () => {
     expect(thread.deletedAt).toBeNull();
     expect(thread.lastReadAt).toBe(thread.latestAttentionAt);
     expect(thread.visibility).toBe("visible");
+    expect(thread.worktreePromotion).toBe("declined");
 
     const fetched = getThread(db, thread.id);
     expect(fetched?.visibility).toBe("visible");

@@ -1,4 +1,9 @@
+import { useCallback } from "react";
 import type { PromptDraftState } from "@bb/client-core";
+import {
+  PROJECT_BRANCH_VALUE,
+  PROJECT_DEFAULT_VALUE,
+} from "@/components/pickers/environment-picker-value.fork";
 import {
   getPromptDraftAccessor,
   type PromptDraftController,
@@ -9,6 +14,20 @@ export type CarryDraftToProject = (
   draft: PromptDraftState,
   targetDraft: PromptDraftState,
 ) => PromptDraftState;
+
+export function useProjectDefaultSelection(
+  changeEnvironment: (value: string, providerTarget: null) => void,
+) {
+  return useCallback(
+    (promotion: "worktree" | "branch") => {
+      changeEnvironment(
+        promotion === "branch" ? PROJECT_BRANCH_VALUE : PROJECT_DEFAULT_VALUE,
+        null,
+      );
+    },
+    [changeEnvironment],
+  );
+}
 
 export function skipsDraftCarry(
   draftStorageKind: PromptDraftScope["kind"],

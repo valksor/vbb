@@ -21,6 +21,10 @@ import { threadCreateOriginValues } from "@bb/domain/thread-create-origin";
 import { threadOriginKindValues } from "@bb/domain/thread-origin-kind";
 import { threadParentNotificationsValues } from "@bb/domain/thread-parent-notifications";
 import { threadVisibilityValues } from "@bb/domain/thread-visibility";
+import {
+  threadWorktreePromotionValues,
+  threadPromotionTargetValues,
+} from "@bb/domain/thread-worktree-promotion";
 import type {
   EnvironmentProviderSelection,
   JsonValue,
@@ -558,6 +562,7 @@ export const environments = sqliteTable(
       "running" | "failed" | "removed"
     >(),
     teardownMessage: text("teardown_message"),
+    adoptedFromStatus: text("adopted_from_status").$type<EnvironmentStatus>(),
     resource: text("resource", { mode: "json" }).$type<JsonValue>(),
     ownerThreadId: text("owner_thread_id"),
     attempt: integer("attempt").notNull().default(0),
@@ -645,6 +650,16 @@ export const threads = sqliteTable(
     })
       .notNull()
       .default("auto"),
+    worktreePromotion: text("worktree_promotion", {
+      enum: threadWorktreePromotionValues,
+    })
+      .notNull()
+      .default("declined"),
+    promotionTarget: text("promotion_target", {
+      enum: threadPromotionTargetValues,
+    })
+      .notNull()
+      .default("worktree"),
     archivedAt: integer("archived_at"),
     pinnedAt: integer("pinned_at"),
     pinSortKey: text("pin_sort_key"),
@@ -698,6 +713,8 @@ export const threads = sqliteTable(
       .where(sql`${table.deletedAt} IS NULL`),
   ],
 );
+
+export * from "./schema.fork.js";
 
 export const threadExecutionReports = sqliteTable("thread_execution_reports", {
   threadId: text("thread_id")

@@ -161,6 +161,9 @@ terminal-permissions (TCC) and shell-history notes.
 - `bb thread create`
 - `bb thread new`
 - `bb thread fork`
+- `bb thread promotion`
+- `bb thread promotion inspect`
+- `bb thread promotion resolve`
 - `bb thread list`
 - `bb thread show`
 - `bb thread get`

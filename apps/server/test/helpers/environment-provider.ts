@@ -29,6 +29,7 @@ export interface FakeEnvironmentProvider {
 }
 
 export interface InstallFakeEnvironmentProviderArgs {
+  additionalProviders?: readonly PluginEnvironmentProviderRecord[];
   id: string;
   pluginId: string;
   displayName: string;
@@ -130,9 +131,11 @@ export function installFakeEnvironmentProvider(
     pluginId: args.pluginId,
     provider: normalized,
   };
+  const records = [...(args.additionalProviders ?? []), record];
   setPluginEnvironmentProviderBridge({
-    listEnvironmentProviders: () => [record],
-    getEnvironmentProvider: (id) => (id === args.id ? record : undefined),
+    listEnvironmentProviders: () => records,
+    getEnvironmentProvider: (id) =>
+      records.find((candidate) => candidate.provider.id === id),
     invokeProvider: (_pluginId, _label, run) => invokePluginInline(run),
     decisionTimeoutMs: 10_000,
   });
@@ -163,6 +166,7 @@ export function installFakeGitWorktreeProvider(
     action: "wait",
     reason: "Creating worktree…",
   }),
+  includeProjectCheckout = false,
 ): FakeEnvironmentProvider {
   return installFakeEnvironmentProvider({
     id: DEFAULT_ENVIRONMENT_PROVIDER_ID.gitWorktree,
@@ -175,6 +179,9 @@ export function installFakeGitWorktreeProvider(
       projectless: false,
     },
     inputs: worktreeProviderInputsSchema,
+    ...(includeProjectCheckout
+      ? { additionalProviders: defaultEnvironmentProviderRecords() }
+      : {}),
     decide,
   });
 }

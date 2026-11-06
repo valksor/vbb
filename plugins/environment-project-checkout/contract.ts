@@ -1,6 +1,7 @@
 import { defineRpcContract } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import { environmentHostProgressSchema } from "bb-environment-provider-host/progress";
+import { branchPromotionRpc } from "./contract.fork.js";
 
 export const checkoutBranchSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("existing"), name: z.string().min(1) }).strict(),
@@ -65,6 +66,7 @@ export const checkoutInspectionSchema = z.union([
 export type CheckoutInspection = z.infer<typeof checkoutInspectionSchema>;
 
 export const checkoutHostContract = defineRpcContract({
+  ...branchPromotionRpc,
   attach: {
     input: z
       .object({

@@ -52,7 +52,7 @@ function checkoutLabel(
   return `${verb} branch ${branch.name}`;
 }
 
-async function locateBranch(
+export async function locateBranch(
   cwd: string,
   name: string,
 ): Promise<"local" | "origin" | "missing"> {

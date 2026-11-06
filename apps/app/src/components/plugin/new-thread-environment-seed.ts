@@ -9,6 +9,7 @@ import type {
   ProviderEnvironmentArgs,
   WorkspaceArgs,
 } from "@bb/server-contract";
+import { projectDefaultEnvironmentSeed } from "./new-thread-environment-seed.fork";
 import {
   encodeReuseValue,
   encodeProviderValue,
@@ -59,7 +60,7 @@ export function newThreadEnvironmentArgsToSeed(
   environment: CreateThreadEnvironmentArgs,
 ): NewThreadEnvironmentSeed | null {
   if (environment.type === "project-default") {
-    return null;
+    return projectDefaultEnvironmentSeed(environment);
   }
   if (environment.type === "provider") {
     return {

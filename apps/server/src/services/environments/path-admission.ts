@@ -2,6 +2,7 @@ import {
   environmentHasLiveThreads,
   environments,
   findEnvironmentPathClaim,
+  getActiveBranchPromotion,
   getHost,
   getPreparingEnvironment,
   getThread,
@@ -35,6 +36,7 @@ export function findBlockingEnvironmentPathClaim(
       while (claim !== null) {
         if (claim.ownerThreadId === null || claim.teardownStatus !== null)
           return claim;
+        if (getActiveBranchPromotion(deps.db, claim.ownerThreadId)) return claim;
         const owner = getThread(deps.db, claim.ownerThreadId);
         if (owner?.status === "starting" || owner?.status === "stopping")
           return claim;
@@ -86,7 +88,9 @@ export function assertEnvironmentPathAvailable(
   const owner =
     args.threadId === null
       ? null
-      : getPreparingEnvironment(deps.db, args.threadId);
+      : getActiveBranchPromotion(deps.db, args.threadId)
+        ? null
+        : getPreparingEnvironment(deps.db, args.threadId);
   const claim = findBlockingEnvironmentPathClaim(deps, {
     hostId: args.hostId,
     path,

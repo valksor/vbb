@@ -1270,6 +1270,7 @@ export const publicApiRoutes = {
   },
 
   threads: {
+    ...branchPromotionRoutes,
     backgroundTaskOutput: defineRoute({
       path: "/threads/:id/background-tasks/:itemId/output",
       method: "get",
@@ -2184,3 +2185,4 @@ export type PublicApiSchema = ApiSchemaFromRouteDescriptors<
 >;
 
 export type PublicApiRoutes = Hono<{}, PublicApiSchema, "/">;
+import { branchPromotionRoutes } from "./branch-promotion-routes.fork.js";

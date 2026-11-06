@@ -646,6 +646,7 @@ const CORE_THREAD_INFO_ROWS: readonly CoreThreadInfoRegistration[] = [
     order: 20,
     component: CoreEnvironmentProvisioningFailureRow,
   },
+  ...forkThreadInfoRows(ROW_GROUPS, useThreadInfoHost),
   {
     id: "directory",
     group: ROW_GROUPS.environment,
@@ -709,3 +710,4 @@ export function ThreadMetadataContent(props: ThreadMetadataContentProps) {
     </ThreadInfoHostContext.Provider>
   );
 }
+import { forkThreadInfoRows } from "./ThreadMetadataContent.fork";

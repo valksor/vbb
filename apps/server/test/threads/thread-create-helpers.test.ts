@@ -128,6 +128,8 @@ describe("createThreadRecord", () => {
               titleFallback: null,
               visibility: "visible",
               parentNotifications: "auto",
+              worktreePromotion: "declined",
+              promotionTarget: "worktree",
             },
           },
         );
@@ -190,6 +192,8 @@ describe("createThreadRecord", () => {
             titleFallback: null,
             visibility: "visible",
             parentNotifications: "auto",
+            worktreePromotion: "declined",
+            promotionTarget: "worktree",
           },
         });
         throw new Error("Expected createThreadRecord to throw");

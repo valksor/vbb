@@ -225,10 +225,13 @@ describe("thread runtime config", () => {
           acpLaunchSpec: expectedSpec,
         });
         expect(startCommand.dynamicTools).toEqual([
+          expect.objectContaining({ name: "bb_enter_worktree" }),
+          expect.objectContaining({ name: "bb_keep_checkout" }),
           expect.objectContaining({
             name: "update_environment_directory",
           }),
         ]);
+        expect(startCommand.instructions).toContain("bb_enter_worktree");
         expect(startCommand.instructions).toContain(
           "update_environment_directory",
         );
@@ -251,10 +254,15 @@ describe("thread runtime config", () => {
           submitCommand.resumeContext.bridgeLaunch.providerOptions,
         ).toMatchObject({ acpLaunchSpec: expectedSpec });
         expect(submitCommand.resumeContext.dynamicTools).toEqual([
+          expect.objectContaining({ name: "bb_enter_worktree" }),
+          expect.objectContaining({ name: "bb_keep_checkout" }),
           expect.objectContaining({
             name: "update_environment_directory",
           }),
         ]);
+        expect(submitCommand.resumeContext.instructions).toContain(
+          "bb_enter_worktree",
+        );
         expect(submitCommand.resumeContext.instructions).toContain(
           "update_environment_directory",
         );
@@ -312,10 +320,13 @@ describe("thread runtime config", () => {
         acpLaunchSpec: expectedSpec,
       });
       expect(startCommand.dynamicTools).toEqual([
+        expect.objectContaining({ name: "bb_enter_worktree" }),
+        expect.objectContaining({ name: "bb_keep_checkout" }),
         expect.objectContaining({
           name: "update_environment_directory",
         }),
       ]);
+      expect(startCommand.instructions).toContain("bb_enter_worktree");
       expect(startCommand.instructions).toContain(
         "update_environment_directory",
       );
@@ -338,10 +349,15 @@ describe("thread runtime config", () => {
         submitCommand.resumeContext.bridgeLaunch.providerOptions,
       ).toMatchObject({ acpLaunchSpec: expectedSpec });
       expect(submitCommand.resumeContext.dynamicTools).toEqual([
+        expect.objectContaining({ name: "bb_enter_worktree" }),
+        expect.objectContaining({ name: "bb_keep_checkout" }),
         expect.objectContaining({
           name: "update_environment_directory",
         }),
       ]);
+      expect(submitCommand.resumeContext.instructions).toContain(
+        "bb_enter_worktree",
+      );
       expect(submitCommand.resumeContext.instructions).toContain(
         "update_environment_directory",
       );
@@ -902,6 +918,14 @@ describe("thread runtime config", () => {
       );
       expect(runtimeConfig.dynamicTools).toEqual([
         expect.objectContaining({
+          name: "bb_enter_worktree",
+          inputSchema: expect.objectContaining({ additionalProperties: false }),
+        }),
+        expect.objectContaining({
+          name: "bb_keep_checkout",
+          inputSchema: expect.objectContaining({ additionalProperties: false }),
+        }),
+        expect.objectContaining({
           name: "update_environment_directory",
           inputSchema: expect.objectContaining({
             required: ["path"],
@@ -920,6 +944,8 @@ describe("thread runtime config", () => {
       expect(pluginContexts[0]?.environment.workspaceProvisionType).toBe(
         "unmanaged",
       );
+      expect(runtimeConfig.instructions).toContain("bb_enter_worktree");
+      expect(runtimeConfig.instructions).toContain("without asking the user");
     });
   });
 

@@ -524,6 +524,8 @@ describe("plugin thread lifecycle events", () => {
         titleFallback: "Plugin event test thread",
         visibility: "visible",
         parentNotifications: "auto",
+        worktreePromotion: "declined",
+        promotionTarget: "worktree",
       };
       const thread = createThreadRecord(
         { db: harness.db, hub: harness.hub },
@@ -568,6 +570,8 @@ describe("plugin thread lifecycle events", () => {
               titleFallback: "Hidden plugin worker",
               visibility: "hidden",
               parentNotifications: "auto",
+              worktreePromotion: "declined",
+              promotionTarget: "worktree",
             },
           },
         );

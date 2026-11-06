@@ -46,7 +46,7 @@ interface OptionalServerFieldGroup {
   reason: string;
 }
 
-const OPTIONAL_SERVER_FIELD_GROUP_LIMIT = 46;
+const OPTIONAL_SERVER_FIELD_GROUP_LIMIT = 47;
 
 const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
   {
@@ -79,6 +79,14 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
       "resolvePendingInteractionRequestSchema.description.detail",
       "resolvePendingInteractionRequestSchema.description.payload",
       "resolvePendingInteractionRequestSchema.description.title",
+    ],
+  },
+  {
+    reason:
+      "A plan-approval deny carries the agent-facing denial text only when the resolver wrote one: the resolve route's body admits the message on the deny arm, and a recorded deny echoes it only when the sent resolution carried it; absence means the provider sends its standard plan-rejected message.",
+    fields: [
+      "resolvePendingInteractionRequestSchema.message",
+      "threadPendingInteractionsResponseSchema.resolution.message",
     ],
   },
   {
@@ -309,10 +317,12 @@ const OPTIONAL_SERVER_FIELD_GROUPS: readonly OptionalServerFieldGroup[] = [
   },
   {
     reason:
-      "Unmanaged workspaces may omit branch checkout intent when the daemon should leave HEAD untouched.",
+      "Checkout requests may omit branch intent to leave HEAD untouched, or omit promotion to preserve checkout-then-worktree policy for existing clients.",
     fields: [
       "createThreadRequestSchema.environment.workspace.branch",
       "forkThreadRequestSchema.environment.workspace.branch",
+      "createThreadRequestSchema.environment.promotion",
+      "forkThreadRequestSchema.environment.promotion",
     ],
   },
   {
@@ -1155,6 +1165,8 @@ describe("server-contract canonical schemas", () => {
           originPluginId: null,
           visibility: "visible",
           parentNotifications: "auto",
+          worktreePromotion: "declined",
+          promotionTarget: "worktree",
           archivedAt: null,
           pinnedAt: null,
           pinSortKey: null,
@@ -1174,6 +1186,7 @@ describe("server-contract canonical schemas", () => {
             activeGoalCount: 0,
           },
           hasPendingInteraction: true,
+          pendingInteractionKind: "approval",
           environmentHostId: "host_123",
           environmentName: null,
           environmentBranchName: "bb/test",
