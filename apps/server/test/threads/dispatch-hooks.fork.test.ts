@@ -1,7 +1,8 @@
-import { listEvents, listQueuedThreadMessages } from "@bb/db";
+import { getThread, listEvents, listQueuedThreadMessages } from "@bb/db";
 import type {
   QueuedMessageWaitingOn,
   ThreadQueuedMessage,
+  ThreadStatus,
 } from "@bb/domain";
 import type {
   MessageDispatchHookContext,
@@ -17,6 +18,7 @@ import { partitionWaiters } from "../../src/services/threads/dispatch-hooks.fork
 import { acceptThreadSendRequest } from "../../src/services/threads/thread-send-request.js";
 import { runQueuedMessageDispatch } from "../../src/services/threads/queued-message-dispatch.js";
 import { toThreadQueuedMessage } from "../../src/services/threads/thread-queued-messages.js";
+import { ENTER_WORKTREE_CONTINUATION_TEXT } from "../../src/services/threads/worktree-promotion.js";
 import { textInput } from "../helpers/prompt-input.js";
 import {
   seedEnvironment,
@@ -25,6 +27,7 @@ import {
   seedQueuedMessage,
   seedThread,
   seedThreadRuntimeState,
+  seedTurnStarted,
 } from "../helpers/seed.js";
 import { withTestHarness, type TestAppHarness } from "../helpers/test-app.js";
 
@@ -95,7 +98,7 @@ function onlyQueuedRow(
 
 function seedRunnableThread(
   harness: TestAppHarness,
-  args: { hostId: string; status: "idle" },
+  args: { hostId: string; status: ThreadStatus },
 ) {
   const { environment, project } = seedDispatchFixture(harness, args.hostId);
   const thread = seedThread(harness.deps, {
@@ -167,6 +170,127 @@ describe("message.dispatch hook composition", () => {
         pluginId: "drafts",
         reason: "Draft (also waiting on limiter: at capacity)",
       });
+    });
+  });
+});
+
+describe("message.dispatch hook admission visibility", () => {
+  it("clears worktree continuation before a steer dispatch", async () => {
+    await withTestHarness(async (harness) => {
+      const { environment, thread } = seedRunnableThread(harness, {
+        hostId: "host-worktree-continuation-steer",
+        status: "idle",
+      });
+      await acceptThreadSendRequest(harness.deps, {
+        payload: { input: textInput("first follow-up"), mode: "auto" },
+        thread,
+      });
+      seedTurnStarted(harness.deps, {
+        environmentId: environment.id,
+        providerThreadId: "provider-host-worktree-continuation-steer",
+        threadId: thread.id,
+        turnId: "turn-host-worktree-continuation-steer",
+      });
+      seedQueuedMessage(harness.deps, {
+        content: [
+          {
+            type: "text",
+            text: ENTER_WORKTREE_CONTINUATION_TEXT,
+            mentions: [],
+            visibility: "agent-only",
+          },
+        ],
+        threadId: thread.id,
+        waitingOn: { kind: "thread-busy" },
+      });
+
+      await acceptThreadSendRequest(harness.deps, {
+        payload: { input: textInput("a steer"), mode: "steer" },
+        thread: getThread(harness.db, thread.id)!,
+      });
+
+      expect(listQueuedThreadMessages(harness.db, thread.id)).toEqual([]);
+    });
+  });
+
+  it("replaces worktree continuation when an ordinary send queues behind an active turn", async () => {
+    await withTestHarness(async (harness) => {
+      const { thread } = seedRunnableThread(harness, {
+        hostId: "host-queued-user-after-promotion",
+        status: "active",
+      });
+      seedQueuedMessage(harness.deps, {
+        content: [
+          {
+            type: "text",
+            text: ENTER_WORKTREE_CONTINUATION_TEXT,
+            mentions: [],
+            visibility: "agent-only",
+          },
+        ],
+        threadId: thread.id,
+        waitingOn: { kind: "thread-busy" },
+      });
+
+      await expect(
+        acceptThreadSendRequest(harness.deps, {
+          payload: {
+            input: textInput("Use the new worktree differently"),
+            mode: "queue-if-active",
+          },
+          thread,
+        }),
+      ).resolves.toMatchObject({ ok: true, delivery: "queued" });
+
+      const queuedMessages = listQueuedThreadMessages(harness.db, thread.id);
+      expect(queuedMessages).toHaveLength(1);
+      expect(JSON.parse(queuedMessages[0]!.content)).toEqual(
+        textInput("Use the new worktree differently"),
+      );
+    });
+  });
+
+  it("keeps worktree continuation ahead of a newly scheduled future send", async () => {
+    await withTestHarness(async (harness) => {
+      const { thread } = seedRunnableThread(harness, {
+        hostId: "host-scheduled-user-after-promotion",
+        status: "active",
+      });
+      seedQueuedMessage(harness.deps, {
+        content: [
+          {
+            type: "text",
+            text: ENTER_WORKTREE_CONTINUATION_TEXT,
+            mentions: [],
+            visibility: "agent-only",
+          },
+        ],
+        threadId: thread.id,
+        waitingOn: { kind: "thread-busy" },
+      });
+
+      await expect(
+        acceptThreadSendRequest(harness.deps, {
+          payload: {
+            input: textInput("Run this after lunch"),
+            mode: "auto",
+            sendAt: Date.now() + 60_000,
+          },
+          thread,
+        }),
+      ).resolves.toMatchObject({ ok: true, delivery: "queued" });
+
+      const queuedMessages = listQueuedThreadMessages(harness.db, thread.id);
+      expect(queuedMessages).toHaveLength(2);
+      expect(JSON.parse(queuedMessages[0]!.content)).toEqual([
+        expect.objectContaining({
+          text: ENTER_WORKTREE_CONTINUATION_TEXT,
+          visibility: "agent-only",
+        }),
+      ]);
+      expect(JSON.parse(queuedMessages[1]!.content)).toEqual(
+        textInput("Run this after lunch"),
+      );
     });
   });
 });
