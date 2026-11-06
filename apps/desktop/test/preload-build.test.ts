@@ -21,6 +21,31 @@ const execFileAsync = promisify(execFile);
 const require = createRequire(__filename);
 const electronBinary = require("electron") as string;
 const desktopPackageRoot = process.cwd();
+
+function smokeLaunchArguments(userDataDir: string): string[] {
+  return [
+    ...createPackagedAppLaunchArguments({
+      platform: process.platform,
+      userDataDir,
+    }),
+    ...(process.platform === "darwin" ? ["--use-mock-keychain"] : []),
+  ];
+}
+
+function createSmokeEnv(args: { dataDir: string }): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    BB_DATA_DIR: args.dataDir,
+    BB_DESKTOP_AUTO_UPDATE: "0",
+    BB_DESKTOP_HEADLESS: "1",
+    BB_DESKTOP_OPEN_DEVTOOLS: "0",
+    BB_DESKTOP_VERSION_CHECK: "0",
+  };
+  delete env.BB_DESKTOP_APP_URL;
+  delete env.BB_DESKTOP_NODE_EXEC_PATH;
+  delete env.ELECTRON_RUN_AS_NODE;
+  return env;
+}
 const ELECTRON_STARTUP_TIMEOUT_MS = 15_000;
 const ELECTRON_EXIT_TIMEOUT_MS = 5_000;
 const ELECTRON_POST_READY_SETTLE_MS = 300;
@@ -373,26 +398,13 @@ describe("desktop build", () => {
       const stdout: string[] = [];
       const stderr: string[] = [];
       const childEnv: NodeJS.ProcessEnv = {
-        ...process.env,
-        BB_DATA_DIR: join(smokeRoot, "data"),
-        BB_DESKTOP_AUTO_UPDATE: "0",
-        BB_DESKTOP_OPEN_DEVTOOLS: "0",
-        BB_DESKTOP_VERSION_CHECK: "0",
+        ...createSmokeEnv({ dataDir: join(smokeRoot, "data") }),
         BB_SERVER_PORT: String(smokeServer.port),
       };
-      delete childEnv.BB_DESKTOP_APP_URL;
-      delete childEnv.BB_DESKTOP_NODE_EXEC_PATH;
-      delete childEnv.ELECTRON_RUN_AS_NODE;
 
       const child = spawn(
         electronBinary,
-        [
-          ...createPackagedAppLaunchArguments({
-            platform: process.platform,
-            userDataDir: join(smokeRoot, "user-data"),
-          }),
-          ".",
-        ],
+        [...smokeLaunchArguments(join(smokeRoot, "user-data")), "."],
         {
           cwd: desktopPackageRoot,
           env: childEnv,
@@ -449,10 +461,7 @@ describe("desktop build", () => {
           const retry = spawn(
             electronBinary,
             [
-              ...createPackagedAppLaunchArguments({
-                platform: process.platform,
-                userDataDir: retryProfile,
-              }),
+              ...smokeLaunchArguments(retryProfile),
               resolve(
                 desktopPackageRoot,
                 "test/fixtures/startup-retry-smoke.cjs",

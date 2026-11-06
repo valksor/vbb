@@ -250,6 +250,8 @@ live. After a startup-only change, run `bb-app stop && bb-app start` or restart
 the desktop app; until then, changing or unsetting `BB_SERVER_BIND_HOST` does
 not close a previous `0.0.0.0` listener.
 
+For an unpackaged desktop process, set `BB_DESKTOP_HEADLESS=1` before launch to keep windows hidden and suppress layout or zoom persistence. Only `1` enables it; packaged builds ignore it. This option requires a desktop restart and has no server settings endpoint. Native dialogs can still appear, and hidden interactive dialogs can wait for input. See `docs/configuration.md`, Source Development, and `apps/desktop/README.md` for behavior, limits, and source test commands.
+
 `--server-bind-host 0.0.0.0` (or `BB_SERVER_BIND_HOST=0.0.0.0`) listens on
 every interface for direct remote access; containers must also publish the
 port. BB accepts request hosts that are `localhost`, IP addresses (including
