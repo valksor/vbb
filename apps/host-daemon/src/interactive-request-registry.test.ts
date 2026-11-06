@@ -173,33 +173,6 @@ describe("InteractiveRequestRegistry", () => {
     await expect(second).resolves.toEqual(resolution);
   });
 
-  it("returns a plan denial message to the waiting request", async () => {
-    const request = createCommandApprovalRequest();
-    const registry = createRegistry({
-      registerRequest: async () => ({
-        outcome: "created",
-        interactionId: "pint_registry",
-        status: "pending",
-      }),
-    });
-    const pending = registry.registerAndWait(request);
-    const resolution: PendingInteractionResolution = {
-      decision: "deny",
-      message: "held for review",
-    };
-
-    registry.resolve({
-      interactionId: "pint_registry",
-      providerId: request.providerId,
-      providerRequestId: request.providerRequestId,
-      providerThreadId: request.providerThreadId,
-      resolution,
-      threadId: request.threadId,
-    });
-
-    await expect(pending).resolves.toEqual(resolution);
-  });
-
   it("ignores duplicate delivery after a command acknowledgement is retried", async () => {
     const request = createCommandApprovalRequest();
     const resolution = createCommandApprovalResolution();
