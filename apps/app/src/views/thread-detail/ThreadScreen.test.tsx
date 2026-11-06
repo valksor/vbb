@@ -2,6 +2,7 @@
 
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import type { PendingInteraction, ThreadListEntry } from "@bb/domain";
 import type { UseThreadTimelineControllerResult } from "@/components/thread/timeline";
 import { getPromptDraftAccessor } from "@/hooks/usePromptDraftStorage";
@@ -100,17 +101,20 @@ const SIDE_CHAT_PRESENTATION: ThreadScreenPresentation = {
   tone: "sidebar",
 };
 
-function renderScreen(presentation: ThreadScreenPresentation) {
+function renderScreen(
+  presentation: ThreadScreenPresentation,
+  composer: ComponentProps<typeof ThreadScreen>["composer"] = {
+    environmentCheckout: undefined,
+    environmentChrome: undefined,
+    contextEnvironmentId: null,
+    permissionPolicy: "snapshot",
+  },
+) {
   const { wrapper: Wrapper } = createQueryClientTestHarness();
   return render(
     <Wrapper>
       <ThreadScreen
-        composer={{
-          environmentCheckout: undefined,
-          environmentChrome: undefined,
-          contextEnvironmentId: null,
-          permissionPolicy: "snapshot",
-        }}
+        composer={composer}
         environment={null}
         presentation={presentation}
         projectId={THREAD.projectId}
@@ -163,6 +167,34 @@ afterEach(() => {
 });
 
 describe("ThreadScreen", () => {
+  it("renders the aside only with an open composer", () => {
+    const composer = {
+      environmentCheckout: undefined,
+      environmentChrome: undefined,
+      contextEnvironmentId: null,
+      permissionPolicy: "snapshot" as const,
+      aside: (
+        <aside aria-label="Composer aside">
+          aside for {THREAD.id}/{THREAD.projectId}
+        </aside>
+      ),
+    };
+    const open = renderScreen({ kind: "page" }, composer);
+
+    expect(screen.queryByTestId("prompt-area")).not.toBeNull();
+    expect(
+      screen.getByRole("complementary", { name: "Composer aside" }).textContent,
+    ).toBe(`aside for ${THREAD.id}/${THREAD.projectId}`);
+
+    open.unmount();
+    renderScreen({ kind: "page" }, null);
+
+    expect(screen.queryByTestId("prompt-area")).toBeNull();
+    expect(
+      screen.queryByRole("complementary", { name: "Composer aside" }),
+    ).toBeNull();
+  });
+
   it("passes a child waiting kind to the child threads section", () => {
     mocks.childThreads = [
       makeThreadListEntry({

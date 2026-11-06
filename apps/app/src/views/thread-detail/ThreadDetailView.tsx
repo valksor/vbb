@@ -73,6 +73,7 @@ import { toThreadActionTarget } from "@/lib/thread-actions/thread-action-target"
 import { Button } from "@bb/shared-ui/button";
 import { COARSE_POINTER_ICON_SIZE_CLASS } from "@bb/shared-ui/coarse-pointer-sizing";
 import { cn } from "@bb/shared-ui/lib/utils";
+import { PluginComposerAside } from "@/components/plugin/PluginComposerAside";
 import { PluginThreadHeaderActions } from "@/components/plugin/PluginThreadHeaderActions";
 import { ThreadWorkspaceOpenButton } from "@/components/thread/ThreadWorkspaceOpenButton";
 import {
@@ -1540,6 +1541,9 @@ function ThreadDetailViewInternal(
         onCreateNewThreadInEnvironment,
         onOpenThreadInfo: openThreadInfo,
         permissionPolicy: "editable",
+        aside: (
+          <PluginComposerAside threadId={thread.id} projectId={projectId} />
+        ),
       }}
       environment={environment ?? null}
       presentation={THREAD_DETAIL_SCREEN_PRESENTATION}
