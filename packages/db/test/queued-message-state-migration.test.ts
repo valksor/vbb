@@ -13,6 +13,7 @@ import {
   dropThreadStatusChangedAtColumn,
   rewindQueuedMessageStateMigration,
 } from "./helpers/rewind.js";
+import { rewindForkMigrationSuffix } from "./helpers/rewind.fork.js";
 
 interface LegacyQueuedRow {
   id: string;
@@ -61,6 +62,7 @@ function rewoundDatabase(): { db: DbConnection; threadId: string } {
   dropThreadParentNotificationsColumn(db);
   dropQueuedMessageDeliveryColumns(db);
   dropThreadStatusChangedAtColumn(db);
+  rewindForkMigrationSuffix(db);
   return { db, threadId: thread.id };
 }
 

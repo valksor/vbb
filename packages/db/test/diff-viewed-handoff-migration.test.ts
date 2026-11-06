@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createConnection, migrate } from "../src/index.js";
+import { rewindForkMigrationSuffix } from "./helpers/rewind.fork.js";
 import { restoreDiffViewedFilesTable } from "./helpers/rewind.js";
 
 const handoffMigrationWhen = 1793738260717;
@@ -16,6 +17,7 @@ function databaseBeforeHandoff(
   );
   for (const mark of marks) insert.run(...mark);
   db.$client.pragma("foreign_keys = ON");
+  rewindForkMigrationSuffix(db);
   db.$client
     .prepare("DELETE FROM __drizzle_migrations WHERE created_at >= ?")
     .run(handoffMigrationWhen);
