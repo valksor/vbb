@@ -285,7 +285,7 @@ export class SdkSession {
       ...(this.options.canUseTool
         ? { canUseTool: this.options.canUseTool }
         : {}),
-      ...(this.options.sandbox ? { sandbox: this.options.sandbox } : {}),
+      ...this.tokenSettings.sandboxOption(),
       ...(this.options.hooks ? { hooks: this.options.hooks } : {}),
       ...(resumeSessionId ? { resume: resumeSessionId } : {}),
       ...(!resumeSessionId && this.options.sessionId

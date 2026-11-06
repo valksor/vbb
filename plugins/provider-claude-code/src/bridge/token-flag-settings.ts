@@ -101,31 +101,48 @@ export function removeTokenFlagSettingsFile(file: string): void {
   rmSync(file, { force: true });
 }
 
+function normalizeSandbox(
+  sandbox: NonNullable<Options["sandbox"]>,
+): NonNullable<Options["sandbox"]> {
+  return sandbox.enabled === true && sandbox.failIfUnavailable === undefined
+    ? { ...sandbox, failIfUnavailable: true }
+    : sandbox;
+}
+
 export interface TokenFlagSettingsLease {
   settingsOption(fallback: Options["settings"]): {
     settings?: Options["settings"];
   };
+  sandboxOption(): { sandbox?: Options["sandbox"] };
   release(): void;
 }
 
 export function acquireTokenFlagSettings(options: {
   tokenFlagSettingsDir?: string;
   settings?: Options["settings"];
+  sandbox?: Options["sandbox"];
   env: NodeJS.ProcessEnv;
 }): TokenFlagSettingsLease {
+  const sandbox = options.sandbox;
   let file: string | null =
     options.tokenFlagSettingsDir === undefined
       ? null
       : writeTokenFlagSettingsFile({
           dir: options.tokenFlagSettingsDir,
-          settings:
-            typeof options.settings === "object" ? options.settings : {},
+          settings: {
+            ...(typeof options.settings === "object" ? options.settings : {}),
+            ...(sandbox ? { sandbox: normalizeSandbox(sandbox) } : {}),
+          },
           token: requireProfileToken(options.env),
         });
   return {
     settingsOption(fallback) {
       if (file !== null) return { settings: file };
       return fallback ? { settings: fallback } : {};
+    },
+    sandboxOption() {
+      if (file !== null) return {};
+      return sandbox ? { sandbox } : {};
     },
     release() {
       if (file === null) return;
