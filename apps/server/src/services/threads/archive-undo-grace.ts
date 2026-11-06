@@ -1,7 +1,6 @@
 import { ARCHIVE_UNDO_GRACE_MS } from "../../constants.js";
 import type { Thread } from "@bb/domain";
-
-const ARCHIVE_GRACE_KEEPS_TURN_RUNNING: boolean = false;
+import { ARCHIVE_GRACE_KEEPS_TURN_RUNNING } from "./archive-undo-grace.fork.js";
 
 type ArchiveUndoGraceThread = Pick<Thread, "archivedAt" | "status">;
 
