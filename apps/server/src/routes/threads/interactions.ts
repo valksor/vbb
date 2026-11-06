@@ -10,7 +10,7 @@ import { z } from "zod";
 import type { AppDeps } from "../../types.js";
 import { ApiError } from "../../errors.js";
 import { requirePublicThread } from "../../services/lib/entity-lookup.js";
-import { pluginAnswerOrigin } from "../../services/interactions/pending-interactions-app-answer.js";
+import { pluginAnswerOrigin } from "../../services/interactions/pending-interactions-app-answer.fork.js";
 
 const pendingInteractionIdSchema = z
   .string()

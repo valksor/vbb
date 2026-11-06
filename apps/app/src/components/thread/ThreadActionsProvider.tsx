@@ -48,7 +48,7 @@ import {
   archivedToastNote,
   archivedToastText,
   archivedToastTitle,
-} from "@/components/thread/ArchivedThreadToastWithNote";
+} from "@/components/thread/ArchivedThreadToastWithNote.fork";
 import { destroyPersistedBrowserViewsForThread } from "@/components/secondary-panel/browserViewVisibilityCoordinator";
 import { getThreadReadToggleAction } from "@bb/client-core";
 import { getRootComposeRoutePath, getThreadRoutePath } from "@/lib/route-paths";
@@ -57,7 +57,7 @@ import { useRouteNavigate } from "@/components/ui/app-route-anchor";
 import { resolveThread } from "@/lib/cached-thread";
 import { useSidebarThreadEntries } from "@/lib/sidebar-thread-entries";
 import { CORE_THREAD_ACTIONS } from "@/lib/thread-actions/core-thread-actions";
-import { useEnvironmentArchiveFlow } from "@/lib/thread-actions/environment-archive";
+import { useEnvironmentArchiveFlow } from "@/lib/thread-actions/environment-archive.fork";
 import { ThreadActionCollectors } from "@/lib/thread-actions/thread-action-registry";
 import {
   planThreadSelection,

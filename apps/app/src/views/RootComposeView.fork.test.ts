@@ -1,6 +1,12 @@
 import type { ProjectSource } from "@bb/domain";
 import type { SystemEnvironmentProvider } from "@bb/server-contract";
+import {
+  THREAD_HANDOFF_COMPOSE_SEED_LOCATION_STATE_KEY,
+  type ThreadHandoffComposeSeed,
+} from "@bb/client-core";
 import { describe, expect, it } from "vitest";
+import { hasSingleUseRootComposeTargetState } from "./RootComposeView";
+import { buildHandoffComposerSeed } from "./root-compose-handoff.fork";
 import { resolveRootComposeEffectiveEnvironmentValue } from "./root-compose-environment-selection";
 
 function makeProjectSource(hostId = "host_1"): ProjectSource {
@@ -102,5 +108,70 @@ describe("resolveRootComposeEffectiveEnvironmentValue", () => {
         reuseThreadOptionsLoading: false,
       }),
     ).toBe("");
+  });
+});
+
+describe("buildHandoffComposerSeed", () => {
+  const handoffSeed: ThreadHandoffComposeSeed = {
+    draft: {
+      text: "Continue from @thread:thr_plan",
+      mentions: [],
+      attachments: [],
+    },
+    environmentId: "env_plan",
+    model: "claude-opus-5",
+    permissionMode: "auto",
+    projectId: "proj_plan",
+    providerId: "claude-code",
+    reasoningLevel: "high",
+    serviceTier: undefined,
+    sourceThreadId: "thr_plan",
+    sourceThreadTitle: "Plan",
+  };
+
+  it("reuses the source environment while the source project is selected", () => {
+    expect(buildHandoffComposerSeed(handoffSeed, "proj_plan")).toEqual({
+      providerId: "claude-code",
+      model: "claude-opus-5",
+      reasoningLevel: "high",
+      serviceTier: undefined,
+      permissionMode: "auto",
+      environment: { type: "reuse", environmentId: "env_plan" },
+    });
+  });
+
+  it("keeps the execution but lets another project choose its environment", () => {
+    const seed = buildHandoffComposerSeed(handoffSeed, "proj_work");
+    expect(seed.environment).toBeUndefined();
+    expect(seed).toMatchObject({
+      providerId: "claude-code",
+      model: "claude-opus-5",
+      permissionMode: "auto",
+    });
+  });
+
+  it("seeds no environment when the source thread had none", () => {
+    expect(
+      buildHandoffComposerSeed(
+        { ...handoffSeed, environmentId: null },
+        "proj_plan",
+      ).environment,
+    ).toBeUndefined();
+  });
+
+  it("treats a handoff seed as single-use location state", () => {
+    expect(
+      hasSingleUseRootComposeTargetState({
+        [THREAD_HANDOFF_COMPOSE_SEED_LOCATION_STATE_KEY]: handoffSeed,
+      }),
+    ).toBe(true);
+    expect(
+      hasSingleUseRootComposeTargetState({
+        [THREAD_HANDOFF_COMPOSE_SEED_LOCATION_STATE_KEY]: {
+          ...handoffSeed,
+          model: "",
+        },
+      }),
+    ).toBe(false);
   });
 });

@@ -46,9 +46,8 @@ import {
 } from "../services/system/event-pruning.js";
 import {
   partitionExecutionReports,
-  recordExecutionReportsInTransaction,
-} from "./execution-reports.js";
-import { recordInsertedEventSpend } from "./spend-observations.js";
+  recordForkIngestInTransaction,
+} from "./events.fork.js";
 import { queueChildThreadTurnNotificationBestEffort } from "../services/threads/child-thread-notifications.js";
 import { isParentNotifiableChildThread } from "../services/threads/thread-parent.js";
 import {
@@ -1223,8 +1222,11 @@ export function registerInternalEventRoutes(app: Hono, deps: AppDeps): void {
         appendResult = deps.db.transaction(
           (tx) => {
             const result = appendDaemonEventsInTransaction(tx, eventInputs);
-            recordExecutionReportsInTransaction(tx, executionReports);
-            recordInsertedEventSpend(tx, { entries: labelledEntries, result });
+            recordForkIngestInTransaction(tx, deps, {
+              entries: labelledEntries,
+              executionReports,
+              result,
+            });
             return result;
           },
           { behavior: "immediate" },
