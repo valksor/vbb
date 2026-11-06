@@ -54,9 +54,11 @@ with `bb plugin config provider-claude-code set <key> <value>`.
   description of the command instead; approval prompts and the expanded row
   still show the command. It takes effect from each thread's next message;
   existing rows keep their titles.
-- bb passes only `BB_CLAUDE_CODE_EXECUTABLE` and `CLAUDE_CODE_OAUTH_TOKEN` to
-  the CLI. Mint the token with `claude setup-token` for machines with no
-  interactive login.
+- The Claude bridge inherits the host daemon's environment minus `BB_*`
+  variables, so `BB_CLAUDE_CODE_EXECUTABLE` picks the `claude` binary and
+  `CLAUDE_CODE_OAUTH_TOKEN` authenticates a machine with no interactive login
+  (mint it with `claude setup-token`). Profile providers strip credential and
+  routing variables; see below.
 - Claude Code's own slash commands, including bundled skills such as
   `/simplify` and `/code-review`, appear in the composer's `/` menu,
   `bb project commands`, and `bb thread commands`. The provider reads them from
@@ -72,7 +74,7 @@ with `bb plugin config provider-claude-code set <key> <value>`.
 
 ## Profiles
 
-+`profiles` registers extra native Claude Code providers. A profile is one of two
+`profiles` registers extra native Claude Code providers. A profile is one of two
 exclusive kinds: a login profile bound to its own `CLAUDE_CONFIG_DIR` and login
 (for example a work account next to a personal one), or a token profile that
 sends the CLI to another Anthropic-compatible endpoint with an API token read
@@ -93,6 +95,14 @@ bb plugin config provider-claude-code set profiles \
 CLAUDE_CONFIG_DIR="$HOME/.claude-work" claude auth login
 ```
 
+An empty value removes all profiles. An invalid value is rejected with the
+reason.
+
+- `id` matches `^[a-z0-9]+(-[a-z0-9]+)*$` (no leading, trailing, or doubled
+  hyphen), is at most 41 characters, and must be unique. The provider id is
+  `claude-code-<id>` (`claude-code-work`); check with `bb provider list`.
+- `displayName` is non-blank, at most 80 characters.
+
 `configDir` is `~/<subdirectory>` or a canonical absolute POSIX path. It cannot
 be the home directory, the filesystem root, or contain shell, control, bidi, or
 invisible characters. The profile uses only credentials and account data in that
@@ -104,7 +114,20 @@ the plugin settings for memory, sandbox, 1M context, and Chrome. Existing thread
 cannot change providers. Changing a directory or removing a profile leaves old
 threads unavailable and preserves their old transcripts.
 
-+## Token profiles
+Behavior to know:
+
+- Profiles are macOS and Linux only: `configDir` must be a POSIX path (Windows
+  paths are rejected) and the sign-in hint is POSIX shell syntax.
+- An absolute `configDir` equal to the host's home directory passes the setting
+  check, which cannot know the home of each host, but every request on that host
+  fails with "must not be the home directory". Use a subdirectory.
+- `installation` maintenance is off for profiles, so the daemon's CLI preflight
+  is skipped. Update the CLI through the default `claude-code` provider.
+- A login profile lists user skills only from `<configDir>/skills`, never
+  `~/.claude`. If the host cannot resolve native roots, it lists no user skills
+  (fails closed).
+
+## Token profiles
 
 A token profile is `{id, displayName, authTokenFile, env}`. It points the Claude
 CLI at another Anthropic-compatible endpoint, for example GLM on z.ai, with the

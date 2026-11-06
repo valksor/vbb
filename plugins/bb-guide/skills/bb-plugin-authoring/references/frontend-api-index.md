@@ -226,6 +226,7 @@ Read the installed SDK declarations for the exact current signatures.
 - `PluginEnvironmentProvidersState`
 - `PluginBoundThreadsArea`
 - `PluginBrowserBbSdk`
+- `PluginComposerAsideRegistration`
 - `ExperimentalThreadContextSegmentRegistration`
 - `ExperimentalThreadInfoRowRegistration`
 - `ExperimentalThreadRowMetadataRegistration`

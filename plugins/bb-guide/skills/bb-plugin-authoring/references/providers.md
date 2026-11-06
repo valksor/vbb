@@ -163,7 +163,9 @@ Declare fixed host-home or workspace-relative roots with
 only the host can find them (a moved config directory, installed vendor
 plugins), set `experimental_resolvesNativeRoots` and implement
 `experimental_nativeRootsHostContract` from `@get-bb/plugin-sdk/host` in the
-host entry. Return absolute paths with a `user` or `project` origin, and run
+host entry. The input carries `providerId`, `cwd`, and the provider's
+`experimental_bridgeOptions` as `bridgeOptions` (absent when it declares none),
+so one host entry can serve several providers. Return absolute paths with a `user` or `project` origin, and run
 `experimental_filterResolvedNativeRoots` before returning so one bad root does
 not reject the complete answer; it limits each side and applies the correct
 skill or command shape. Root semantics and precedence are in

@@ -177,9 +177,11 @@ Still experimental on the declaration (see api_to_audit.md):
   root that walks ancestors or that the plugin resolved. Declared roots are
   relative to the host home (`user`) or the workspace (`project`) only.
 - `experimental_resolvesNativeRoots` — the plugin's `bb.host` entry answers
-  `resolveNativeRoots({ providerId, cwd })` with the roots only that host
-  and workspace know: a moved config directory, installed vendor plugins,
-  config-file entries. A host-absolute directory is always the resolver's
+  `resolveNativeRoots({ providerId, cwd, bridgeOptions? })` with the roots
+  only that host and workspace know: a moved config directory, installed
+  vendor plugins, config-file entries. `bridgeOptions` is the provider's
+  `experimental_bridgeOptions`, present only when the provider declares some.
+  A host-absolute directory is always the resolver's
   answer. An answer lists each path once per side, and the
   `@get-bb/plugin-sdk/host` vendor-plugin readers keep the first root per path
   in answer order. bb scans each absolute path once per provider across the

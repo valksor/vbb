@@ -225,7 +225,8 @@ Register resource operations with `bb.experimental_environments.register`.
 Core owns launch attempts, cancellation, retry timing, attachment, retirement,
 and removal; providers must not keep duplicate launch records or call
 `sdk.environments.delete` to drive retirement. `icon` accepts host glyphs,
-plugin-relative assets, and this plugin's declared namespaced icons, and
+plugin-relative assets, and this plugin's declared namespaced icons (only agent
+providers also accept a base64 image data URI), and
 `app.slots.experimental_providerIcon` with `providerKind: "environment"` can
 override it. The `@get-bb/plugin-sdk/environment-provider` entry exports the
 operation types.
