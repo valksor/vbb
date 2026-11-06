@@ -3,8 +3,6 @@ import {
   getAppSettings,
   getDatabaseDataVersion,
   getThreadPluginMetadata,
-  getThreadExecutionOverride,
-  getThreadExecutionReport,
   patchThreadPluginMetadata,
   getLatestCompletedThreadContextClearSequence,
   listContextWindowUsageRows,
@@ -20,21 +18,17 @@ import {
   type ThreadEventType,
 } from "@bb/domain";
 import {
-  BACKGROUND_TASK_OUTPUT_DEFAULT_TAIL_BYTES,
-  BACKGROUND_TASK_OUTPUT_MAX_TAIL_BYTES,
   publicApiRoutes,
   THREAD_EVENT_LIST_PAGE_SIZE,
   typedRoutes,
   type PublicApiSchema,
   type ThreadConversationOutlineResponse,
-  type ThreadExecutionProfileResponse,
   type ThreadTimelineQuery,
 } from "@bb/server-contract";
 import type { AppDeps } from "../../types.js";
 import { COMMAND_TIMEOUT_MS } from "../../constants.js";
 import { ApiError } from "../../errors.js";
 import { requirePublicThread } from "../../services/lib/entity-lookup.js";
-import { readThreadBackgroundTaskOutput } from "../../services/threads/background-task-output.js";
 import { callHostRetryableOnlineRpc } from "../../services/hosts/online-rpc.js";
 import { requireThreadStorageTarget } from "../../services/threads/thread-storage.js";
 import { toThreadQueuedMessage } from "../../services/threads/thread-queued-messages.js";
@@ -67,7 +61,7 @@ import {
 } from "../../services/threads/thread-data.js";
 import { listThreadPromptHistory } from "../../services/prompt-history.js";
 import { tryResolveExistingThreadExecutionPlan } from "../../services/threads/thread-execution-plan.js";
-import { getLastExecutionOptions } from "../../services/threads/thread-events.js";
+import { registerForkThreadDataRoutes } from "./data.fork.js";
 import {
   parseBoundedPositiveOptionalInteger,
   parseInteger,
@@ -158,46 +152,7 @@ export function registerThreadDataRoutes(app: Hono, deps: AppDeps): void {
     onValidationError: (msg) => new ApiError(400, "invalid_request", msg),
   });
   const routes = publicApiRoutes.threads;
-  get(routes.backgroundTaskOutput, async (context, query) => {
-    const thread = requirePublicThread(deps.db, context.req.param("id"));
-    const tailBytes = parseBoundedPositiveOptionalInteger({
-      defaultValue: BACKGROUND_TASK_OUTPUT_DEFAULT_TAIL_BYTES,
-      max: BACKGROUND_TASK_OUTPUT_MAX_TAIL_BYTES,
-      name: "tailBytes",
-      value: query.tailBytes,
-    });
-    return context.json(
-      await readThreadBackgroundTaskOutput(deps, {
-        threadId: thread.id,
-        itemId: context.req.param("itemId"),
-        tailBytes,
-      }),
-    );
-  });
-
-  get(routes.executionProfile, async (context) => {
-    const threadId = context.req.param("id");
-    requirePublicThread(deps.db, threadId);
-    const overrides = getThreadExecutionOverride(deps.db, threadId);
-    const nextTurn =
-      (
-        await tryResolveExistingThreadExecutionPlan(deps, {
-          executionSource: "client/turn/requested",
-          input: {},
-          threadId,
-        })
-      )?.resolvedExecution ?? null;
-    const response: ThreadExecutionProfileResponse = {
-      lastRequested: getLastExecutionOptions(deps, threadId),
-      overrides: {
-        model: overrides?.modelOverride ?? null,
-        reasoningLevel: overrides?.reasoningLevelOverride ?? null,
-      },
-      nextTurn,
-      executed: getThreadExecutionReport(deps.db, threadId),
-    };
-    return context.json(response);
-  });
+  registerForkThreadDataRoutes(app, deps);
   const timelineWindows = createThreadTimelineWindows(deps);
   const conversationOutlineCache = new Map<
     string,
