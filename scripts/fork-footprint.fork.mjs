@@ -286,4 +286,3 @@ export function main(argv) {
     return error instanceof ExitError ? error.code : 2;
   }
 }
-
