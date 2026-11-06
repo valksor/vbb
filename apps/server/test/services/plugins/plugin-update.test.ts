@@ -28,6 +28,9 @@ import {
   vi,
 } from "vitest";
 import {
+  acquireWorkQuiesceLease,
+  isWorkAdmissionOpen,
+  listOpenWorkAdmissions,
   getInstalledPlugin,
   getPluginKvValue,
   getInstalledPluginRegistration,
@@ -98,6 +101,99 @@ async function commitPlugin(
 }
 
 describe("plugin update scheduling", () => {
+  it.each(["open", "closed", "stopped"] as const)(
+    "handles a lost periodic admission with %s scheduling",
+    async (mode) => {
+      const HOUR = 60 * 60 * 1_000;
+      const raceDb = createMigratedConnection();
+      const scheduled: Array<{ delayMs: number; onElapsed: () => void }> = [];
+      const notifySystem = vi.fn();
+      const raceService = createPluginService({
+        aiServices: createAiServiceRegistry(),
+        telemetry: createNoopTelemetryService(),
+        db: raceDb,
+        hub: {
+          getDaemonSessionIdForHost: () => null,
+          notifyPluginChanged: () => {},
+          notifyPluginSignal: () => 0,
+          notifySystem,
+          onWatchedTargets: () => () => {},
+        },
+        logger,
+        dataDir: join(tmpdir(), "bb-plugin-periodic-admission-retry-test"),
+        appVersion: "1.0.0",
+        stabilizationWindowMs: 0,
+        scheduleUpdateCheck: (delayMs, onElapsed) => {
+          const entry = { delayMs, onElapsed };
+          scheduled.push(entry);
+          return () => {
+            const index = scheduled.indexOf(entry);
+            if (index !== -1) scheduled.splice(index, 1);
+          };
+        },
+      });
+      const takeScheduled = () => {
+        const entry = scheduled.shift();
+        if (entry === undefined) throw new Error("missing scheduled check");
+        return entry;
+      };
+
+      try {
+        expect(acquireWorkQuiesceLease(raceDb, {
+          operationId: "periodic-activation-race",
+          ownerSecretHash: "owner-hash",
+          reason: "periodic admission race fixture",
+          now: 1,
+          expiresAt: 2,
+        })).toMatchObject({ kind: "acquired" });
+        expect(isWorkAdmissionOpen(raceDb)).toBe(true);
+        raceDb.$client.exec(`
+          CREATE TABLE periodic_update_activation_loss_hits (id TEXT PRIMARY KEY);
+          CREATE TRIGGER lose_periodic_update_admission
+          AFTER INSERT ON work_admissions
+          WHEN NEW.command_type = 'plugin.update-check'
+          BEGIN
+            INSERT INTO periodic_update_activation_loss_hits (id) VALUES (NEW.id);
+            DELETE FROM work_admissions WHERE id = NEW.id;
+            ${mode === "closed" ? "UPDATE work_quiesce SET phase = 'sealed', expires_at = NULL WHERE scope = 'global';" : ""}
+          END;
+        `);
+        raceService.startPeriodicUpdateChecks();
+        expect(scheduled.map((entry) => entry.delayMs)).toEqual([6 * HOUR]);
+        const elapsed = takeScheduled();
+        if (mode === "stopped") await raceService.stopPeriodicUpdateChecks();
+        await elapsed.onElapsed();
+
+        expect(raceDb.$client.prepare(
+          "SELECT COUNT(*) AS hits FROM periodic_update_activation_loss_hits",
+        ).get()).toEqual({ hits: mode === "stopped" ? 0 : 1 });
+        expect(isWorkAdmissionOpen(raceDb)).toBe(mode !== "closed");
+        expect(listOpenWorkAdmissions(raceDb)).toEqual([]);
+        expect(notifySystem).not.toHaveBeenCalled();
+        expect(scheduled.map((entry) => entry.delayMs)).toEqual(
+          mode === "open" ? [6 * HOUR] : [],
+        );
+
+        raceDb.$client.exec("DROP TRIGGER lose_periodic_update_admission");
+        if (mode === "open") {
+          await takeScheduled().onElapsed();
+          expect(notifySystem).toHaveBeenCalledTimes(1);
+          expect(notifySystem).toHaveBeenCalledWith(["plugins-changed"]);
+          expect(listOpenWorkAdmissions(raceDb)).toEqual([]);
+          expect(scheduled.map((entry) => entry.delayMs)).toEqual([6 * HOUR]);
+          const afterStop = takeScheduled();
+          await raceService.stopPeriodicUpdateChecks();
+          await afterStop.onElapsed();
+          expect(notifySystem).toHaveBeenCalledTimes(1);
+          expect(scheduled).toEqual([]);
+        }
+      } finally {
+        await raceService.stop();
+        raceDb.$client.close();
+      }
+    },
+  );
+
   it("defers periodic checks while sealed and schedules them after release", async () => {
     const HOUR = 60 * 60 * 1_000;
     const emptyDb = createMigratedConnection();

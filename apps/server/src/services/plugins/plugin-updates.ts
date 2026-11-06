@@ -475,6 +475,12 @@ export function createPluginUpdates(
     if (!markWorkAdmissionActive(deps.db, admission.token)) {
       settleWorkAdmission(deps.db, admission.token);
       periodicChecksQuiesced = !isWorkAdmissionOpen(deps.db);
+      if (!periodicChecksQuiesced && periodicChecksRequested) {
+        cancelPeriodicCheck = scheduleUpdateCheck(
+          PLUGIN_UPDATE_CHECK_INTERVAL_MS,
+          runPeriodicCheck,
+        );
+      }
       return;
     }
     try {
