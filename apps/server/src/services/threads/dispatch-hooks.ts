@@ -24,6 +24,7 @@ import type {
   PluginDispatchExecutionSources,
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
+import { partitionWaiters } from "./dispatch-hook-waiters.js";
 import { ApiError } from "../../errors.js";
 import type { AppDeps } from "../../types.js";
 import { toEnvironmentResponse } from "../environments/environment-response.js";
@@ -448,12 +449,12 @@ export async function runMessageDispatchHookPass(
       }
     }
 
-    const waiter = waits[0];
+    const { waiter, additionalWaiters } = partitionWaiters(request, waits);
     if (waiter === undefined) {
       await request.continueAfterHooks?.();
       return { kind: "proceed" };
     }
-    return { kind: "wait", waiter, additionalWaiters: waits.slice(1) };
+    return { kind: "wait", waiter, additionalWaiters };
   });
 }
 
