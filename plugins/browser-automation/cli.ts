@@ -8,6 +8,7 @@ import {
 } from "@get-bb/plugin-sdk";
 import type { z } from "zod";
 import type { rpcContract } from "./contracts.js";
+import { forkBrowserCliFailure } from "./cli.fork.js";
 
 export type BrowserCliMethod =
   | "open"
@@ -364,18 +365,8 @@ export function browserCliFailure(error: unknown): PluginCliError {
   if (error instanceof PluginCliError) return error;
   const message =
     error instanceof Error ? error.message : "Browser command failed";
-  if (/cancelled or timed out/u.test(message)) {
-    return new PluginCliError(message, {
-      code: "session_unavailable",
-      hint: `${REOPEN_HINT} If the script needs longer, pass a larger \`--timeout\` (maximum 120 seconds).`,
-    });
-  }
-  if (/stopped, expired, or worker restarted|Session expired/u.test(message)) {
-    return new PluginCliError(message, {
-      code: "session_unavailable",
-      hint: REOPEN_HINT,
-    });
-  }
+  const forkFailure = forkBrowserCliFailure(message, REOPEN_HINT);
+  if (forkFailure !== null) return forkFailure;
   if (/stopped or expired|does not belong to this thread/u.test(message)) {
     return new PluginCliError(message, {
       code: "session_unavailable",
