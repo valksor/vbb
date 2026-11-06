@@ -14,6 +14,7 @@ import { getProjectScopedStorageKey } from "@/lib/project-scoped-storage";
 import {
   PROVIDER_STORAGE_KEY,
   createProjectProviderIdAtomFamily,
+  createProviderSelectionStorage,
 } from "./persisted-selection-fields.fork";
 
 const MODEL_STORAGE_KEY = "bb.promptbox.model";
@@ -104,20 +105,15 @@ function getProviderSelectionStorageKey(
   return `${storageKey}-${encodeURIComponent(providerId.trim())}-${PROVIDER_SELECTION_STORAGE_VERSION}`;
 }
 
-const providerReasoningStorage = createTabScopedStorage<StoredReasoningLevel>(
-  {
-    parse: (value, initialValue) =>
-      value !== null && isStoredReasoningLevel(value) ? value : initialValue,
-    serialize: (value) => value,
-  },
-  { persistInitialValue: true },
-);
-
 const modelAtomFamily = atomFamily((providerId: string) =>
   atomWithStorage<string>(
     getProviderSelectionStorageKey(MODEL_STORAGE_KEY, providerId),
     "",
-    stringSelectionStorage,
+    createProviderSelectionStorage(
+      providerId,
+      MODEL_STORAGE_KEY,
+      (value, initialValue) => value ?? initialValue,
+    ),
     { getOnInit: true },
   ),
 );
@@ -140,7 +136,12 @@ const reasoningLevelAtomFamily = atomFamily((providerId: string) =>
   atomWithStorage<StoredReasoningLevel>(
     getProviderSelectionStorageKey(REASONING_STORAGE_KEY, providerId),
     "",
-    providerReasoningStorage,
+    createProviderSelectionStorage<StoredReasoningLevel>(
+      providerId,
+      REASONING_STORAGE_KEY,
+      (value, initialValue) =>
+        value !== null && isStoredReasoningLevel(value) ? value : initialValue,
+    ),
     { getOnInit: true },
   ),
 );
