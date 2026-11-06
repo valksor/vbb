@@ -4,17 +4,19 @@ import { createPluginUpdateJobs } from "../../../src/services/plugins/plugin-upd
 import { execFile } from "node:child_process";
 import { cpSync } from "node:fs";
 import {
+  chmod,
   mkdtemp,
   mkdir,
   readFile,
   rename,
   rm,
   stat,
+  symlink,
   writeFile,
 } from "node:fs/promises";
 import Database from "better-sqlite3";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { Hono } from "hono";
 import {
@@ -61,6 +63,10 @@ import {
   SERVER_MOVE_FROZEN_RETRY_MS,
   setServerMoveFrozen,
 } from "../../../src/services/server-move/freeze-state.js";
+import { gitMirrorCacheDir } from "../../../src/services/plugins/git-subtree-mirror.js";
+import { parsePluginSource } from "../../../src/services/plugins/install-sources.js";
+
+vi.setConfig({ hookTimeout: 30_000, testTimeout: 120_000 });
 
 const logger = testLogger as unknown as Logger;
 const run = promisify(execFile);
@@ -74,12 +80,13 @@ async function commitPlugin(
   version: string,
   engines?: { bb?: string; bbPluginSdk?: string },
   serverSource?: string,
+  packageName = "bb-plugin-updater",
 ): Promise<string> {
   await mkdir(repo, { recursive: true });
   await writeFile(
     join(repo, "package.json"),
     JSON.stringify({
-      name: "bb-plugin-updater",
+      name: packageName,
       version,
       ...(engines ? { engines } : {}),
       bb: {
@@ -1996,5 +2003,437 @@ describe("plugin update service and routes", () => {
         detail: expect.stringContaining('git tag "v1.0.0"'),
       },
     ]);
+  });
+
+  describe("collection repo with unchanged plugin subdirectories", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    function commitSubdirectory(
+      name: string,
+      version: string,
+    ): Promise<string> {
+      return commitPlugin(
+        join(repo, "plugins", name),
+        version,
+        undefined,
+        undefined,
+        `bb-plugin-collection-${name}`,
+      );
+    }
+
+    async function installCollection(names: string[]): Promise<string> {
+      let commit = "";
+      for (const name of names) {
+        commit = await commitSubdirectory(name, "1.0.0");
+      }
+      for (const name of names) {
+        await service.install(`git:${repo}@main`, {
+          kind: "subdirectory",
+          path: `plugins/${name}`,
+        });
+      }
+      return commit;
+    }
+
+    it("reports an untouched subdirectory as current without staging it", async () => {
+      const installedCommit = await installCollection(["x", "y"]);
+      const nextCommit = await commitSubdirectory("x", "1.1.0");
+      const stagedBefore = materializationCount;
+
+      const unchanged = await service.checkForUpdates("collection-y");
+      expect(unchanged).toMatchObject([
+        { id: "collection-y", outcome: "current" },
+      ]);
+      expect(materializationCount).toBe(stagedBefore);
+      await expect(service.applyUpdate("collection-y")).resolves.toMatchObject({
+        ok: true,
+        result: { applied: false, outcome: "current" },
+      });
+      expect(materializationCount).toBe(stagedBefore);
+      expect(getInstalledPluginRegistration(db, "collection-y")).toMatchObject({
+        gitResolvedCommit: installedCommit,
+      });
+
+      await expect(
+        service.checkForUpdates("collection-x"),
+      ).resolves.toMatchObject([
+        {
+          id: "collection-x",
+          outcome: "update-available",
+          candidate: { version: nextCommit },
+        },
+      ]);
+      expect(materializationCount).toBeGreaterThan(stagedBefore);
+    });
+
+    it("falls back to an update when the mirror cannot be built", async () => {
+      await installCollection(["x", "y"]);
+      const nextCommit = await commitSubdirectory("x", "1.1.0");
+      const mirrorRoot = join(
+        workDir,
+        "data",
+        "plugins",
+        "cache",
+        "git-mirror",
+      );
+      await mkdir(mirrorRoot, { recursive: true });
+      await writeFile(join(mirrorRoot, "local"), "not a directory");
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([
+        {
+          id: "collection-y",
+          outcome: "update-available",
+          candidate: { version: nextCommit },
+        },
+      ]);
+    });
+
+    async function commitFile(path: string, content: string): Promise<string> {
+      const target = join(repo, path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, content);
+      await git(repo, ["add", "-A"]);
+      await git(repo, ["commit", "-qm", `touch ${path}`]);
+      return git(repo, ["rev-parse", "HEAD"]);
+    }
+
+    function collectionMirrorDir(): string {
+      const parsed = parsePluginSource(`git:${repo}`);
+      if (parsed.kind !== "git") throw new Error("expected a git source");
+      return gitMirrorCacheDir(join(workDir, "data"), parsed.cachePath);
+    }
+
+    it.each([
+      ["a root file", "tsconfig.json"],
+      ["a non-sibling directory", "shared/helper.ts"],
+      ["a file beside the plugin directories", "plugins/README.md"],
+    ])("treats a change in %s as an update", async (_label, path) => {
+      await installCollection(["x", "y"]);
+      const nextCommit = await commitFile(path, "{}");
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([
+        {
+          id: "collection-y",
+          outcome: "update-available",
+          candidate: { version: nextCommit },
+        },
+      ]);
+    });
+
+    it.skipIf(process.platform === "win32")(
+      "treats a subtree that contains a symlink as changed by any commit",
+      async () => {
+        await commitSubdirectory("x", "1.0.0");
+        await commitSubdirectory("y", "1.0.0");
+        await symlink("server.ts", join(repo, "plugins", "y", "alias.ts"));
+        await git(repo, ["add", "-A"]);
+        await git(repo, ["commit", "-qm", "alias"]);
+        for (const name of ["x", "y"]) {
+          await service.install(`git:${repo}@main`, {
+            kind: "subdirectory",
+            path: `plugins/${name}`,
+          });
+        }
+        const nextCommit = await commitSubdirectory("x", "1.1.0");
+
+        await expect(
+          service.checkForUpdates("collection-y"),
+        ).resolves.toMatchObject([
+          {
+            id: "collection-y",
+            outcome: "update-available",
+            candidate: { version: nextCommit },
+          },
+        ]);
+      },
+    );
+
+    it.skipIf(process.platform === "win32")(
+      "treats a symlinked plugin directory as changed when its target changes",
+      async () => {
+        await commitSubdirectory("actual", "1.0.0");
+        await symlink("actual", join(repo, "plugins", "linked"));
+        await mkdir(join(repo, ".bb"), { recursive: true });
+        await writeFile(
+          join(repo, ".bb", "plugins.json"),
+          JSON.stringify({
+            schemaVersion: 1,
+            name: "collection",
+            plugins: [{ name: "linked", source: "./plugins/linked" }],
+          }),
+        );
+        await git(repo, ["add", "-A"]);
+        await git(repo, ["commit", "-qm", "link"]);
+        await service.install(`git:${repo}@main`, {
+          kind: "entry",
+          name: "linked",
+        });
+        expect(
+          getInstalledPluginRegistration(db, "collection-actual"),
+        ).toMatchObject({ sourceGitSubdirectory: "plugins/linked" });
+        const nextCommit = await commitSubdirectory("actual", "1.1.0");
+
+        await expect(
+          service.checkForUpdates("collection-actual"),
+        ).resolves.toMatchObject([
+          {
+            id: "collection-actual",
+            outcome: "update-available",
+            candidate: { version: nextCommit },
+          },
+        ]);
+      },
+    );
+
+    it("reuses the mirror and re-applies the origin url on later checks", async () => {
+      await installCollection(["x", "y"]);
+      await commitSubdirectory("x", "1.1.0");
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([{ outcome: "current" }]);
+      const mirrorDir = collectionMirrorDir();
+      await writeFile(join(mirrorDir, "reuse-marker"), "kept");
+      await git(mirrorDir, ["remote", "set-url", "origin", "/nonexistent"]);
+      const nextCommit = await commitFile("plugins/x/notes.md", "more");
+      const stagedBefore = materializationCount;
+
+      const results = await service.checkForUpdates("collection-y");
+
+      expect(results).toMatchObject([
+        { id: "collection-y", outcome: "current" },
+      ]);
+      expect(materializationCount).toBe(stagedBefore);
+      expect(await readFile(join(mirrorDir, "reuse-marker"), "utf8")).toBe(
+        "kept",
+      );
+      expect(
+        await git(mirrorDir, ["rev-parse", `${nextCommit}^{commit}`]),
+      ).toBe(nextCommit);
+      expect(await git(mirrorDir, ["remote", "get-url", "origin"])).toBe(repo);
+    });
+
+    it("treats a change beside the plugin of a top-level plugin as an update", async () => {
+      await commitPlugin(
+        join(repo, "y"),
+        "1.0.0",
+        undefined,
+        undefined,
+        "bb-plugin-collection-y",
+      );
+      await service.install(`git:${repo}@main`, {
+        kind: "subdirectory",
+        path: "y",
+      });
+      const nextCommit = await commitFile("shared/helper.ts", "export {};");
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([
+        { outcome: "update-available", candidate: { version: nextCommit } },
+      ]);
+    });
+
+    it("treats a change in a directory that is not an installed plugin as an update", async () => {
+      await installCollection(["x", "y"]);
+      const nextCommit = await commitFile(
+        "plugins/common/util.ts",
+        "export {};",
+      );
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([
+        { outcome: "update-available", candidate: { version: nextCommit } },
+      ]);
+    });
+
+    it("ignores a non-ASCII file inside another installed plugin", async () => {
+      await installCollection(["x", "y"]);
+      await commitFile("plugins/x/héllo wörld.md", "notes");
+      const stagedBefore = materializationCount;
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([{ outcome: "current" }]);
+      expect(materializationCount).toBe(stagedBefore);
+    });
+
+    it.skipIf(process.platform === "win32" || process.getuid?.() === 0)(
+      "logs a failed comparison and keeps a healthy mirror",
+      async () => {
+        await installCollection(["x", "y"]);
+        await commitSubdirectory("x", "1.1.0");
+        await expect(
+          service.checkForUpdates("collection-y"),
+        ).resolves.toMatchObject([{ outcome: "current" }]);
+        const mirrorDir = collectionMirrorDir();
+        await writeFile(join(mirrorDir, "reuse-marker"), "kept");
+        const nextCommit = await commitFile("plugins/x/notes.md", "more");
+        const warn = vi.spyOn(logger, "warn");
+        const lockedDirs = [
+          join(mirrorDir, "objects", "pack"),
+          join(mirrorDir, "objects"),
+        ];
+        for (const dir of lockedDirs) await chmod(dir, 0o555);
+        try {
+          await expect(
+            service.checkForUpdates("collection-y"),
+          ).resolves.toMatchObject([
+            { outcome: "update-available", candidate: { version: nextCommit } },
+          ]);
+        } finally {
+          for (const dir of [...lockedDirs].reverse()) await chmod(dir, 0o755);
+        }
+
+        const warnings = warn.mock.calls;
+        warn.mockRestore();
+        expect(warnings).toContainEqual([
+          expect.objectContaining({
+            step: "fetch",
+            pluginId: "collection-y",
+          }),
+          expect.stringContaining("treating the plugin as changed"),
+        ]);
+        expect(await readFile(join(mirrorDir, "reuse-marker"), "utf8")).toBe(
+          "kept",
+        );
+      },
+    );
+
+    it("removes a broken mirror and rebuilds it on the next check", async () => {
+      await installCollection(["x", "y"]);
+      await commitSubdirectory("x", "1.1.0");
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([{ outcome: "current" }]);
+      const mirrorDir = collectionMirrorDir();
+      await rm(join(mirrorDir, "objects"), { recursive: true, force: true });
+      await rm(join(mirrorDir, "refs"), { recursive: true, force: true });
+      await commitFile("plugins/x/notes.md", "more");
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([{ outcome: "update-available" }]);
+      await expect(stat(mirrorDir)).rejects.toMatchObject({ code: "ENOENT" });
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([{ outcome: "current" }]);
+      await stat(join(mirrorDir, "HEAD"));
+    });
+
+    it("does not ignore a change under an ancestor plugin of the checked plugin", async () => {
+      await commitPlugin(
+        join(repo, "plugins"),
+        "1.0.0",
+        undefined,
+        undefined,
+        "bb-plugin-collection-all",
+      );
+      await commitSubdirectory("x", "1.0.0");
+      for (const path of ["plugins", "plugins/x"]) {
+        await service.install(`git:${repo}@main`, {
+          kind: "subdirectory",
+          path,
+        });
+      }
+      const nextCommit = await commitFile("plugins/x/notes.md", "more");
+
+      await expect(
+        service.checkForUpdates("collection-x"),
+      ).resolves.toMatchObject([
+        { outcome: "update-available", candidate: { version: nextCommit } },
+      ]);
+    });
+
+    it("does not ignore a change under a plugin nested inside the checked plugin", async () => {
+      await commitSubdirectory("x", "1.0.0");
+      await commitPlugin(
+        join(repo, "plugins", "x", "inner"),
+        "1.0.0",
+        undefined,
+        undefined,
+        "bb-plugin-collection-inner",
+      );
+      for (const path of ["plugins/x", "plugins/x/inner"]) {
+        await service.install(`git:${repo}@main`, {
+          kind: "subdirectory",
+          path,
+        });
+      }
+      const nextCommit = await commitFile("plugins/x/inner/notes.md", "more");
+
+      await expect(
+        service.checkForUpdates("collection-x"),
+      ).resolves.toMatchObject([
+        { outcome: "update-available", candidate: { version: nextCommit } },
+      ]);
+    });
+
+    it("ignores only plugins installed from the same repository", async () => {
+      await installCollection(["y"]);
+      const otherRepo = join(workDir, "other-repo");
+      await mkdir(otherRepo, { recursive: true });
+      await git(otherRepo, ["init", "-q", "-b", "main"]);
+      await git(otherRepo, ["config", "user.email", "test@example.com"]);
+      await git(otherRepo, ["config", "user.name", "Test"]);
+      await commitPlugin(
+        join(otherRepo, "plugins", "x"),
+        "1.0.0",
+        undefined,
+        undefined,
+        "bb-plugin-other-x",
+      );
+      await service.install(`git:${otherRepo}@main`, {
+        kind: "subdirectory",
+        path: "plugins/x",
+      });
+      const nextCommit = await commitSubdirectory("x", "1.1.0");
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([
+        { outcome: "update-available", candidate: { version: nextCommit } },
+      ]);
+    });
+
+    it("rebuilds a mirror that was left unusable", async () => {
+      await installCollection(["x", "y"]);
+      await commitSubdirectory("x", "1.1.0");
+      const mirrorDir = collectionMirrorDir();
+      await mkdir(mirrorDir, { recursive: true });
+      await writeFile(join(mirrorDir, "HEAD"), "garbage");
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([{ outcome: "update-available" }]);
+
+      await expect(
+        service.checkForUpdates("collection-y"),
+      ).resolves.toMatchObject([{ outcome: "current" }]);
+    });
+
+    it("shares one mirror between concurrent checks of the same repository", async () => {
+      await installCollection(["x", "y", "z"]);
+      await commitSubdirectory("x", "1.1.0");
+      const stagedBefore = materializationCount;
+
+      const results = await service.checkForUpdates();
+
+      expect(
+        Object.fromEntries(results.map((entry) => [entry.id, entry.outcome])),
+      ).toEqual({
+        "collection-x": "update-available",
+        "collection-y": "current",
+        "collection-z": "current",
+      });
+      expect(materializationCount).toBe(stagedBefore + 1);
+    });
   });
 });

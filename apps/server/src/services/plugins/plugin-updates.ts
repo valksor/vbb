@@ -19,6 +19,7 @@ import {
   parsePluginSource,
   runInstallCommand,
 } from "./install-sources.js";
+import { createUnchangedSubdirectoryCheck } from "./git-subtree-mirror.js";
 import { readPluginManifest } from "./manifest.js";
 import {
   createNpmResolverRun,
@@ -138,6 +139,7 @@ export interface PluginUpdates {
 interface PluginUpdatesContext {
   deps: PluginServiceDeps;
   registrationMutationKey: string;
+  withArtifactLock: <T>(key: string, fn: () => Promise<T>) => Promise<T>;
   withLifecycleLock: <T>(id: string, fn: () => Promise<T>) => Promise<T>;
   withPluginOperationLock: <T>(id: string, fn: () => Promise<T>) => Promise<T>;
   notifyPluginsChanged: () => void;
@@ -161,6 +163,7 @@ export function createPluginUpdates(
   const {
     deps,
     registrationMutationKey: REGISTRATION_MUTATION_KEY,
+    withArtifactLock,
     withLifecycleLock,
     withPluginOperationLock,
     notifyPluginsChanged,
@@ -172,6 +175,10 @@ export function createPluginUpdates(
   } = context;
   const now = deps.now ?? Date.now;
   const gitCandidateProbeCache = new Map<string, GitCandidateProbeResult>();
+  const isUnchangedGitSubdirectory = createUnchangedSubdirectoryCheck({
+    deps,
+    withLock: withArtifactLock,
+  });
 
   function problemMessages(problems: CompatibilityProblem[]): string[] {
     return problems.map((problem) => problem.message);
@@ -404,6 +411,16 @@ export function createPluginUpdates(
     });
     if (remote.outcome !== "update-available") return remote;
     if (intent.selector.kind === "range") return remote;
+    if (
+      await isUnchangedGitSubdirectory(
+        row,
+        args.row.gitResolvedCommit,
+        intent,
+        remote,
+      )
+    ) {
+      return { outcome: "current", current: remote.current };
+    }
     const staged = await stageGitCandidate({
       row: args.row,
       commit: remote.candidate.version,
