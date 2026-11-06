@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { type Environment, type JsonValue } from "@bb/domain";
+import type { Environment, JsonValue } from "@bb/domain";
 import { createBbSdk } from "../src/core.js";
 import { createHttpTransport } from "../src/transport-http.js";
 import { ThreadWaitTimeoutError } from "../src/areas/threads.js";
