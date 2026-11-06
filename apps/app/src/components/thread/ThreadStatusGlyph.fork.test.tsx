@@ -2,6 +2,9 @@
 
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { experimental_resolveThreadStatus } from "@get-bb/plugin-sdk/internal/thread-status";
+import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
+import { toThreadStatusThread } from "@/lib/plugin-sidebar-threads";
 import {
   SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES,
   SIDEBAR_WAITING_STATUS_COLOR_CLASS,
@@ -39,3 +42,53 @@ describe("ThreadStatusGlyph", () => {
     ).toContain(SIDEBAR_WAITING_STATUS_COLOR_CLASS);
   });
 });
+
+it("renders workflow activity from thread metadata with its source color", () => {
+    const status = experimental_resolveThreadStatus({
+      thread: toThreadStatusThread(
+        makeThreadListEntry({
+          activity: { activeWorkflowCount: 1 },
+          runtime: { displayStatus: "idle" },
+          status: "idle",
+          lastReadAt: 0,
+          latestAttentionAt: 0,
+          hasPendingInteraction: false,
+        }),
+      ),
+      hiddenThreads: [],
+      hasUnsubmittedDraft: false,
+      rowStatus: null,
+    });
+
+    render(<ThreadStatusGlyph indicator={status.indicator} />);
+
+    expect(screen.getByLabelText("Workflow running").getAttribute("data-icon")).toBe(
+      "Workflow",
+    );
+    expect(
+      Array.from(screen.getByLabelText("Workflow running").classList),
+    ).toContain("animate-shine-icon");
+    expect(
+      Array.from(screen.getByLabelText("Workflow running").classList),
+    ).toContain("text-working-workflow");
+  });
+
+it("renders plan approval from existing thread metadata", () => {
+    const status = experimental_resolveThreadStatus({
+      thread: toThreadStatusThread(
+        makeThreadListEntry({
+          hasPendingInteraction: true,
+          pendingInteractionKind: "plan_approval",
+        }),
+      ),
+      hiddenThreads: [],
+      hasUnsubmittedDraft: false,
+      rowStatus: null,
+    });
+
+    render(<ThreadStatusGlyph indicator={status.indicator} />);
+
+    expect(
+      screen.getByLabelText("Thread needs plan approval").getAttribute("data-icon"),
+    ).toBe("FileQuestion");
+  });

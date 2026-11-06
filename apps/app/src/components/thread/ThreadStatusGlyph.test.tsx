@@ -3,14 +3,11 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PluginSidebarThreadIndicator } from "@get-bb/plugin-sdk";
-import { experimental_resolveThreadStatus } from "@get-bb/plugin-sdk/internal/thread-status";
 import {
   SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES,
   SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
 } from "@bb/shared-ui/sidebar-row-classes";
-import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
-import { toThreadStatusThread } from "@/lib/plugin-sidebar-threads";
 import { ThreadStatusGlyph } from "./ThreadStatusGlyph";
 
 afterEach(() => {
@@ -18,56 +15,6 @@ afterEach(() => {
 });
 
 describe("ThreadStatusGlyph", () => {
-  it("renders workflow activity from thread metadata with its source color", () => {
-    const status = experimental_resolveThreadStatus({
-      thread: toThreadStatusThread(
-        makeThreadListEntry({
-          activity: { activeWorkflowCount: 1 },
-          runtime: { displayStatus: "idle" },
-          status: "idle",
-          lastReadAt: 0,
-          latestAttentionAt: 0,
-          hasPendingInteraction: false,
-        }),
-      ),
-      hiddenThreads: [],
-      hasUnsubmittedDraft: false,
-      rowStatus: null,
-    });
-
-    render(<ThreadStatusGlyph indicator={status.indicator} />);
-
-    expect(screen.getByLabelText("Workflow running").getAttribute("data-icon")).toBe(
-      "Workflow",
-    );
-    expect(
-      Array.from(screen.getByLabelText("Workflow running").classList),
-    ).toContain("animate-shine-icon");
-    expect(
-      Array.from(screen.getByLabelText("Workflow running").classList),
-    ).toContain("text-working-workflow");
-  });
-
-  it("renders plan approval from existing thread metadata", () => {
-    const status = experimental_resolveThreadStatus({
-      thread: toThreadStatusThread(
-        makeThreadListEntry({
-          hasPendingInteraction: true,
-          pendingInteractionKind: "plan_approval",
-        }),
-      ),
-      hiddenThreads: [],
-      hasUnsubmittedDraft: false,
-      rowStatus: null,
-    });
-
-    render(<ThreadStatusGlyph indicator={status.indicator} />);
-
-    expect(
-      screen.getByLabelText("Thread needs plan approval").getAttribute("data-icon"),
-    ).toBe("FileQuestion");
-  });
-
   it.each([
     ["unread-error", "Unread thread failed", "CircleX"],
     ["queued-failed", "Queued message failed to send", "CircleX"],
@@ -107,7 +54,9 @@ describe("ThreadStatusGlyph", () => {
     rerender(<ThreadStatusGlyph indicator="runtime" />);
     const runtime = screen.getByLabelText("Thread working");
     expect(Array.from(runtime.classList)).toContain("animate-spin");
-    expect(Array.from(runtime.classList)).toContain("motion-reduce:animate-none");
+    expect(Array.from(runtime.classList)).toContain(
+      "motion-reduce:animate-none",
+    );
     expect(Array.from(runtime.classList)).toContain(
       SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
     );
@@ -142,9 +91,9 @@ describe("ThreadStatusGlyph", () => {
   it("draws the archive glyph for archived threads", () => {
     render(<ThreadStatusGlyph indicator="runtime" archived />);
 
-    expect(screen.getByLabelText("Archived thread").getAttribute("data-icon")).toBe(
-      "Archive",
-    );
+    expect(
+      screen.getByLabelText("Archived thread").getAttribute("data-icon"),
+    ).toBe("Archive");
   });
 
   it.each([

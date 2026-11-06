@@ -3,17 +3,38 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Provider } from "jotai";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { defaultAppSettings } from "@bb/domain";
-import { act, cleanup, render as renderWithoutQueryClient, waitFor } from "@testing-library/react";
+import { defaultAppSettings, PERSONAL_PROJECT_ID } from "@bb/domain";
+import {
+  act,
+  cleanup,
+  render as renderWithoutQueryClient,
+  waitFor,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ExperimentalComposerSelection, PluginEnvironmentProviderInputsProps } from "@get-bb/plugin-sdk";
-import type { SystemEnvironmentProvider, SystemMachineProvider } from "@bb/server-contract";
-import { NewThreadComposer, type NewThreadComposerProps } from "@/components/promptbox/NewThreadComposer";
+import type {
+  ExperimentalComposerSelection,
+  PluginEnvironmentProviderInputsProps,
+} from "@get-bb/plugin-sdk";
+import type {
+  SystemEnvironmentProvider,
+  SystemMachineProvider,
+} from "@bb/server-contract";
+import {
+  NewThreadComposer,
+  type NewThreadComposerProps,
+} from "@/components/promptbox/NewThreadComposer";
+import { projectDefaultProviderId } from "@/components/promptbox/NewThreadComposer.fork";
 import { setComposerSelectionSettleTimeoutForTest } from "@/components/promptbox/composer-selection-settle";
 import type { PluginComposerHost } from "@/components/plugin/plugin-composer-host";
-import { resetPluginSlotStoreForTest, setPluginSlotRegistrations } from "@/lib/plugin-slots";
-import { getPromptDraftAccessor, type PromptDraftScope } from "@/hooks/usePromptDraftStorage";
+import {
+  resetPluginSlotStoreForTest,
+  setPluginSlotRegistrations,
+} from "@/lib/plugin-slots";
+import {
+  getPromptDraftAccessor,
+  type PromptDraftScope,
+} from "@/hooks/usePromptDraftStorage";
 import type { PromptDraftState } from "@bb/client-core";
 import { makeProjectWithThreadsResponse } from "@/test/fixtures/projects";
 
@@ -34,6 +55,9 @@ const mocks = vi.hoisted(() => ({
   uploadAttachment: vi.fn(),
   environmentProviders: [] as unknown[],
   machineProviders: [] as SystemMachineProvider[],
+  defaultProviderId: null as string | null,
+  projectDefaultsQuery: { data: undefined } as Record<string, unknown>,
+  extraProjects: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("@/components/promptbox/NewThreadPromptBox", () => ({
@@ -107,7 +131,7 @@ vi.mock("@/hooks/queries/sidebar-navigation-query", () => ({
   useSidebarNavigation: () => ({
     data: {
       sections: [],
-      projects: [PROJECT, OTHER_PROJECT],
+      projects: [PROJECT, OTHER_PROJECT, ...mocks.extraProjects],
       personalProject: makeProjectWithThreadsResponse({
         id: "personal",
         kind: "personal",
@@ -141,7 +165,10 @@ vi.mock("@/hooks/queries/system-queries", () => ({
   useSystemConfig: () => ({
     data: {
       primaryHostId: "host_1",
-      generalSettings: defaultAppSettings,
+      generalSettings: {
+        ...defaultAppSettings,
+        defaultProviderId: mocks.defaultProviderId,
+      },
       serverAccess: {
         providers: [],
         defaultProviderId: null,
@@ -157,6 +184,16 @@ vi.mock("@/hooks/queries/system-queries", () => ({
         {
           id: "codex",
           displayName: "Codex",
+          logoUrl: null,
+          capabilities: {
+            supportsServiceTier: false,
+            permissionModes: ["auto", "accept-edits", "full"],
+          },
+          composerActions: [],
+        },
+        {
+          id: "claude-code",
+          displayName: "Claude Code",
           logoUrl: null,
           capabilities: {
             supportsServiceTier: false,
@@ -227,7 +264,7 @@ vi.mock("@/hooks/queries/project-queries", () => ({
 }));
 
 vi.mock("@/hooks/queries/project-default-execution-options-query", () => ({
-  useProjectDefaultExecutionOptions: () => ({ data: undefined }),
+  useProjectDefaultExecutionOptions: () => mocks.projectDefaultsQuery,
 }));
 
 vi.mock("@/hooks/mutations/project-mutations", () => ({
@@ -411,6 +448,9 @@ describe("PluginNewThreadComposer project draft carry", () => {
     mocks.uploadAttachment.mockReset();
     mocks.environmentProviders = [CHECKOUT_PROVIDER];
     mocks.machineProviders = [];
+    mocks.defaultProviderId = null;
+    mocks.projectDefaultsQuery = { data: undefined };
+    mocks.extraProjects = [];
     resetPluginSlotStoreForTest();
     registerCheckoutInputsControl();
     window.localStorage.clear();
@@ -424,6 +464,9 @@ describe("PluginNewThreadComposer project draft carry", () => {
   afterEach(() => {
     cleanup();
     setComposerSelectionSettleTimeoutForTest(null);
+    mocks.defaultProviderId = null;
+    mocks.projectDefaultsQuery = { data: undefined };
+    mocks.extraProjects = [];
     vi.restoreAllMocks();
   });
 
@@ -513,5 +556,264 @@ describe("PluginNewThreadComposer project draft carry", () => {
     expect(result.projectId).toBe("proj_1");
     expect(result.permissionMode).toBe("full");
     expect(mocks.copyAttachments).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("NewThreadComposer setSelection", () => {
+  beforeEach(() => {
+    mocks.promptBoxProps.length = 0;
+    mocks.copyAttachments.mockReset();
+    mocks.uploadAttachment.mockReset();
+    mocks.environmentProviders = [CHECKOUT_PROVIDER];
+    mocks.machineProviders = [];
+    mocks.defaultProviderId = null;
+    mocks.projectDefaultsQuery = { data: undefined };
+    mocks.extraProjects = [];
+    resetPluginSlotStoreForTest();
+    registerCheckoutInputsControl();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    }).setDraft({ text: "", mentions: [], attachments: [] });
+  });
+
+  afterEach(() => {
+    cleanup();
+    setComposerSelectionSettleTimeoutForTest(null);
+    mocks.defaultProviderId = null;
+    mocks.projectDefaultsQuery = { data: undefined };
+    mocks.extraProjects = [];
+    vi.restoreAllMocks();
+  });
+
+  it.each([
+    {
+      projectDefaults: null,
+      defaultProviderId: "claude-code",
+      expected: "claude-code",
+    },
+    {
+      projectDefaults: undefined,
+      defaultProviderId: "claude-code",
+      expected: undefined,
+    },
+    {
+      projectDefaults: { providerId: "codex" },
+      defaultProviderId: "claude-code",
+      expected: "codex",
+    },
+    {
+      projectDefaults: {},
+      defaultProviderId: "claude-code",
+      expected: undefined,
+    },
+    {
+      projectDefaults: null,
+      defaultProviderId: null,
+      expected: undefined,
+    },
+    {
+      projectDefaults: null,
+      defaultProviderId: undefined,
+      expected: undefined,
+    },
+  ])(
+    "returns $expected for the provided project defaults and configured value",
+    ({ projectDefaults, defaultProviderId, expected }) => {
+      expect(projectDefaultProviderId(projectDefaults, defaultProviderId)).toBe(
+        expected,
+      );
+    },
+  );
+
+  it("opens a project without remembered defaults on the configured default provider", async () => {
+    window.localStorage.setItem("bb.promptbox.provider", "codex");
+    mocks.defaultProviderId = "claude-code";
+    mocks.projectDefaultsQuery = {
+      data: null,
+      isSuccess: true,
+      isPlaceholderData: false,
+      isError: false,
+    };
+    mocks.extraProjects = [
+      {
+        ...PROJECT,
+        id: "proj_blank",
+        name: "Project Blank",
+        defaultExecutionOptions: null,
+        sources: [
+          { ...PROJECT.sources[0], id: "src_blank", projectId: "proj_blank" },
+        ],
+      },
+    ];
+    render(rootLikeElement("proj_blank"));
+
+    await waitFor(() => {
+      expect(latestPromptBoxProps().execution.provider.selectedId).toBe(
+        "claude-code",
+      );
+    });
+  });
+
+  it("keeps root-compose drafts isolated while switching projects", async () => {
+    const projectOneDraft = {
+      text: "project one draft",
+      mentions: [],
+      attachments: [
+        {
+          type: "localFile" as const,
+          path: "uploads/project-one.md",
+          name: "project-one.md",
+          sizeBytes: 12,
+        },
+      ],
+    };
+    const projectTwoDraft = {
+      text: "",
+      mentions: [],
+      attachments: [],
+    };
+    const projectOne = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    });
+    const projectTwo = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_2",
+    });
+    projectOne.setDraft(projectOneDraft);
+    projectTwo.setDraft(projectTwoDraft);
+
+    render(rootLikeElement("proj_1"));
+    expect(latestPromptBoxProps().value).toBe("project one draft");
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_2");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().project.value).toBe("proj_2");
+      expect(latestPromptBoxProps().value).toBe("");
+    });
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
+
+    act(() => {
+      latestPromptBoxProps().onChange("project two draft", []);
+    });
+    expect(projectTwo.getCurrent()).toEqual({
+      ...projectTwoDraft,
+      text: "project two draft",
+    });
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_1");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().project.value).toBe("proj_1");
+      expect(latestPromptBoxProps().value).toBe("project one draft");
+    });
+    expect(projectOne.getCurrent()).toEqual(projectOneDraft);
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_2");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().project.value).toBe("proj_2");
+      expect(latestPromptBoxProps().value).toBe("project two draft");
+    });
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
+  });
+
+  it("preserves an existing destination draft without copying source attachments", async () => {
+    const projectOne = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_1",
+    });
+    const projectTwo = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: "proj_2",
+    });
+    projectOne.setDraft({
+      text: "project one draft",
+      mentions: [],
+      attachments: [
+        {
+          type: "localFile",
+          path: "uploads/project-one.md",
+          name: "project-one.md",
+          sizeBytes: 12,
+        },
+      ],
+    });
+    const projectTwoDraft = {
+      text: "project two draft",
+      mentions: [],
+      attachments: [
+        {
+          type: "localFile" as const,
+          path: "uploads/project-two.md",
+          name: "project-two.md",
+          sizeBytes: 24,
+        },
+      ],
+    };
+    projectTwo.setDraft(projectTwoDraft);
+
+    render(rootLikeElement("proj_1"));
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_2");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().value).toBe("project two draft");
+    });
+    expect(projectTwo.getCurrent()).toEqual(projectTwoDraft);
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_1");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().value).toBe("project one draft");
+    });
+    expect(projectOne.getCurrent().attachments).toEqual([
+      {
+        type: "localFile",
+        path: "uploads/project-one.md",
+        name: "project-one.md",
+        sizeBytes: 12,
+      },
+    ]);
+
+    await act(async () => {
+      await latestPromptBoxProps().project.onChange("proj_2");
+    });
+    await waitFor(() => {
+      expect(latestPromptBoxProps().value).toBe("project two draft");
+    });
+    expect(projectTwo.getCurrent()).toEqual(projectTwoDraft);
+    expect(mocks.copyAttachments).not.toHaveBeenCalled();
+  });
+
+  it("persists a deleted requested project under the visible personal project", async () => {
+    const personalDraft = getPromptDraftAccessor({
+      kind: "new-thread",
+      projectId: PERSONAL_PROJECT_ID,
+    });
+    const first = render(rootLikeElement("proj_deleted"));
+
+    await waitFor(() => {
+      expect(latestPromptBoxProps().project.value).toBe(PERSONAL_PROJECT_ID);
+    });
+    act(() => {
+      latestPromptBoxProps().onChange("personal fallback draft", []);
+    });
+    expect(personalDraft.getCurrent().text).toBe("personal fallback draft");
+
+    first.unmount();
+    render(rootLikeElement(PERSONAL_PROJECT_ID));
+    await waitFor(() => {
+      expect(latestPromptBoxProps().value).toBe("personal fallback draft");
+    });
   });
 });

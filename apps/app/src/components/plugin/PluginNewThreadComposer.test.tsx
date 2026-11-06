@@ -36,7 +36,6 @@ import {
   NewThreadComposer,
   type NewThreadComposerState,
 } from "@/components/promptbox/NewThreadComposer";
-import { projectDefaultProviderId } from "@/components/promptbox/NewThreadComposer.fork";
 import { setComposerSelectionSettleTimeoutForTest } from "@/components/promptbox/composer-selection-settle";
 import type { PluginComposerHost } from "@/components/plugin/plugin-composer-host";
 import {
@@ -109,51 +108,7 @@ const mocks = vi.hoisted(() => ({
   modelsLoading: false,
   permissionCeiling: undefined as "accept-edits" | "auto" | "full" | undefined,
   modelSessionOptions: undefined as ThreadSessionOption[] | undefined,
-  defaultProviderId: null as string | null,
-  projectDefaultsQuery: { data: undefined } as Record<string, unknown>,
 }));
-
-describe("projectDefaultProviderId", () => {
-  it.each([
-    {
-      projectDefaults: null,
-      defaultProviderId: "claude-code",
-      expected: "claude-code",
-    },
-    {
-      projectDefaults: undefined,
-      defaultProviderId: "claude-code",
-      expected: undefined,
-    },
-    {
-      projectDefaults: { providerId: "codex" },
-      defaultProviderId: "claude-code",
-      expected: "codex",
-    },
-    {
-      projectDefaults: {},
-      defaultProviderId: "claude-code",
-      expected: undefined,
-    },
-    {
-      projectDefaults: null,
-      defaultProviderId: null,
-      expected: undefined,
-    },
-    {
-      projectDefaults: null,
-      defaultProviderId: undefined,
-      expected: undefined,
-    },
-  ])(
-    "returns $expected for the provided project defaults and configured value",
-    ({ projectDefaults, defaultProviderId, expected }) => {
-      expect(projectDefaultProviderId(projectDefaults, defaultProviderId)).toBe(
-        expected,
-      );
-    },
-  );
-});
 
 vi.mock("@/views/RootComposePanelCommandHandlers", () => ({
   RootComposePanelCommandHandlers: ({
@@ -330,10 +285,7 @@ vi.mock("@/hooks/queries/system-queries", () => ({
   useSystemConfig: () => ({
     data: {
       primaryHostId: "host_1",
-      generalSettings: {
-        ...defaultAppSettings,
-        defaultProviderId: mocks.defaultProviderId,
-      },
+      generalSettings: defaultAppSettings,
       serverAccess: {
         providers: [
           {
@@ -468,7 +420,7 @@ vi.mock("@/hooks/queries/project-queries", () => ({
 }));
 
 vi.mock("@/hooks/queries/project-default-execution-options-query", () => ({
-  useProjectDefaultExecutionOptions: () => mocks.projectDefaultsQuery,
+  useProjectDefaultExecutionOptions: () => ({ data: undefined }),
 }));
 
 vi.mock("@/hooks/mutations/project-mutations", () => ({
@@ -2985,8 +2937,6 @@ describe("NewThreadComposer setSelection", () => {
   afterEach(() => {
     cleanup();
     setComposerSelectionSettleTimeoutForTest(null);
-    mocks.defaultProviderId = null;
-    mocks.projectDefaultsQuery = { data: undefined };
     vi.restoreAllMocks();
   });
 
@@ -3027,195 +2977,6 @@ describe("NewThreadComposer setSelection", () => {
     expect(host.setSelection).toBeDefined();
     return host;
   }
-
-  it("opens a project without remembered defaults on the configured default provider", async () => {
-    window.localStorage.setItem("bb.promptbox.provider", "codex");
-    mocks.defaultProviderId = "claude-code";
-    mocks.projectDefaultsQuery = {
-      data: null,
-      isSuccess: true,
-      isPlaceholderData: false,
-      isError: false,
-    };
-    mocks.extraProjects = [
-      {
-        ...PROJECT,
-        id: "proj_blank",
-        name: "Project Blank",
-        defaultExecutionOptions: null,
-        sources: [
-          { ...PROJECT.sources[0], id: "src_blank", projectId: "proj_blank" },
-        ],
-      },
-    ];
-    render(rootLikeElement("proj_blank"));
-
-    await waitFor(() => {
-      expect(latestPromptBoxProps().execution.provider.selectedId).toBe(
-        "claude-code",
-      );
-    });
-  });
-
-  it("keeps root-compose drafts isolated while switching projects", async () => {
-    const projectOneDraft = {
-      text: "project one draft",
-      mentions: [],
-      attachments: [
-        {
-          type: "localFile" as const,
-          path: "uploads/project-one.md",
-          name: "project-one.md",
-          sizeBytes: 12,
-        },
-      ],
-    };
-    const projectTwoDraft = {
-      text: "",
-      mentions: [],
-      attachments: [],
-    };
-    const projectOne = getPromptDraftAccessor({
-      kind: "new-thread",
-      projectId: "proj_1",
-    });
-    const projectTwo = getPromptDraftAccessor({
-      kind: "new-thread",
-      projectId: "proj_2",
-    });
-    projectOne.setDraft(projectOneDraft);
-    projectTwo.setDraft(projectTwoDraft);
-
-    render(rootLikeElement("proj_1"));
-    expect(latestPromptBoxProps().value).toBe("project one draft");
-
-    await act(async () => {
-      await latestPromptBoxProps().project.onChange("proj_2");
-    });
-    await waitFor(() => {
-      expect(latestPromptBoxProps().project.value).toBe("proj_2");
-      expect(latestPromptBoxProps().value).toBe("");
-    });
-    expect(mocks.copyAttachments).not.toHaveBeenCalled();
-
-    act(() => {
-      latestPromptBoxProps().onChange("project two draft", []);
-    });
-    expect(projectTwo.getCurrent()).toEqual({
-      ...projectTwoDraft,
-      text: "project two draft",
-    });
-
-    await act(async () => {
-      await latestPromptBoxProps().project.onChange("proj_1");
-    });
-    await waitFor(() => {
-      expect(latestPromptBoxProps().project.value).toBe("proj_1");
-      expect(latestPromptBoxProps().value).toBe("project one draft");
-    });
-    expect(projectOne.getCurrent()).toEqual(projectOneDraft);
-
-    await act(async () => {
-      await latestPromptBoxProps().project.onChange("proj_2");
-    });
-    await waitFor(() => {
-      expect(latestPromptBoxProps().project.value).toBe("proj_2");
-      expect(latestPromptBoxProps().value).toBe("project two draft");
-    });
-    expect(mocks.copyAttachments).not.toHaveBeenCalled();
-  });
-
-  it("preserves an existing destination draft without copying source attachments", async () => {
-    const projectOne = getPromptDraftAccessor({
-      kind: "new-thread",
-      projectId: "proj_1",
-    });
-    const projectTwo = getPromptDraftAccessor({
-      kind: "new-thread",
-      projectId: "proj_2",
-    });
-    projectOne.setDraft({
-      text: "project one draft",
-      mentions: [],
-      attachments: [
-        {
-          type: "localFile",
-          path: "uploads/project-one.md",
-          name: "project-one.md",
-          sizeBytes: 12,
-        },
-      ],
-    });
-    const projectTwoDraft = {
-      text: "project two draft",
-      mentions: [],
-      attachments: [
-        {
-          type: "localFile" as const,
-          path: "uploads/project-two.md",
-          name: "project-two.md",
-          sizeBytes: 24,
-        },
-      ],
-    };
-    projectTwo.setDraft(projectTwoDraft);
-
-    render(rootLikeElement("proj_1"));
-    await act(async () => {
-      await latestPromptBoxProps().project.onChange("proj_2");
-    });
-    await waitFor(() => {
-      expect(latestPromptBoxProps().value).toBe("project two draft");
-    });
-    expect(projectTwo.getCurrent()).toEqual(projectTwoDraft);
-    expect(mocks.copyAttachments).not.toHaveBeenCalled();
-
-    await act(async () => {
-      await latestPromptBoxProps().project.onChange("proj_1");
-    });
-    await waitFor(() => {
-      expect(latestPromptBoxProps().value).toBe("project one draft");
-    });
-    expect(projectOne.getCurrent().attachments).toEqual([
-      {
-        type: "localFile",
-        path: "uploads/project-one.md",
-        name: "project-one.md",
-        sizeBytes: 12,
-      },
-    ]);
-
-    await act(async () => {
-      await latestPromptBoxProps().project.onChange("proj_2");
-    });
-    await waitFor(() => {
-      expect(latestPromptBoxProps().value).toBe("project two draft");
-    });
-    expect(projectTwo.getCurrent()).toEqual(projectTwoDraft);
-    expect(mocks.copyAttachments).not.toHaveBeenCalled();
-  });
-
-  it("persists a deleted requested project under the visible personal project", async () => {
-    const personalDraft = getPromptDraftAccessor({
-      kind: "new-thread",
-      projectId: PERSONAL_PROJECT_ID,
-    });
-    const first = render(rootLikeElement("proj_deleted"));
-
-    await waitFor(() => {
-      expect(latestPromptBoxProps().project.value).toBe(PERSONAL_PROJECT_ID);
-    });
-    act(() => {
-      latestPromptBoxProps().onChange("personal fallback draft", []);
-    });
-    expect(personalDraft.getCurrent().text).toBe("personal fallback draft");
-
-    first.unmount();
-    render(rootLikeElement(PERSONAL_PROJECT_ID));
-    await waitFor(() => {
-      expect(latestPromptBoxProps().value).toBe("personal fallback draft");
-    });
-  });
 
   it("tracks values changed through the visible model picker", async () => {
     render(rootLikeElement("proj_1"));

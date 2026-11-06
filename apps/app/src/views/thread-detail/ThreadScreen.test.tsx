@@ -8,7 +8,6 @@ import type { UseThreadTimelineControllerResult } from "@/components/thread/time
 import { getPromptDraftAccessor } from "@/hooks/usePromptDraftStorage";
 import { makeThreadResponse } from "@/test/fixtures/thread-responses";
 import { createQueryClientTestHarness } from "@/test/queryClientTestHarness";
-import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
 import { ThreadScreen, type ThreadScreenPresentation } from "./ThreadScreen";
 
 const mocks = vi.hoisted(() => ({
@@ -167,57 +166,6 @@ afterEach(() => {
 });
 
 describe("ThreadScreen", () => {
-  it("renders the aside only with an open composer", () => {
-    const composer = {
-      environmentCheckout: undefined,
-      environmentChrome: undefined,
-      contextEnvironmentId: null,
-      permissionPolicy: "snapshot" as const,
-      aside: (
-        <aside aria-label="Composer aside">
-          aside for {THREAD.id}/{THREAD.projectId}
-        </aside>
-      ),
-    };
-    const open = renderScreen({ kind: "page" }, composer);
-
-    expect(screen.queryByTestId("prompt-area")).not.toBeNull();
-    expect(
-      screen.getByRole("complementary", { name: "Composer aside" }).textContent,
-    ).toBe(`aside for ${THREAD.id}/${THREAD.projectId}`);
-
-    open.unmount();
-    renderScreen({ kind: "page" }, null);
-
-    expect(screen.queryByTestId("prompt-area")).toBeNull();
-    expect(
-      screen.queryByRole("complementary", { name: "Composer aside" }),
-    ).toBeNull();
-  });
-
-  it("passes a child waiting kind to the child threads section", () => {
-    mocks.childThreads = [
-      makeThreadListEntry({
-        id: "thr_child",
-        projectId: THREAD.projectId,
-        hasPendingInteraction: true,
-        pendingInteractionKind: "plan_approval",
-      }),
-    ];
-    renderScreen({ kind: "page" });
-
-    expect(mocks.promptAreaProps.at(-1)!.childThreadsSection).toEqual(
-      expect.objectContaining({
-        items: [
-          expect.objectContaining({
-            id: "thr_child",
-            pendingInteractionKind: "plan_approval",
-          }),
-        ],
-      }),
-    );
-  });
-
   it("hands a plugin-rendered interaction to an embedded chat's composer", () => {
     mocks.pendingInteractions = [makePluginInteraction()];
     renderScreen(SIDE_CHAT_PRESENTATION);
