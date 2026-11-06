@@ -14,3 +14,5 @@ variables:
 {{blockerSummary}}
 
 Review the blocker. If you can resolve it from existing context, reply to the thread with guidance. Otherwise, ask the user for the missing decision.
+
+bb sent this message, not the user. If it cut off one of your tool calls, that was not a request to stop: check whether that call finished (and whether a state-changing call such as a spawn or commit already took effect), re-run it if you still need it, and continue your current task.
