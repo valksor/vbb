@@ -26,6 +26,7 @@ import {
 } from "vitest";
 import { PLUGIN_SDK_VERSION } from "@bb/domain";
 import { scaffoldPlugin } from "../src/plugin-scaffold.js";
+import { createExternalScaffoldNpmEnvironment } from "./plugin-scaffold-external.fork.js";
 
 const execFileAsync = promisify(execFile);
 const npmCommand =
@@ -289,6 +290,8 @@ async function packPluginSdk(packDir: string): Promise<string> {
 async function installPackedSdk(
   targetDir: string,
   tarball: string,
+  userConfig: string,
+  globalConfig: string,
 ): Promise<void> {
   const manifest: unknown = JSON.parse(
     await readFile(join(pluginSdkRoot, "package.json"), "utf8"),
@@ -319,7 +322,14 @@ async function installPackedSdk(
       tarball,
       ...Object.keys(manifest.dependencies).map(packageRoot),
     ],
-    { cwd: targetDir },
+    {
+      cwd: targetDir,
+      env: createExternalScaffoldNpmEnvironment(
+        process.env,
+        userConfig,
+        globalConfig,
+      ),
+    },
   );
 }
 
@@ -383,6 +393,9 @@ describe("external plugin scaffold types", () => {
 
   beforeAll(async () => {
     packRoot = await mkdtemp(join(tmpdir(), "bb-external-pack-"));
+    const userConfig = join(packRoot, "npmrc-user");
+    const globalConfig = join(packRoot, "npmrc-global");
+    await Promise.all([writeFile(userConfig, ""), writeFile(globalConfig, "")]);
     tarball = await packPluginSdk(join(packRoot, "pack"));
     const templateDir = join(packRoot, "installed");
     await mkdir(templateDir);
@@ -390,7 +403,7 @@ describe("external plugin scaffold types", () => {
       join(templateDir, "package.json"),
       JSON.stringify({ name: "bb-plugin-external-fixture", private: true }),
     );
-    await installPackedSdk(templateDir, tarball);
+    await installPackedSdk(templateDir, tarball, userConfig, globalConfig);
     await linkExternalDependencies(templateDir);
     installedNodeModules = join(templateDir, "node_modules");
   }, 180_000);
