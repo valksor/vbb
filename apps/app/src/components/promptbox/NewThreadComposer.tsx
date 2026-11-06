@@ -51,7 +51,10 @@ import {
   parseEnvironmentValue,
   REUSE_VALUE_WITHOUT_ENVIRONMENT,
 } from "@/components/pickers/environment-picker-value";
-import { useProjectDefaultSelection } from "./NewThreadComposer.fork";
+import {
+  projectDefaultProviderId,
+  useProjectDefaultSelection,
+} from "./NewThreadComposer.fork";
 import { providerInputsControlRequired } from "@/components/pickers/environment-provider-inputs";
 import { useMachineProviderInputs } from "@/components/pickers/machine-provider-inputs";
 import { formatModelLoadErrorText } from "@/components/pickers/model-load-error-message";
@@ -932,7 +935,12 @@ export function NewThreadComposer({
     catalogProjectId: isProjectless ? undefined : projectId,
     resetKey: `${projectId}\0${seedSignature}`,
     resolveProviderRouting,
-    initialProviderId: seed?.providerId ?? projectDefaults?.providerId,
+    initialProviderId:
+      seed?.providerId ??
+      projectDefaultProviderId(
+        projectDefaults,
+        systemConfigQuery.data?.generalSettings.defaultProviderId,
+      ),
     preferReadyProviderWhenUnset:
       preferReadyProviderWhenUnset && projectDefaults === null,
     initialModel: seed?.model ?? projectDefaults?.model,

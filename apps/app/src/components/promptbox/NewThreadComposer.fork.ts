@@ -29,6 +29,15 @@ export function useProjectDefaultSelection(
   );
 }
 
+export function projectDefaultProviderId(
+  projectDefaults: { providerId?: string } | null | undefined,
+  defaultProviderId: string | null | undefined,
+): string | undefined {
+  return projectDefaults === null
+    ? (defaultProviderId ?? undefined)
+    : projectDefaults?.providerId;
+}
+
 export function skipsDraftCarry(
   draftStorageKind: PromptDraftScope["kind"],
   carryDraftToProject: CarryDraftToProject | undefined,
