@@ -892,6 +892,9 @@ describe("PluginNewThreadComposer seeding", () => {
       latestPromptBoxProps().modeConfig.environment.selectedProviderHostId,
     ).toBe("host_2");
     first.rerender(newThreadElement("proj_2"));
+    expect(latestPromptBoxProps().modeConfig.environment.value).toBe(
+      "provider:project-checkout",
+    );
     expect(
       latestPromptBoxProps().modeConfig.environment.selectedProviderHostId,
     ).toBe("host_1");
@@ -946,6 +949,12 @@ describe("PluginNewThreadComposer seeding", () => {
 
   it("selects an unconfigured host immediately and blocks submission", async () => {
     render(newThreadElement("proj_2"));
+    await act(async () => {
+      latestPromptBoxProps().modeConfig.environment.onSelectProvider(
+        CHECKOUT_PROVIDER,
+        "host_1",
+      );
+    });
     await act(async () => {
       latestPromptBoxProps().modeConfig.environment.onSelectHost("host_2");
     });
