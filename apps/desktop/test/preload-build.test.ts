@@ -15,37 +15,13 @@ import { access, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { promisify } from "node:util";
 import { z } from "zod";
 import { beforeAll, describe, expect, it } from "vitest";
-import { createPackagedAppLaunchArguments } from "../scripts/packaged-app-launch.mjs";
+import { createSmokeEnv, smokeLaunchArguments } from "./preload-build.fork.js";
 
 const execFileAsync = promisify(execFile);
 const require = createRequire(__filename);
 const electronBinary = require("electron") as string;
 const desktopPackageRoot = process.cwd();
 
-function smokeLaunchArguments(userDataDir: string): string[] {
-  return [
-    ...createPackagedAppLaunchArguments({
-      platform: process.platform,
-      userDataDir,
-    }),
-    ...(process.platform === "darwin" ? ["--use-mock-keychain"] : []),
-  ];
-}
-
-function createSmokeEnv(args: { dataDir: string }): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    BB_DATA_DIR: args.dataDir,
-    BB_DESKTOP_AUTO_UPDATE: "0",
-    BB_DESKTOP_HEADLESS: "1",
-    BB_DESKTOP_OPEN_DEVTOOLS: "0",
-    BB_DESKTOP_VERSION_CHECK: "0",
-  };
-  delete env.BB_DESKTOP_APP_URL;
-  delete env.BB_DESKTOP_NODE_EXEC_PATH;
-  delete env.ELECTRON_RUN_AS_NODE;
-  return env;
-}
 const ELECTRON_STARTUP_TIMEOUT_MS = 15_000;
 const ELECTRON_EXIT_TIMEOUT_MS = 5_000;
 const ELECTRON_POST_READY_SETTLE_MS = 300;
