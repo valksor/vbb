@@ -5,7 +5,7 @@ import type { AcpLaunchSpec } from "@get-bb/plugin-sdk/provider-bridge/acp";
 import {
   customAgentIconSchema,
   resolveCustomAgentIcon,
-} from "./agents.icons.js";
+} from "./agents.icons.fork.js";
 import type { AcpNativeRootsResolver } from "./native-roots/resolver.js";
 import { registryAgentIcon } from "./registry-icons.js";
 

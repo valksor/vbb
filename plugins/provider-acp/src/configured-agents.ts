@@ -1,4 +1,4 @@
-import { withLoadedIcon } from "./agents.icons.js";
+import { withLoadedIcon } from "./agents.icons.fork.js";
 import {
   customAcpAgentDefinition,
   formatCustomAcpProviderId,
