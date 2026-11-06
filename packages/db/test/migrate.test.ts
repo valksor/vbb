@@ -16,6 +16,7 @@ import {
   rewindQueuedMessageStateMigration,
 } from "./helpers/rewind.js";
 import { defaultAppSettings } from "@bb/domain";
+import { rewindForkMigrationSuffix } from "./helpers/rewind.fork.js";
 import {
   createQueuedThreadMessage,
   createThread,
@@ -1815,6 +1816,11 @@ describe("migrate", () => {
         providerOrder: [],
         defaultProviderId: null,
         providerCompletedTurnDisplay: {},
+        providerTurnIdleInterruptMs:
+          defaultAppSettings.providerTurnIdleInterruptMs,
+        providerTurnIdleNotifyMs: defaultAppSettings.providerTurnIdleNotifyMs,
+        providerTurnIdleWatchdogEnabled:
+          defaultAppSettings.providerTurnIdleWatchdogEnabled,
         machineServerUrl: null,
         defaultMachineAccess: null,
         machineGitCredentialsEnabled: true,
@@ -2616,6 +2622,7 @@ describe("migrate", () => {
       });
       dropThreadStatusChangedAtColumn(db);
       restoreDiffViewedFilesTable(db);
+      rewindForkMigrationSuffix(db);
       db.$client
         .prepare<[number, string]>(
           "UPDATE threads SET updated_at = ? WHERE id = ?",

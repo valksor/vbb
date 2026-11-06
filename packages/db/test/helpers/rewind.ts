@@ -1,4 +1,5 @@
 import type { DbConnection } from "../../src/index.js";
+import { rewindForkMigrationSuffix } from "./rewind.fork.js";
 
 export function dropPluginEnabledFollowsDefaultColumn(db: DbConnection): void {
   const columns = db.$client
@@ -10,6 +11,7 @@ export function dropPluginEnabledFollowsDefaultColumn(db: DbConnection): void {
 }
 
 export function rewindThreadPruningWork(db: DbConnection): void {
+  rewindForkMigrationSuffix(db);
   db.$client.exec(`
     DROP TABLE IF EXISTS thread_pruning_work;
     DELETE FROM __drizzle_migrations WHERE created_at >= 1791399370294;
