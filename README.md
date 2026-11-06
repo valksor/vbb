@@ -10,6 +10,8 @@
 
 # bb
 
+See [fork additions](./README.fork.md) and the [fork changelog](./CHANGELOG.fork.md).
+
 [![npm version](https://img.shields.io/npm/v/bb-app.svg)](https://www.npmjs.com/package/bb-app)
 [![Join Discord](https://img.shields.io/badge/Discord-Join%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/kvBU6tJhcJ)
 

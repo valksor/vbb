@@ -1,5 +1,7 @@
 # Browser Automation for BB
 
+See [fork additions](./README.fork.md).
+
 Thread-owned browser scripts, desktop attachment, and local headless Chrome
 on enrolled hosts. Requires the public
 `bb.sdk.experimental_desktopBrowsers` API (SDK 0.4.48 or newer).

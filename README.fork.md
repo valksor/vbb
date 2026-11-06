@@ -1,7 +1,5 @@
 # vbb fork maintenance
 
-Additional deployment discovery remains pending Slice 22. That slice is required migration work, not excluded functionality.
-
 ## Local desktop packaging
 
 On macOS, `pnpm desktop:local:package` builds an unpacked `bb Local.app` under `apps/desktop/release/`. The command sets `BB_DESKTOP_LOCAL_BUILD=1`. The app uses bundle ID `dev.bb.desktop.local`, runtime app ID `dev.bb.desktop.local`, and product name `bb Local`. The local builder config uses the stable icon and metadata names, but publishes no update feed. The runtime disables official auto-update and version checks for explicit local builds. Its Electron user data is separate from the stable app; its embedded bb runtime still uses the normal `~/.bb` data (or `BB_DATA_DIR`) and getbb.app services. The local-build flag is separate from the latest/nightly release channel. This command builds a local app; it does not install or update a running app.
@@ -28,6 +26,10 @@ Generate future migrations with `pnpm --filter @bb/db db:generate`. The compatib
 
 Fork changes live in new files so that upstream files keep only small hooks:
 
+The public upstream is `get-bb/bb` on `main`; publish this fork to
+`valksor/vbb` on `main`. Local remote names may differ, so use the configured
+remote and branch overrides where needed.
+
 - Fork logic goes in a sibling `<name>.fork.<ext>` file. The upstream file keeps
   an import plus one call, registration, or spread.
 - Fork tests go in `<name>.fork.test.<ext>` files.
@@ -35,7 +37,7 @@ Fork changes live in new files so that upstream files keep only small hooks:
   the upstream document. `CHANGELOG.md` stays equal to upstream; fork entries
   are in `CHANGELOG.fork.md`.
 
-After every integration of `_get-bb/main`:
+After every rebase on `get-bb/bb` `main` (named `_get-bb` in this checkout):
 
 1. Fetch `_get-bb`, commit the integration result, then run
    `pnpm fork:footprint --budget 6000`. The command counts committed lines that

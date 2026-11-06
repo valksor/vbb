@@ -1,5 +1,7 @@
 # @bb/desktop
 
+See [fork additions](./README.fork.md).
+
 macOS, Linux, and Windows Electron shell for bb. The desktop app loads the existing bb
 web UI and uses the packaged `bb-app` launcher for server and host-daemon
 lifecycle.
