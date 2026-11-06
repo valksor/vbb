@@ -196,6 +196,7 @@
       "familyId": "required",
       "taskType": "required",
       "description": "required",
+      "command": "optional",
       "status": "required",
       "taskStatus": "required",
       "skipTranscript": "required",
