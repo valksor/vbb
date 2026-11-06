@@ -13,7 +13,7 @@ import {
   setPluginHookProvider,
   type PluginHookRegistration,
 } from "../../src/services/plugins/plugin-hook-registry.js";
-import { partitionWaiters } from "../../src/services/threads/dispatch-hook-waiters.js";
+import { partitionWaiters } from "../../src/services/threads/dispatch-hooks.fork.js";
 import { acceptThreadSendRequest } from "../../src/services/threads/thread-send-request.js";
 import { runQueuedMessageDispatch } from "../../src/services/threads/queued-message-dispatch.js";
 import { toThreadQueuedMessage } from "../../src/services/threads/thread-queued-messages.js";
