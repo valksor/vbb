@@ -195,7 +195,7 @@ describe("checkout inputs control", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("reports the checkout blocker through the inputs channel", async () => {
+  it("offers new and existing local branches with uncommitted changes", async () => {
     const onChange = vi.fn();
     const slot = renderSlot(
       inputsSlot(),
@@ -212,8 +212,8 @@ describe("checkout inputs control", () => {
     );
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith({
-        status: "blocked",
-        reason: "Checkout blocked by uncommitted changes",
+        status: "ready",
+        value: { branch: { kind: "existing", name: "release" } },
       });
     });
     expect(
@@ -222,17 +222,21 @@ describe("checkout inputs control", () => {
     fireEvent.click(slot.getByRole("combobox", { name: "Branch" }));
     const newBranch = (await slot.findByText("New")).closest("button");
     expect(newBranch).not.toBeNull();
-    expect(newBranch).toHaveProperty("disabled", true);
-    expect(newBranch?.getAttribute("title")).toBe(
-      "Checkout blocked by uncommitted changes",
-    );
-    expect(
-      slot.getByRole("status").textContent,
-    ).toBe(
-      "Commit or stash the uncommitted changes in this checkout to create or switch branches.",
-    );
-    expect(slot.queryByRole("button", { name: "release" })).toBeNull();
-    expect(slot.queryByRole("textbox", { name: "Search branches" })).toBeNull();
+    expect(newBranch).toHaveProperty("disabled", false);
+    fireEvent.click(newBranch!);
+    expect(slot.getByRole("textbox", { name: "Search branches" })).toBeTruthy();
+    fireEvent.click(slot.getByRole("button", { name: "release" }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: "ready",
+      value: { branch: { kind: "new", baseBranch: "release" } },
+    });
+    fireEvent.click(slot.getByRole("combobox", { name: "Branch" }));
+    fireEvent.click(await slot.findByRole("button", { name: "Checkout" }));
+    fireEvent.click(slot.getByRole("button", { name: "release" }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: "ready",
+      value: { branch: { kind: "existing", name: "release" } },
+    });
   });
 
   it("explains why branch actions are unavailable during a Git operation", async () => {

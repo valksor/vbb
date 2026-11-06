@@ -1,6 +1,6 @@
 # Project checkout
 
-Runs threads in the project checkout on an enrolled machine. The plugin supplies the current, existing, and new branch control and refuses branch switches when the checkout is dirty or another live thread occupies it. Removal leaves the checkout intact.
+Runs threads in the project checkout on an enrolled machine. The plugin supplies the current, existing, and new branch control. Branch changes carry uncommitted changes when Git can switch without overwriting them. An in-progress Git operation or another live thread blocks switching. Removal leaves the checkout intact.
 
 Bundled and installed automatically. Select it through the environment picker or `bb thread spawn --environment-provider project-checkout`. Use `bb environment providers --json` for its inputs and availability.
 

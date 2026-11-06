@@ -29,7 +29,6 @@ const LIVE_THREAD_MESSAGE =
 const DETACHED_MESSAGE = "Checkout blocked while HEAD is detached";
 const UNBORN_MESSAGE = "Checkout blocked before the first commit";
 const CONFLICTS_MESSAGE = "Checkout blocked by unresolved conflicts";
-const DIRTY_MESSAGE = "Checkout blocked by uncommitted changes";
 
 export const checkoutInputsSchema = z.object({
   path: z.string().min(1).optional(),
@@ -133,9 +132,6 @@ export default async function checkoutPlugin(bb: BbPluginApi): Promise<void> {
     }
     if (operation.kind !== "none") {
       return `Checkout blocked by an in-progress ${operation.kind}`;
-    }
-    if (inspection.hasUncommittedChanges) {
-      return DIRTY_MESSAGE;
     }
     return null;
   }

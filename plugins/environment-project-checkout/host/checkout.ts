@@ -117,12 +117,6 @@ async function assertSwitchable(
       `Cannot checkout branch while ${operation.kind} is in progress`,
     );
   }
-  if (await hasUncommittedChanges(cwd)) {
-    throw new WorkspaceError(
-      "checkout_dirty",
-      "Cannot checkout branch while the workspace has uncommitted changes",
-    );
-  }
   return "ready";
 }
 
@@ -144,7 +138,7 @@ async function planSwitch(
       ? `origin/${branch.baseBranch}`
       : branch.baseBranch;
   return {
-    switchArgs: ["switch", "--no-track", "-C", branch.name, startPoint],
+    switchArgs: ["switch", "--no-track", "-c", branch.name, startPoint],
     startPoint,
   };
 }
