@@ -18,6 +18,7 @@ import {
 } from "./queries/query-keys";
 import { getProjectScopedStorageKey } from "@/lib/project-scoped-storage";
 import { useThreadCreationOptions } from "./useThreadCreationOptions";
+import { resetProjectProviderPreferencesForTests } from "./thread-creation-options/persisted-selection-fields.fork";
 import {
   providerListCacheKey,
   writeCachedProviderList,
@@ -330,11 +331,57 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  resetProjectProviderPreferencesForTests();
   window.localStorage.clear();
   vi.clearAllMocks();
 });
 
 describe("useThreadCreationOptions", () => {
+  it("remembers the provider per project instead of carrying the last pick across projects", async () => {
+    const OTHER_PROJECT_ID = "proj_prompt_defaults_other";
+    window.localStorage.setItem("bb.promptbox.provider", GLOBAL_PROVIDER_ID);
+    vi.mocked(sdk.system.executionOptions).mockImplementation(async (args) =>
+      providerExecutionOptionsResponse(args?.providerId),
+    );
+    const { wrapper } = createQueryClientTestHarness();
+    const { result, rerender } = renderHook(
+      ({ projectId }) =>
+        useThreadCreationOptions({
+          scope: "new-thread",
+          preferenceProjectId: projectId,
+          resetKey: projectId,
+          initialProviderId: PROJECT_PROVIDER_ID,
+        }),
+      { wrapper, initialProps: { projectId: PROJECT_ID } },
+    );
+
+    await waitFor(() => {
+      expect(result.current.selectedProviderId).toBe(PROJECT_PROVIDER_ID);
+    });
+
+    act(() => {
+      result.current.setSelectedProviderId(GLOBAL_PROVIDER_ID);
+    });
+    await waitFor(() => {
+      expect(result.current.selectedProviderId).toBe(GLOBAL_PROVIDER_ID);
+    });
+    expect(
+      window.localStorage.getItem(
+        getProjectScopedStorageKey("bb.promptbox.provider", PROJECT_ID),
+      ),
+    ).toBe(GLOBAL_PROVIDER_ID);
+
+    rerender({ projectId: OTHER_PROJECT_ID });
+    await waitFor(() => {
+      expect(result.current.selectedProviderId).toBe(PROJECT_PROVIDER_ID);
+    });
+
+    rerender({ projectId: PROJECT_ID });
+    await waitFor(() => {
+      expect(result.current.selectedProviderId).toBe(GLOBAL_PROVIDER_ID);
+    });
+  });
+
   it("keeps an unprobed selection without reasoning choices until its actual ladder arrives", async () => {
     const discovery = createDeferredPromise<SystemExecutionOptionsResponse>();
     const catalog = executionOptionsResponse();
@@ -1145,7 +1192,7 @@ describe("useThreadCreationOptions", () => {
       "host:global-host:worktree",
     );
 
-    setProjectScopedValue("bb.promptbox.provider", PROJECT_PROVIDER_ID);
+    setProjectScopedValue("bb.promptbox.provider", GLOBAL_PROVIDER_ID);
     setProjectScopedValue("bb.promptbox.model", "project-model");
     setProjectScopedValue("bb.promptbox.service-tier", "fast");
     setProjectScopedValue("bb.promptbox.reasoning", "low");
