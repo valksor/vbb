@@ -22,6 +22,12 @@ export const catppuccinThemeCss = `
   --warning: #df8e1d;
   --warning-text: #b8730a;
   --attention: #fe640b;
+  --working: #0491c9;
+  --working-plan: #657cfd;
+  --working-workflow: #8839ef;
+  --working-agent: #179299;
+  --working-command: #e34aba;
+  --working-goal: color-mix(in oklch, #179299 50%, #40a02b);
   --success: #40a02b;
   --success-foreground: #157e00;
   --diff-added: #40a02b;
@@ -69,6 +75,12 @@ export const catppuccinThemeCss = `
   --warning: #f9e2af;
   --warning-text: #f9e2af;
   --attention: #fab387;
+  --working: #89dceb;
+  --working-plan: #b4befe;
+  --working-workflow: #cba6f7;
+  --working-agent: #94e2d5;
+  --working-command: #f5c2e7;
+  --working-goal: color-mix(in oklch, #94e2d5 50%, #a6e3a1);
   --success: #a6e3a1;
   --success-foreground: #a6e3a1;
   --diff-added: #a6e3a1;

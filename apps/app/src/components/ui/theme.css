@@ -52,6 +52,12 @@
   --color-destructive-text: var(--destructive-text);
   --color-attention: var(--attention);
   --color-attention-foreground: var(--attention-foreground);
+  --color-working: var(--working);
+  --color-working-plan: var(--working-plan);
+  --color-working-workflow: var(--working-workflow);
+  --color-working-agent: var(--working-agent);
+  --color-working-command: var(--working-command);
+  --color-working-goal: var(--working-goal);
   --color-warning: var(--warning);
   --color-warning-text: var(--warning-text);
   --color-success: var(--success);
@@ -523,6 +529,12 @@
   --attention: oklch(0.74 0.15 80);
   /* Text on an --attention fill: the darkest anchor in each theme. */
   --attention-foreground: var(--ink);
+  --working: oklch(0.65 0.13 235);
+  --working-plan: oklch(0.6 0.15 270);
+  --working-workflow: oklch(0.6 0.17 305);
+  --working-agent: oklch(0.65 0.11 190);
+  --working-command: oklch(0.63 0.18 350);
+  --working-goal: oklch(0.66 0.15 120);
   --warning: oklch(0.7 0.16 50);
   --warning-text: oklch(0.55 0.14 50);
   --success: oklch(0.7 0.15 155);
@@ -754,6 +766,12 @@
   --destructive-text: oklch(0.65 0.16 22);
   --attention: oklch(0.8 0.15 80);
   --attention-foreground: var(--canvas);
+  --working: oklch(0.8 0.1 235);
+  --working-plan: oklch(0.76 0.12 270);
+  --working-workflow: oklch(0.76 0.14 305);
+  --working-agent: oklch(0.8 0.1 190);
+  --working-command: oklch(0.78 0.14 350);
+  --working-goal: oklch(0.82 0.15 120);
   --warning: oklch(0.75 0.16 50);
   --warning-text: oklch(0.75 0.16 50);
   --success: oklch(0.74 0.15 155);

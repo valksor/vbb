@@ -14,6 +14,12 @@ export const gruvboxThemeCss = `
   --warning: #d65d0e;
   --warning-text: #af3a03;
   --attention: #b57614;
+  --working: #458588;
+  --working-plan: color-mix(in oklch, #458588 50%, #8f3f71);
+  --working-workflow: #8f3f71;
+  --working-agent: #427b58;
+  --working-command: color-mix(in oklch, #b16286 65%, #cc241d);
+  --working-goal: color-mix(in oklch, #427b58 50%, #79740e);
   --success: #79740e;
   --success-foreground: #736e00;
   --diff-added: #79740e;
@@ -65,6 +71,12 @@ export const gruvboxThemeCss = `
   --warning: #fe8019;
   --warning-text: #fe8019;
   --attention: #fabd2f;
+  --working: #83a598;
+  --working-plan: color-mix(in oklch, #83a598 50%, #d3869b);
+  --working-workflow: #d3869b;
+  --working-agent: #8ec07c;
+  --working-command: color-mix(in oklch, #d3869b 65%, #fb4934);
+  --working-goal: color-mix(in oklch, #8ec07c 50%, #b8bb26);
   --success: #b8bb26;
   --success-foreground: #b8bb26;
   --diff-added: #b8bb26;

@@ -14,6 +14,12 @@ export const solarizedThemeCss = `
   --warning: #cb4b16;
   --warning-text: #a53c12;
   --attention: #b58900;
+  --working: #268bd2;
+  --working-plan: color-mix(in oklch, #268bd2 50%, #6c71c4);
+  --working-workflow: #6c71c4;
+  --working-agent: #2aa198;
+  --working-command: #d33682;
+  --working-goal: color-mix(in oklch, #2aa198 50%, #718c00);
   --success: #718c00;
   --success-foreground: #5f7800;
   --diff-added: #718c00;
@@ -65,6 +71,12 @@ export const solarizedThemeCss = `
   --warning: #cb4b16;
   --warning-text: #e07a4e;
   --attention: #b58900;
+  --working: #268bd2;
+  --working-plan: color-mix(in oklch, #268bd2 50%, #6c71c4);
+  --working-workflow: #6c71c4;
+  --working-agent: #2aa198;
+  --working-command: #d33682;
+  --working-goal: color-mix(in oklch, #2aa198 50%, #859900);
   --success: #859900;
   --success-foreground: #859900;
   --diff-added: #859900;

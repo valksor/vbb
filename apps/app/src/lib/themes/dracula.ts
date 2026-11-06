@@ -14,6 +14,12 @@ export const draculaThemeCss = `
   --warning: #b8762e;
   --warning-text: #8f5a22;
   --attention: #9a7d00;
+  --working: #1f6f8b;
+  --working-plan: color-mix(in oklch, #1f6f8b 50%, #7d5bbe);
+  --working-workflow: #7d5bbe;
+  --working-agent: color-mix(in oklch, #1f6f8b 50%, #2c7a4b);
+  --working-command: #b83d8c;
+  --working-goal: color-mix(in oklch, #2c7a4b 50%, #9a7d00);
   --success: #2c7a4b;
   --success-foreground: #2c7a4b;
   --diff-added: #2c7a4b;
@@ -65,6 +71,12 @@ export const draculaThemeCss = `
   --warning: #ffb86c;
   --warning-text: #ffb86c;
   --attention: #f1fa8c;
+  --working: #8be9fd;
+  --working-plan: color-mix(in oklch, #8be9fd 50%, #bd93f9);
+  --working-workflow: #bd93f9;
+  --working-agent: color-mix(in oklch, #8be9fd 50%, #50fa7b);
+  --working-command: #ff79c6;
+  --working-goal: color-mix(in oklch, #50fa7b 50%, #f1fa8c);
   --success: #50fa7b;
   --success-foreground: #50fa7b;
   --diff-added: #50fa7b;

@@ -5,9 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { PluginSidebarThreadIndicator } from "@get-bb/plugin-sdk";
 import { experimental_resolveThreadStatus } from "@get-bb/plugin-sdk/internal/thread-status";
 import {
+  SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES,
+  SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
   SIDEBAR_SUCCESS_STATUS_COLOR_CLASS,
   SIDEBAR_WAITING_STATUS_COLOR_CLASS,
-  SIDEBAR_WORKING_STATUS_COLOR_CLASS,
 } from "@bb/shared-ui/sidebar-row-classes";
 import { makeThreadListEntry } from "@bb/test-helpers/domain-fixtures";
 import { toThreadStatusThread } from "@/lib/plugin-sidebar-threads";
@@ -18,6 +19,36 @@ afterEach(() => {
 });
 
 describe("ThreadStatusGlyph", () => {
+  it("renders workflow activity from thread metadata with its source color", () => {
+    const status = experimental_resolveThreadStatus({
+      thread: toThreadStatusThread(
+        makeThreadListEntry({
+          activity: { activeWorkflowCount: 1 },
+          runtime: { displayStatus: "idle" },
+          status: "idle",
+          lastReadAt: 0,
+          latestAttentionAt: 0,
+          hasPendingInteraction: false,
+        }),
+      ),
+      hiddenThreads: [],
+      hasUnsubmittedDraft: false,
+      rowStatus: null,
+    });
+
+    render(<ThreadStatusGlyph indicator={status.indicator} />);
+
+    expect(screen.getByLabelText("Workflow running").getAttribute("data-icon")).toBe(
+      "Workflow",
+    );
+    expect(
+      Array.from(screen.getByLabelText("Workflow running").classList),
+    ).toContain("animate-shine-icon");
+    expect(
+      Array.from(screen.getByLabelText("Workflow running").classList),
+    ).toContain("text-working-workflow");
+  });
+
   it("renders plan approval from existing thread metadata", () => {
     const status = experimental_resolveThreadStatus({
       thread: toThreadStatusThread(
@@ -66,18 +97,35 @@ describe("ThreadStatusGlyph", () => {
     },
   );
 
+  it.each([
+    ["workflow", "Workflow running"],
+    ["background-agent", "Background agent running"],
+    ["background-command", "Background command running"],
+    ["plan-mode", "Plan mode active"],
+    ["goal", "Goal active"],
+  ] as const)("colors the %s glyph with its activity color", (indicator, label) => {
+    render(<ThreadStatusGlyph indicator={indicator} />);
+
+    const classes = Array.from(screen.getByLabelText(label).classList);
+    expect(classes).toContain("animate-shine-icon");
+    expect(classes).toContain(SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES[indicator]);
+  });
+
   it("shimmers named work and spins the runtime glyph unless motion is reduced", () => {
     const { rerender } = render(<ThreadStatusGlyph indicator="workflow" />);
     const workflow = screen.getByLabelText("Workflow running");
     expect(Array.from(workflow.classList)).toContain("animate-shine-icon");
     expect(Array.from(workflow.classList)).toContain(
-      SIDEBAR_WORKING_STATUS_COLOR_CLASS,
+      SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES.workflow,
     );
 
     rerender(<ThreadStatusGlyph indicator="runtime" />);
     const runtime = screen.getByLabelText("Thread working");
     expect(Array.from(runtime.classList)).toContain("animate-spin");
     expect(Array.from(runtime.classList)).toContain("motion-reduce:animate-none");
+    expect(Array.from(runtime.classList)).toContain(
+      SIDEBAR_RUNTIME_STATUS_COLOR_CLASS,
+    );
   });
 
   it.each([

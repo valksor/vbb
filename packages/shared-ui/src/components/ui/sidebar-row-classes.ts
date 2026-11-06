@@ -27,6 +27,16 @@ export const SIDEBAR_SUCCESS_STATUS_DOT_CLASS =
 
 export const SIDEBAR_WAITING_STATUS_COLOR_CLASS = "text-attention";
 
+export const SIDEBAR_RUNTIME_STATUS_COLOR_CLASS = "text-working";
+
+export const SIDEBAR_ACTIVITY_STATUS_COLOR_CLASSES = {
+  workflow: "text-working-workflow",
+  "background-agent": "text-working-agent",
+  "background-command": "text-working-command",
+  "plan-mode": "text-working-plan",
+  goal: "text-working-goal",
+} as const;
+
 const SIDEBAR_THREAD_ROW_BASE_PADDING_PX = 8;
 const SIDEBAR_THREAD_ROW_DEPTH_STEP_PX = 24;
 const SIDEBAR_THREAD_ROW_GLYPH_CENTER_OFFSET_PX = 8;
