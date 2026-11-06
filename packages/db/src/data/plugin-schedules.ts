@@ -1,5 +1,5 @@
 import { and, asc, eq, lte, notInArray } from "drizzle-orm";
-import type { DbConnection } from "../connection.js";
+import type { DbConnection, DbTransaction } from "../connection.js";
 import { pluginSchedules } from "../schema.js";
 
 export interface PluginScheduleRow {
@@ -75,7 +75,7 @@ export function listDuePluginSchedules(
 }
 
 export function claimPluginScheduledRun(
-  db: DbConnection,
+  db: DbConnection | DbTransaction,
   args: {
     pluginId: string;
     name: string;

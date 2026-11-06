@@ -28,6 +28,7 @@ import {
 import { isExpectedOnlineRpcFailureError } from "./command-dispatch-support.js";
 import { roundDurationMs } from "@bb/process-utils";
 import type { HostDaemonLogger } from "./logger.js";
+import { WorkBarrier } from "./command-router.fork.js";
 import { RuntimeManager } from "./runtime-manager.js";
 import type { PluginHostManager } from "./plugin-host-manager.js";
 import { runInSerialLane } from "./serial-lane.js";
@@ -101,6 +102,7 @@ export class CommandRouter {
     string,
     AbortController
   >();
+  private readonly workBarrier = new WorkBarrier(() => this.options);
 
   constructor(private readonly options: CommandRouterOptions) {
     this.logger = options.logger;
@@ -114,7 +116,9 @@ export class CommandRouter {
     this.onlineRpcAbortControllers.set(message.requestId, abortController);
     try {
       const result = await runWithTurnSubmitTrace(message.command, () =>
-        this.executeHostRpcCommand(message.command, abortController.signal),
+        this.workBarrier.run(message.command, () =>
+          this.executeHostRpcCommand(message.command, abortController.signal),
+        ),
       );
       this.logOnlineRpc({
         commandType: message.command.type,

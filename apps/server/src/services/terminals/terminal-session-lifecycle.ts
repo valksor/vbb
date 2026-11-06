@@ -2,7 +2,6 @@ import { emitPluginTerminalInput } from "../plugins/plugin-thread-events.js";
 import { resolveHostEnvironment } from "../hosts/host-environment.js";
 import { randomUUID } from "node:crypto";
 import {
-  createTerminalSession,
   getSessionById,
   getTerminalSession,
   countTerminalSessions,
@@ -46,6 +45,7 @@ import {
   throwThreadEnvironmentUnavailable,
 } from "../lib/lifecycle-api-errors.js";
 import { requireWorkspaceCommandTarget } from "../environments/workspace-command-target.js";
+import { createAdmittedTerminalSession } from "../system/work-admission.js";
 import {
   isServerMoveSnapshotFenced,
   serverMovingError,
@@ -755,7 +755,7 @@ export class TerminalSessionLifecycle {
       launchTarget.hostId,
     );
     const start = args.payload.start ?? DEFAULT_TERMINAL_START;
-    const startingSession = createTerminalSession(this.options.db, {
+    const startingSession = createAdmittedTerminalSession(this.options.db, {
       cols: args.payload.cols,
       daemonSessionId: daemonSession.id,
       environmentId: launchTarget.environmentId,

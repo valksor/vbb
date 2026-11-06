@@ -87,6 +87,7 @@ import { requireResolvedWorkspaceForCommand } from "./workspace-resolution.js";
 import { userExecutableProcessOptions } from "./user-executable-env.js";
 import type { ServerMoveService } from "./server-move/service.js";
 import { readWorkspaceAgentContext } from "./command-handlers/workspace-agent-context.js";
+import { workBarrierCommandHandlers } from "./command-dispatch.fork.js";
 import { WorkspaceError } from "bb-environment-provider-host/workspace-git";
 
 const THREAD_STOP_ACTIVE_TURN_WAIT_MS = 5_000;
@@ -404,6 +405,7 @@ async function withResolvedBridgeLaunch<TResult>(
 }
 
 const commandHandlers: CommandHandlerMap = {
+  ...workBarrierCommandHandlers,
   "thread.rewind.discard": (command, options) =>
     withRetainedThreadEnvironment(command, options, () =>
       discardThreadRewind(command, options),

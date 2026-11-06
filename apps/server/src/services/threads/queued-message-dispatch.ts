@@ -26,6 +26,10 @@ import {
 } from "../lib/error-log-fields.js";
 import { isDispatchRequeuedRecently } from "./dispatch-hooks.js";
 import { recordQueuedMessageDrainFailure } from "./queue-drain-failure.js";
+import {
+  isAutomaticQueuedDispatchHeld,
+  resumeQueuedWorkIfQuiesceEnded,
+} from "./queue-quiesce.fork.js";
 import { clearQueuedMessageWait } from "./queue-waits.js";
 import {
   createAutomaticQueuedMessageGroupEligibility,
@@ -294,6 +298,7 @@ async function executePreparedQueuedMessageDispatch(
       await runDueScheduledDispatch(deps, wake.now);
       return;
     case "idle-recovery":
+      resumeQueuedWorkIfQuiesceEnded(deps);
       releaseStaleQueuedMessageDispatchClaims(deps, wake.now);
       await runIdleThreadRecovery(deps);
       return;
@@ -436,6 +441,7 @@ async function attemptAutomaticQueuedMessage(
     retryingFailure: boolean;
   },
 ): Promise<void> {
+  if (isAutomaticQueuedDispatchHeld(deps)) return;
   if (args.respectRequeuePacing && isDispatchRequeuedRecently(row.threadId))
     return;
   if (getQueuedThreadMessage(deps.db, row.id) === null) return;

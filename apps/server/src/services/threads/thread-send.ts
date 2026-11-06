@@ -69,6 +69,7 @@ import {
 import { resolvePromptAttachmentReferences } from "../projects/attachments.js";
 import { threadTargetHostId } from "./dispatch-attempt.js";
 import { resolvePluginMentionContextInputs } from "../plugins/plugin-mentions.js";
+import { requireWorkAdmissionOpen } from "../system/work-admission.js";
 import { clearThreadContext } from "./thread-context-clear.js";
 import { withThreadSendGuard } from "./thread-context-mutation-guard.js";
 import {
@@ -555,6 +556,7 @@ async function sendThreadMessageWithoutContextClear(
   const beforeAppendInTransaction: SendThreadMessageTransactionPreflight = ({
     tx,
   }) => {
+    requireWorkAdmissionOpen(tx);
     args.beforeAppendInTransaction?.({ tx });
     if (deferredFirstTurnContext) {
       requireDeferredFirstTurnContextCurrent(tx, {

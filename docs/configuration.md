@@ -1560,6 +1560,8 @@ The data directory holds all bb-managed state: the SQLite database, logs, host
 identity, thread storage, custom themes, and plugins. It defaults to `~/.bb/`
 for the packaged app. Use `--data-dir` for fully isolated instances.
 
+Maintenance uses `<data-dir>/admin/maintenance.sock`, `<data-dir>/admin/capability`, and `<data-dir>/admin/operations/<id>.json`. Set `BB_MAINTENANCE_OWNER_SECRET` to provide the local maintenance owner secret instead of creating an operation owner file.
+
 Other launcher flags: `--no-in-app-updates` ([In-App Updates](#in-app-updates))
 and `--perf-diagnostics` ([Experiments](#experiments)).
 

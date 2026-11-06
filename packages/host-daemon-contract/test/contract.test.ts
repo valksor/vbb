@@ -460,6 +460,20 @@ const ONLINE_RPC_RESPONSE_RESULT_FIXTURES: OnlineRpcResponseResultFixtures = {
 };
 
 const SETTLED_RESPONSE_RESULT_FIXTURES: SettledResponseResultFixtures = {
+  "work.quiesce": {
+    operationId: "update-1",
+    gatePhase: "draining",
+    activity: { activeByKind: { thread: 1 } },
+  },
+  "work.seal": {
+    operationId: "update-1",
+    gatePhase: "sealed",
+    activity: { activeByKind: {} },
+  },
+  "work.unquiesce": {
+    operationId: "update-1",
+    released: true,
+  },
   "thread.rewind.discard": {},
   "thread.rewind.prepare": {
     providerThreadId: "provider-thread-rewind",
@@ -1062,7 +1076,7 @@ describe("host-daemon command schemas", () => {
   });
 
   it("uses the current host-daemon protocol version", () => {
-    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(265);
+    expect(HOST_DAEMON_PROTOCOL_VERSION).toBe(267);
     expect(HOST_ARTIFACT_MAX_BYTES).toBe(256 * 1024 * 1024);
   });
 
@@ -1084,7 +1098,7 @@ describe("host-daemon command schemas", () => {
     expect(contract.isCompatibleHostDaemonProtocolVersion(259)).toBe(false);
     expect(contract.isCompatibleHostDaemonProtocolVersion(260)).toBe(false);
     expect(contract.isCompatibleHostDaemonProtocolVersion(261)).toBe(false);
-    expect(contract.isCompatibleHostDaemonProtocolVersion(265)).toBe(true);
+    expect(contract.isCompatibleHostDaemonProtocolVersion(267)).toBe(true);
     expect(contract.hostDaemonSupportsConnectNext(246)).toBe(false);
     expect(contract.hostDaemonSupportsConnectNext(247)).toBe(true);
     expect(contract.hostDaemonSupportsDesktopBrokerProof(247)).toBe(false);

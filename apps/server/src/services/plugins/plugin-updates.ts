@@ -1,11 +1,15 @@
 import semver from "semver";
 import { z } from "zod";
 import {
+  admitExecutionStart,
   getInstalledPlugin,
+  isWorkAdmissionOpen,
   listInstalledPlugins,
   listRecentPluginArtifacts,
+  markWorkAdmissionActive,
   setInstalledPluginSourceClassification,
   setInstalledPluginUpdateState,
+  settleWorkAdmission,
   type InstalledPluginRow,
   type PluginGitSelector,
 } from "@bb/db";
@@ -124,6 +128,8 @@ export interface PluginUpdates {
   checkForUpdates(id?: string): Promise<PluginUpdateCheckEntry[]>;
   startPeriodicUpdateChecks(): void;
   stopPeriodicUpdateChecks(): Promise<void>;
+  quiescePeriodicUpdateChecks(): Promise<void>;
+  resumePeriodicUpdateChecks(): void;
   listUpdateResults(): PluginUpdateCheckEntry[];
   getSource(id: string): Promise<PluginSourceDetail | undefined>;
   applyUpdate(id: string): Promise<PluginApplyUpdateOutcome>;
@@ -432,7 +438,8 @@ export function createPluginUpdates(
       return () => clearTimeout(timer);
     });
   let cancelPeriodicCheck: (() => void) | null = null;
-  let periodicChecksStopped = true;
+  let periodicChecksRequested = false;
+  let periodicChecksQuiesced = false;
   let inFlightSweep: Promise<PluginUpdateCheckEntry[]> | null = null;
 
   function periodicCheckDelay(): number {
@@ -448,7 +455,8 @@ export function createPluginUpdates(
   }
 
   async function runPeriodicCheck(): Promise<void> {
-    if (periodicChecksStopped) return;
+    cancelPeriodicCheck = null;
+    if (!periodicChecksRequested || periodicChecksQuiesced) return;
     if (isServerMoveFrozen(deps.db)) {
       cancelPeriodicCheck = scheduleUpdateCheck(
         SERVER_MOVE_FROZEN_RETRY_MS,
@@ -456,12 +464,26 @@ export function createPluginUpdates(
       );
       return;
     }
+    const admission = admitExecutionStart(deps.db, {
+      commandType: "plugin.update-check",
+      transport: "settled",
+    });
+    if (admission.kind === "quiesced") {
+      periodicChecksQuiesced = true;
+      return;
+    }
+    if (!markWorkAdmissionActive(deps.db, admission.token)) {
+      settleWorkAdmission(deps.db, admission.token);
+      periodicChecksQuiesced = !isWorkAdmissionOpen(deps.db);
+      return;
+    }
     try {
       await updates.checkForUpdates();
     } catch (error: unknown) {
       deps.logger.warn({ err: error }, "periodic plugin update check failed");
     } finally {
-      if (!periodicChecksStopped) {
+      settleWorkAdmission(deps.db, admission.token);
+      if (periodicChecksRequested && !periodicChecksQuiesced) {
         cancelPeriodicCheck = scheduleUpdateCheck(
           PLUGIN_UPDATE_CHECK_INTERVAL_MS,
           runPeriodicCheck,
@@ -521,8 +543,12 @@ export function createPluginUpdates(
 
   const updates: PluginUpdates = {
     startPeriodicUpdateChecks() {
-      if (!periodicChecksStopped) return;
-      periodicChecksStopped = false;
+      periodicChecksRequested = true;
+      if (periodicChecksQuiesced || cancelPeriodicCheck !== null) return;
+      if (!isWorkAdmissionOpen(deps.db)) {
+        periodicChecksQuiesced = true;
+        return;
+      }
       cancelPeriodicCheck = scheduleUpdateCheck(
         periodicCheckDelay(),
         runPeriodicCheck,
@@ -530,10 +556,27 @@ export function createPluginUpdates(
     },
 
     async stopPeriodicUpdateChecks() {
-      periodicChecksStopped = true;
+      periodicChecksRequested = false;
       cancelPeriodicCheck?.();
       cancelPeriodicCheck = null;
       await inFlightSweep?.catch(() => undefined);
+    },
+
+    async quiescePeriodicUpdateChecks() {
+      periodicChecksQuiesced = true;
+      cancelPeriodicCheck?.();
+      cancelPeriodicCheck = null;
+      await inFlightSweep?.catch(() => undefined);
+    },
+
+    resumePeriodicUpdateChecks() {
+      if (!periodicChecksQuiesced) return;
+      periodicChecksQuiesced = false;
+      if (!periodicChecksRequested || cancelPeriodicCheck !== null) return;
+      cancelPeriodicCheck = scheduleUpdateCheck(
+        periodicCheckDelay(),
+        runPeriodicCheck,
+      );
     },
 
     checkForUpdates(id) {

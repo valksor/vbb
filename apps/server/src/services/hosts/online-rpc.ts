@@ -29,6 +29,7 @@ import { inactiveHostUnavailableDetails } from "../lib/lifecycle-api-errors.js";
 import { isHostDisconnectHidden } from "./host-disconnect-display.js";
 import { LEASE_TIMEOUT_MS } from "../../constants.js";
 import { traceTurnRpc } from "../system/turn-trace.js";
+import { withExecutionStartAdmission } from "./online-rpc.fork.js";
 
 const HOST_DAEMON_REGISTRATION_WAIT_MS = 1_000;
 const HOST_DAEMON_RECONNECT_WAIT_MS = 5_000;
@@ -254,6 +255,20 @@ async function callHostOnlineRpcWithRetry(
   },
 ): Promise<HostDaemonRpcResultForCommand<PluginHostCallCommand>>;
 async function callHostOnlineRpcWithRetry(
+  deps: WorkSessionDeps,
+  args: CallHostOnlineRpcArgs<HostDaemonRpcCommand>,
+  options: {
+    retryOnTransportFailure: boolean;
+    waitForTransportFailure: boolean;
+    retryCommand?: (command: PluginHostCallCommand) => PluginHostCallCommand;
+  },
+): Promise<HostDaemonRpcResultForCommand> {
+  return withExecutionStartAdmission(deps, args, () =>
+    callAdmittedHostOnlineRpcWithRetry(deps, args, options),
+  );
+}
+
+async function callAdmittedHostOnlineRpcWithRetry(
   deps: WorkSessionDeps,
   args: CallHostOnlineRpcArgs<HostDaemonRpcCommand>,
   options: {

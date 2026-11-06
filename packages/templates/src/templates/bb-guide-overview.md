@@ -69,6 +69,7 @@ Run `bb guide <chapter>` for command details:
   projects             Project CRUD and sources
   machines             Listing and targeting execution machines, moving the
                        server
+  maintenance          Local work-admission control and daemon barriers
   terminals            Persistent PTY sessions across all supported scopes,
                        and running one command on another machine
   browser              Experimental built-in browser tabs and control leases
