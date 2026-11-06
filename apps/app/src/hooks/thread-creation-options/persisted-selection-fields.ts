@@ -11,6 +11,10 @@ import {
 } from "@bb/domain";
 import { createTabScopedStorage } from "@/lib/browser-storage";
 import { getProjectScopedStorageKey } from "@/lib/project-scoped-storage";
+import {
+  PROVIDER_STORAGE_KEY,
+  createProjectProviderIdAtomFamily,
+} from "./persisted-selection-fields.fork";
 
 const MODEL_STORAGE_KEY = "bb.promptbox.model";
 const SERVICE_TIER_STORAGE_KEY = "bb.promptbox.service-tier";
@@ -18,7 +22,6 @@ const REASONING_STORAGE_KEY = "bb.promptbox.reasoning";
 const PERMISSION_MODE_STORAGE_KEY = "bb.promptbox.permission-mode";
 const ENVIRONMENT_STORAGE_KEY = "bb.promptbox.environment";
 const MACHINE_STORAGE_KEY = "bb.promptbox.machine";
-const PROVIDER_STORAGE_KEY = "bb.promptbox.provider";
 const SESSION_OPTIONS_STORAGE_KEY = "bb.promptbox.session-options";
 const PROVIDER_SELECTION_STORAGE_VERSION = "1";
 
@@ -86,6 +89,9 @@ const providerIdAtom = atomWithStorage<string>(
   "",
   stringSelectionStorage,
   { getOnInit: true },
+);
+const projectProviderIdAtomFamily = createProjectProviderIdAtomFamily(
+  stringSelectionStorage,
 );
 const emptyModelAtom = atom("");
 const emptyServiceTierAtom = atom<StoredServiceTier>("");
@@ -243,8 +249,15 @@ export function usePromptBoxMachinePreference(
   return { value, setValue };
 }
 
-export function usePromptBoxProviderPreference(): PersistedStringSelectionField {
-  const [value, setAtomValue] = useAtom(providerIdAtom);
+export function usePromptBoxProviderPreference(
+  projectId?: string | null,
+): PersistedStringSelectionField {
+  const normalizedProjectId = projectId?.trim();
+  const [value, setAtomValue] = useAtom(
+    normalizedProjectId && normalizedProjectId.length > 0
+      ? projectProviderIdAtomFamily(normalizedProjectId)
+      : providerIdAtom,
+  );
   const setValue = useCallback(
     (nextValue: string) => setAtomValue(nextValue),
     [setAtomValue],
