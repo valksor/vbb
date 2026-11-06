@@ -31,6 +31,7 @@ bb status --json
 | Worktree setup hooks, environment inspection, commits, pull requests    | `bb guide environments`        |
 | Enroll, create, update, suspend, or remove machines; move the server    | `bb guide machines`            |
 | Control local work admission and daemon restart barriers                 | `bb guide maintenance`         |
+| Token usage totals by provider, model, thread, or day                   | `bb guide spend`               |
 | Projects, sources, attachments, project files                           | `bb guide projects`            |
 | Providers, models, service tiers, custom models                         | `bb guide providers`           |
 | Run a command on another machine; dev servers and long-running commands | `bb guide terminals`           |

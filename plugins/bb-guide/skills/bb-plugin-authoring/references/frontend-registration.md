@@ -399,9 +399,9 @@ await sdk.threads.update({ id: thread.id, sectionId });
 // workspaceDisplayKind }, where workspaceDisplayKind is deprecated
 // compatibility data; host { id, name }, createdAt, updatedAt, lastReadAt,
 // latestAttentionAt, and `indicator` (bb's resolved status kind) +
-// `indicatorLabel` (its a11y string). Draw your own glyph for `indicator`;
-// the SDK ships no status component. Treat an unknown indicator, status, or
-// runtimeStatus value as its documented fallback — bb adds kinds over time.
+// `indicatorLabel` (its a11y string). Draw it with `experimental_ThreadStatusGlyph`;
+// the waiting kinds are in frontend-registration.md. Treat an unknown indicator,
+// status, or runtimeStatus value as its documented fallback — bb adds kinds over time.
 
 // Three more per-row facts are client-local, so they are hooks rather than
 // fields on the thread: an unsent composer draft (bb paints a pencil, or a
@@ -493,6 +493,39 @@ silently stop working:
 ```tsx
 <a data-sidebar-thread-shortcut-target="" data-sidebar-thread-id={thread.id}>
 ```
+
+## Content beside the composer
+
+`app.slots.experimental_composerAside` renders a component in the gutter to the
+right of an open thread's composer — not on the New thread screen or in
+embedded chats.
+
+```tsx
+app.slots.experimental_composerAside({
+  id: "checks",
+  title: "PR checks",
+  component: ({ threadId, projectId }) => { ... },
+});
+```
+
+The host sizes the region for you: the width is the space right of the thread
+column minus the table-of-contents reserve, at most 18rem; the height is capped
+at 12rem and scrolls, so nothing is clipped silently. The host hides the region
+when that space is narrower than about 15rem — a pane narrower than about
+1240px. The host provides the region landmark named with `title`; do not render
+your own. Render an element: output that is only text (or nothing) counts as
+empty, and the host removes an empty region from the accessibility tree. A
+split layout renders one composer per pane, so your component mounts once per
+visible thread — keep per-thread state in the component, never in a
+module-level singleton.
+
+## Waiting kinds of a thread's `indicator`
+
+The waiting kinds are `waiting-for-input`, `waiting-for-plan-approval` (the
+agent is blocked on plan approval), and `waiting-for-answer` (the agent is
+blocked on a question); `hasPendingInteraction` stays true for every waiting
+kind. Treat an unrecognized `waiting-for-*` value as `waiting-for-input`. Draw
+the glyph with `experimental_ThreadStatusGlyph` instead of hand-rolling one.
 
 ## Tab API migration
 

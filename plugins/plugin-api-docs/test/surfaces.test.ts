@@ -31,6 +31,7 @@ describe("product-map surfaces", () => {
       "message-metadata",
       "pending-interaction",
       "thread-info",
+      "composer-aside",
       "code-renderers",
       "browser-toolbar",
       "thread-panel",

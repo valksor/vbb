@@ -1021,7 +1021,14 @@ the cache TTL and the invalidation set against a real multi-host setup.
 ## `experimental_nativeRootsHostContract` (`@get-bb/plugin-sdk/host`)
 
 The one-method host RPC contract (`resolveNativeRoots`). Input is
-`{ providerId, cwd: string | null }`. Output is `{ skills, commands }`, each a
+`{ providerId, cwd: string | null, bridgeOptions? }`; `bridgeOptions` is the
+provider's registered `experimental_bridgeOptions`, sent only when non-empty,
+so a plugin that registers several providers from one host entry (the Claude
+Code profiles) can resolve each provider's own roots. Compatibility limit: the
+server sends `bridgeOptions` whenever a provider declares non-empty
+`experimental_bridgeOptions` (ACP providers always do). A third-party resolver
+bundled with an older SDK whose input schema is strict rejects that input, and
+the server falls back to the declared roots with a warning. Output is `{ skills, commands }`, each a
 list of host-absolute roots with `origin`, `recursive`, `ancestors`,
 `namePrefix`, and a `shape` that tells the daemon how to read the root.
 
@@ -1962,16 +1969,21 @@ Before stabilization, audit:
 ## `bb.providers.register` (`experimental_bridgeOptions`, `experimental_visibility`, and the `experimental_providerBridge` artifact export)
 
 **Kept experimental (2026-08-22).** `bb.providers.register` and the
-declaration's target-state fields are stable. `experimental_bridgeOptions` and
-`experimental_visibility` have one consumer (the ACP plugin); decide whether
-static options survive beside `deriveProviderOptions` before naming them. The
-daemon bootstrap reads the `experimental_providerBridge` export name from
+declaration's target-state fields are stable. The daemon bootstrap reads the `experimental_providerBridge` export name from
 every installed plugin. Renaming it needs a dual-name acceptance window plus a
 protocol bump, so it stabilizes with the bridge kit once that deprecation
 policy exists.
 
 `experimental_bridgeOptions` is bounded JSON, opaque to core, delivered to
 every bridge launch as provider-scoped static options.
+
+The Claude Code plugin is a second consumer: its profiles use it for
+plugin-owned profile config beyond launch metadata, either `{ claudeConfigDir }`
+(a login profile) or `{ claudeAuthTokenFile, claudeEnv }` (a token profile). The
+bridge re-validates both shapes with the same rule helpers as the plugin's
+settings schema, and a token profile carries only the token file's path and an
+allowlisted env, never the token. Weigh this use when deciding whether static
+options survive beside `deriveProviderOptions`.
 `experimental_visibility: "installed"` withholds a provider from unscoped
 listings until its `provider/health` is not `not_installed`. The bridge is the
 `experimental_providerBridge` export of the plugin's `bb.host` artifact.
@@ -3044,6 +3056,41 @@ Docs: `frontend-thread-context-card.md`, `frontend-registration.md`,
 6. **Groups.** Rows and sections reuse the Info tab's groups. Confirm the two surfaces
    should share one group vocabulary.
 
+## `app.slots.experimental_composerAside` (`@get-bb/plugin-sdk/app`)
+
+Renders a plugin component in the gutter to the right of an open thread's
+composer, once per pane with that pane's `threadId`. Registration is
+`{ id, title, component }`. The host wraps the component in one region
+landmark named with `title`, sized to the gutter: the width is the space right
+of the thread column minus the table-of-contents reserve, at most 18rem; the
+height is capped (`max-h-48`) and scrolls (`overflow-y-auto`). The region is
+hidden when that space is narrower than about 15rem — a pane narrower than
+about 1240px. A mount whose output has no element child (null or text-only)
+gets `hidden`, so no empty landmark is exposed, and one that scrolls gains a
+tab stop so keyboard users can reach the overflow. A crash removes only that
+pane's copy.
+
+**Core callers.** None: the slot is render-only and performs no core action.
+
+Docs: `frontend-registration.md`.
+
+**Audit before stabilizing.**
+
+1. **Budget and height.** The cap is 18rem wide and `max-h-48` tall. Decide
+   whether that survives three plugins registering, and whether the host needs
+   an overflow rule across slots instead of per-slot scrolling.
+2. **TOC coexistence.** The width reserves 3.5rem for the table-of-contents
+   rail and its padding. Confirm the reserve still matches the rail after any
+   rail resize, and that the aside never sits under it.
+3. **Left vs right gutter.** The aside only hangs right of the column. Decide
+   whether a left placement or a column-side choice belongs in the contract.
+4. **Other composers.** The slot is only on the thread-detail composer.
+   Decide whether the root compose screen, plugin panels, and embedded chats
+   want the same slot or stay host-only.
+5. **Per-pane mounting.** Confirm plugins handle mounting once per pane with
+   their own `threadId`, and that a crash in one pane cannot disable
+   another's copy.
+
 ## `app.slots.experimental_threadRowMetadata` / `experimental_ThreadRowMetadata` (`@get-bb/plugin-sdk/app`)
 
 A registration is `{ id, order?, useData?, component }`. `useData` is a React
@@ -3858,6 +3905,26 @@ runs one case table through both the core and the plugin inputs.
 2. **Unread grouping.** The thread-list plugin's read-status grouping keeps
    its own "unread and done" predicate. Decide whether that predicate belongs
    in the SDK next to this function.
+
+
+## `PluginSidebarThread.pendingInteractionKind` / `PluginThreadStatusThread.pendingInteractionKind` (`@get-bb/plugin-sdk/app`)
+
+**What it does.** Both thread types carry the kind of the thread's pending
+interaction (`ThreadPendingInteractionKind | null`; `null` when nothing is
+pending). `experimental_resolveThreadStatus` maps it to two extra
+`PluginSidebarThreadIndicator` values: `waiting-for-plan-approval` for
+`plan_approval` and `waiting-for-answer` for `question`. Any other kind gives
+`waiting-for-input`. For a collapsed group, the indicator uses the kind that
+the thread and all its pending hidden threads share; mixed kinds give
+`waiting-for-input`. Core's sidebar glyph and the `thread-list` plugin use the
+same resolver.
+
+**Audit before stabilizing.** The field is required, so a plugin that builds
+these objects itself must set it (`null` is valid). Objects from a plugin built
+against an older SDK omit it, and the resolver treats that as
+`waiting-for-input`. Decide whether the field becomes optional or
+`experimental_`-prefixed before it goes upstream, and whether other interaction
+kinds need their own indicator.
 
 ## `HostsArea.experimental_reconcile`
 
