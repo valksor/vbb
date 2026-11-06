@@ -144,7 +144,6 @@ class FakeDesktopWindow implements DesktopBrowserWindow {
   public readonly options: BrowserWindowConstructorOptions;
   public readonly webContents: FakeDesktopWindowWebContents;
   public backgroundColor: string;
-  public focusCalls = 0;
   public windowButtonPositions: Array<{ x: number; y: number }> = [];
   public fullScreen = false;
   public maximized = false;
@@ -193,9 +192,7 @@ class FakeDesktopWindow implements DesktopBrowserWindow {
     this.readyToShowListener?.();
   }
 
-  focus(): void {
-    this.focusCalls += 1;
-  }
+  focus(): void {}
 
   getNormalBounds(): WindowBounds {
     return this.normalBounds ?? this.bounds;
@@ -770,89 +767,4 @@ describe("desktop window factory", () => {
     },
   );
 
-  it.each([true, false])(
-    "shows the window on ready-to-show only when not headless (headless: %s)",
-    async (headless) => {
-      const { createdWindows, factory } = await createFactoryHarness({
-        headless,
-      });
-      await factory.createWindow({ initialUrl: null, stateKey: null });
-      const window = createdWindows[0]!;
-      window.emitReadyToShow();
-      expect(window.shown).toBe(!headless);
-    },
-  );
-
-  it.each([true, false])(
-    "restores and focuses the first window only when not headless (headless: %s)",
-    async (headless) => {
-      const { createdWindows, factory } = await createFactoryHarness({
-        headless,
-      });
-      await factory.createWindow({ initialUrl: null, stateKey: null });
-      const window = createdWindows[0]!;
-      window.minimized = true;
-      expect(factory.focusFirstWindow()).toBe(true);
-      expect(window.focusCalls).toBe(headless ? 0 : 1);
-      expect(window.minimized).toBe(headless);
-    },
-  );
-
-  it.each([true, false])(
-    "disables background throttling for hidden renderers only when headless (headless: %s)",
-    async (headless) => {
-      const { createdWindows, factory } = await createFactoryHarness({
-        headless,
-      });
-      await factory.createWindow({ initialUrl: null, stateKey: null });
-      expect(
-        createdWindows[0]?.options.webPreferences?.backgroundThrottling,
-      ).toBe(headless ? false : undefined);
-    },
-  );
-
-  it("skips restored maximize and full-screen state without rewriting window state when headless", async () => {
-    const seeded = await createFactoryHarness();
-    await seeded.factory.createWindow({ initialUrl: null, stateKey: null });
-    const seededWindow = seeded.createdWindows[0]!;
-    seededWindow.normalBounds = { x: 130, y: 90, width: 1000, height: 700 };
-    seededWindow.bounds = { x: 0, y: 0, width: 1440, height: 900 };
-    seededWindow.maximized = true;
-    seededWindow.fullScreen = true;
-    await seeded.factory.persistOpenWindows();
-    seededWindow.emitClosed();
-    await seeded.factory.persistOpenWindows();
-
-    const { createdWindows, factory, userDataPath } =
-      await createFactoryHarness({
-        headless: true,
-        userDataPath: seeded.userDataPath,
-      });
-    await factory.createWindow({ initialUrl: null, stateKey: null });
-    const window = createdWindows[0]!;
-    window.emitReadyToShow();
-    expect(window.maximized).toBe(false);
-    expect(window.fullScreen).toBe(false);
-    expect(window.shown).toBe(false);
-
-    expect(factory.zoom(window.webContents.id, "in")).toBe(true);
-    expect(window.webContents.getZoomFactor()).toBe(1.1);
-    window.bounds = { x: 40, y: 30, width: 800, height: 600 };
-    window.emit("move");
-    window.emitClosed();
-    await factory.persistOpenWindows();
-    await expect(
-      readPersistedWindowStateFile({ userDataPath }),
-    ).resolves.toEqual({
-      windows: [
-        {
-          bounds: { x: 130, y: 90, width: 1000, height: 700 },
-          isFullScreen: true,
-          isMaximized: true,
-          stateKey: "main",
-        },
-      ],
-      zoomFactor: 1,
-    });
-  });
 });

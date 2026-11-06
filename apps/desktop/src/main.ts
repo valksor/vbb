@@ -64,7 +64,7 @@ import { registerDesktopAttentionIpc } from "./desktop-attention.js";
 import {
   applyDesktopHeadlessStartup,
   isDesktopHeadlessProcess,
-} from "./desktop-headless-runtime.js";
+} from "./desktop-headless.fork.js";
 import { registerDesktopWindowFocusIpc } from "./desktop-window-focus.js";
 import {
   assertPathExists,

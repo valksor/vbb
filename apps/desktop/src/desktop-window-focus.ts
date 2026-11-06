@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain } from "electron";
-import { isDesktopHeadlessProcess } from "./desktop-headless-runtime.js";
+import { isDesktopHeadlessProcess } from "./desktop-headless.fork.js";
 import { BB_DESKTOP_FOCUS_WINDOW_CHANNEL } from "./desktop-window-command-ipc.js";
 
 export function registerDesktopWindowFocusIpc(

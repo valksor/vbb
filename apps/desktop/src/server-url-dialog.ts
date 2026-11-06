@@ -1,6 +1,6 @@
 import { ipcMain, type BrowserWindow } from "electron";
 import { escapeHtmlText } from "@bb/text-utils";
-import { isDesktopHeadlessProcess } from "./desktop-headless-runtime.js";
+import { isDesktopHeadlessProcess } from "./desktop-headless.fork.js";
 import {
   createDesktopDialogWindow,
   DESKTOP_DIALOG_BASE_CSS,

@@ -1,5 +1,5 @@
 import { BrowserWindow, screen } from "electron";
-import { isDesktopHeadlessProcess } from "./desktop-headless-runtime.js";
+import { isDesktopHeadlessProcess } from "./desktop-headless.fork.js";
 
 const DIALOG_FALLBACK_CONTENT_HEIGHT = 320;
 const DIALOG_MIN_CONTENT_HEIGHT = 120;
