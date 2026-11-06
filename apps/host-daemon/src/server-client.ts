@@ -34,6 +34,7 @@ import type { HostDaemonLogger } from "./logger.js";
 import type { EventPostResult } from "./event-sink.js";
 import { runtimeErrorLogFields } from "./error-utils.js";
 import { resolveHostPlatform } from "./host-platform.js";
+import { toolCallDispatcher } from "./server-client-tool-call-transport.js";
 import type {
   FetchedProjectAttachment,
   FetchProjectAttachmentArgs,
@@ -538,6 +539,7 @@ export function createServerClient(
         method: "POST",
         headers: headers(),
         body: JSON.stringify(payload),
+        ...{ dispatcher: toolCallDispatcher },
       });
 
       if (!response.ok) {
