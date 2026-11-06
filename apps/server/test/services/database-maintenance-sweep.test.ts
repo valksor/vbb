@@ -54,16 +54,21 @@ class CapturingSlowQueryLogger implements SlowDbQueryLogger {
 
 function createCapturingServerLogger() {
   const warnMessages: string[] = [];
+  const warnFields: unknown[] = [];
+  const infoMessages: string[] = [];
   const logger: ServerLogger = {
     debug(): void {},
     error(): void {},
-    info(): void {},
-    warn(): void {
-      warnMessages.push("warn");
+    info(_fields: unknown, message?: string): void {
+      infoMessages.push(message ?? "");
+    },
+    warn(fields: unknown, message?: string): void {
+      warnMessages.push(message ?? "");
+      warnFields.push(fields);
     },
   };
 
-  return { logger, warnMessages };
+  return { logger, warnMessages, warnFields, infoMessages };
 }
 
 function createTempDatabasePath(): TempDatabasePath {
@@ -273,7 +278,8 @@ describe("runDatabaseMaintenanceSweep", () => {
         writerDb.exec("BEGIN IMMEDIATE");
         writerTransactionOpen = true;
         const before = getDatabaseFreelistStats(db);
-        const { logger, warnMessages } = createCapturingServerLogger();
+        const { logger, warnMessages, warnFields, infoMessages } =
+          createCapturingServerLogger();
         const startedAt = performance.now();
 
         await runDatabaseMaintenanceSweep({ db, logger });
@@ -282,7 +288,12 @@ describe("runDatabaseMaintenanceSweep", () => {
         expect(elapsedMs).toBeLessThan(
           DATABASE_MAINTENANCE_BUSY_TIMEOUT_MS + SQLITE_BUSY_HEADROOM_MS,
         );
-        expect(warnMessages).toHaveLength(1);
+        expect(warnMessages).toEqual(["Incremental database vacuum failed"]);
+        expect(warnFields[0]).toMatchObject({
+          err: { code: expect.stringMatching(/^SQLITE_BUSY/u) },
+        });
+        expect(warnFields[0]).not.toHaveProperty("result");
+        expect(infoMessages).toEqual([]);
         expect(getDatabaseFreelistStats(db).freelistCount).toBe(
           before.freelistCount,
         );
@@ -295,6 +306,96 @@ describe("runDatabaseMaintenanceSweep", () => {
       }
     } finally {
       tempDatabase.cleanup();
+    }
+  });
+
+  it("reports the reclaimed pages when a writer blocks a later chunk", async () => {
+    const tempDatabase = createTempDatabasePath();
+    try {
+      const { db } = setupBusyFileDatabaseWithFreelist(tempDatabase);
+      const writerDb = new Database(tempDatabase.dbPath);
+      let writerTransactionOpen = false;
+      try {
+        const before = getDatabaseFreelistStats(db);
+        const warnings: Array<{ fields: unknown; message: string }> = [];
+        const infoMessages: string[] = [];
+        const logger: ServerLogger = {
+          debug(): void {},
+          error(): void {},
+          info(_fields: unknown, message?: string): void {
+            infoMessages.push(message ?? "");
+          },
+          warn(fields: unknown, message?: string): void {
+            warnings.push({ fields, message: message ?? "" });
+          },
+        };
+
+        const sweep = runDatabaseMaintenanceSweep({ db, logger });
+        writerDb.exec("BEGIN IMMEDIATE");
+        writerTransactionOpen = true;
+        await sweep;
+
+        const after = getDatabaseFreelistStats(db);
+        expect(after.freelistCount).toBeLessThan(before.freelistCount);
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]?.message).toBe(
+          "Incremental database vacuum stopped early",
+        );
+        expect(warnings[0]?.fields).toMatchObject({
+          result: {
+            before: { freelistCount: before.freelistCount },
+            after: { freelistCount: after.freelistCount },
+          },
+        });
+        expect(infoMessages).toEqual([]);
+      } finally {
+        if (writerTransactionOpen) {
+          writerDb.exec("ROLLBACK");
+        }
+        writerDb.close();
+        db.$client.close();
+      }
+    } finally {
+      tempDatabase.cleanup();
+    }
+  });
+
+  it("logs a non-busy failure on a later chunk as failed, not stopped early", async () => {
+    const { db } = setupBusyDatabaseWithFreelist();
+    const warnings: Array<{ fields: unknown; message: string }> = [];
+    const infoMessages: string[] = [];
+    const logger: ServerLogger = {
+      debug(): void {},
+      error(): void {},
+      info(_fields: unknown, message?: string): void {
+        infoMessages.push(message ?? "");
+      },
+      warn(fields: unknown, message?: string): void {
+        warnings.push({ fields, message: message ?? "" });
+      },
+    };
+    try {
+      setImmediate(() => {
+        db.$client.close();
+      });
+
+      await runDatabaseMaintenanceSweep({ db, logger });
+
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]?.message).toBe("Incremental database vacuum failed");
+      expect(warnings[0]?.fields).toMatchObject({
+        err: expect.objectContaining({
+          message: "The database connection is not open",
+        }),
+      });
+      expect(warnings[0]?.fields).not.toMatchObject({
+        err: { code: expect.stringMatching(/^SQLITE_BUSY/u) },
+      });
+      expect(infoMessages).toEqual([]);
+    } finally {
+      if (db.$client.open) {
+        db.$client.close();
+      }
     }
   });
 });
