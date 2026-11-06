@@ -61,6 +61,11 @@ it("inspects before offering recovery and submits the exact operation observatio
   fireEvent.click(
     screen.getByRole("button", { name: "Inspect branch promotion" }),
   );
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain(
+      "reconciling: bb/change",
+    ),
+  );
   fireEvent.click(
     await screen.findByRole("button", { name: "Accept current target" }),
   );
@@ -72,6 +77,28 @@ it("inspects before offering recovery and submits the exact operation observatio
       resolution: "accept-current",
     }),
   );
+});
+
+it("announces when inspection finds no branch promotion", async () => {
+  vi.spyOn(sdk.threads, "inspectBranchPromotion").mockResolvedValue(null);
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <BranchPromotionRow thread={makeThread({ promotionTarget: "branch" })} />
+    </QueryClientProvider>,
+  );
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "Inspect branch promotion" }),
+  );
+
+  await waitFor(() =>
+    expect(screen.getByRole("status").textContent).toContain(
+      "No branch promotion has started.",
+    ),
+  );
+  expect(
+    screen.queryByRole("button", { name: "Accept current target" }),
+  ).toBeNull();
 });
 
 it.each([false, true])(
