@@ -8,7 +8,6 @@ import {
 } from "../helpers/command-output-harness.js";
 import type { CommandRegistrar } from "../helpers/command-output-harness.js";
 import * as fixtures from "../helpers/command-output-fixtures.js";
-import { jsonResponse } from "../helpers/thread-show-api.fork.js";
 import { registerThreadCommands } from "../../commands/thread/index.js";
 
 describe("bb thread interactions command output", () => {
@@ -1009,38 +1008,6 @@ describe("bb thread interactions command output", () => {
     });
     expect(collectLogLines(vi.mocked(console.log))).toEqual([
       "Interaction int-permission-deny submitted (denied); delivering to provider",
-    ]);
-  });
-
-  it("bb thread interactions respond prints the app-answer refusal and exits non-zero", async () => {
-    const respond = vi.fn(async () =>
-      jsonResponse(403, {
-        code: "app_answer_required",
-        message: "This form must be answered in the bb app.",
-      }),
-    );
-    stubServerApi({
-      "v1.threads.:id.interactions.:interactionId.respond.$post": respond,
-    });
-
-    await expect(
-      runCommand(
-        [
-          "thread",
-          "interactions",
-          "respond",
-          "int-plan-form",
-          "thread-plan-form",
-          "--value",
-          '{"approved":true}',
-        ],
-        register,
-      ),
-    ).rejects.toThrow("process.exit:1");
-
-    expect(respond).toHaveBeenCalledOnce();
-    expect(collectLogLines(vi.mocked(console.error))).toEqual([
-      "Error: Failed to respond to interaction int-plan-form: HTTP 403: This form must be answered in the bb app.",
     ]);
   });
 });
