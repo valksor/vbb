@@ -1,3 +1,4 @@
+import { withLoadedIcon } from "./agents.icons.js";
 import {
   customAcpAgentDefinition,
   formatCustomAcpProviderId,
@@ -57,7 +58,7 @@ export function resolveConfiguredAcpAgents(
   return {
     agents: configured.agents.map((agent) =>
       customAcpAgentDefinition(
-        agent,
+        withLoadedIcon(agent, warnings),
         shippedById.get(formatCustomAcpProviderId(agent.id)),
       ),
     ),

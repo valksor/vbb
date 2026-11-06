@@ -2,6 +2,10 @@ import { z } from "zod";
 import type { PluginProviderReasoningLevel } from "@get-bb/plugin-sdk";
 import { experimental_acpLaunchSpecSchema } from "@get-bb/plugin-sdk/provider-bridge/acp";
 import type { AcpLaunchSpec } from "@get-bb/plugin-sdk/provider-bridge/acp";
+import {
+  customAgentIconSchema,
+  resolveCustomAgentIcon,
+} from "./agents.icons.js";
 import type { AcpNativeRootsResolver } from "./native-roots/resolver.js";
 import { registryAgentIcon } from "./registry-icons.js";
 
@@ -45,6 +49,7 @@ export const customAcpAgentSchema = z
     id: z.string().regex(SLUG_PATTERN),
     displayName: z.string().min(1),
     command: z.string().min(1),
+    icon: customAgentIconSchema.optional(),
     args: z.array(z.string()).default([]),
     env: z.record(z.string().regex(ENV_NAME_PATTERN), z.string()).default({}),
     cwd: z.string().min(1).optional(),
@@ -71,7 +76,11 @@ export function customAcpAgentDefinition(
   return {
     id: formatCustomAcpProviderId(agent.id),
     displayName: agent.displayName,
-    icon: registryAgentIcon(agent.id) ?? CUSTOM_AGENT_GLYPH,
+    ...resolveCustomAgentIcon(
+      agent,
+      shipped,
+      registryAgentIcon(agent.id) ?? CUSTOM_AGENT_GLYPH,
+    ),
     launch: {
       displayName: agent.displayName,
       command: agent.command,
