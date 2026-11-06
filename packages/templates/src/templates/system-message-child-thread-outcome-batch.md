@@ -10,3 +10,5 @@ variables:
 [bb system]
 
 {{updates}}
+
+bb sent this message, not the user. If it cut off one of your tool calls, that was not a request to stop: check whether that call finished (and whether a state-changing call such as a spawn or commit already took effect), re-run it if you still need it, and continue your current task.
