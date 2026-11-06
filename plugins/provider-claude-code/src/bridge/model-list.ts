@@ -5,7 +5,7 @@ import {
   probeTokenProfileModels,
   type ModelProbeTarget,
   type TokenProfileSettingsSource,
-} from "./model-list-token.js";
+} from "./model-list.token.fork.js";
 
 async function probeClaudeCodeModels(env: NodeJS.ProcessEnv): Promise<{
   models: AvailableModel[];

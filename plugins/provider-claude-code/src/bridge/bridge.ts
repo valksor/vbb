@@ -104,7 +104,7 @@ import {
   refreshTokenProfileEnv,
   rejectForkWithoutProfileToken,
   tokenProfileSettingsSource,
-} from "./profile.js";
+} from "./bridge.profile.fork.js";
 import {
   buildChromeExtraArgs,
   buildClaudeFeatureEnv,

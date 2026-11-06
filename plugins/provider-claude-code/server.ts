@@ -4,7 +4,7 @@ import { claudeCodeProviderDeclaration } from "./src/declaration.js";
 import {
   CLAUDE_CODE_PROFILES_SETTING,
   registerClaudeCodeProfiles,
-} from "./src/server-profiles.js";
+} from "./src/server.profiles.fork.js";
 
 export default async function plugin(bb: BbPluginApi): Promise<void> {
   registerUsageSource(bb);

@@ -4,7 +4,7 @@ import { probeClaudeInitialization } from "./initialization-probe.js";
 import {
   type TokenProfileSettingsSource,
   buildTokenProfileFlagSettings,
-} from "./session-options-token.js";
+} from "./session-options.token.fork.js";
 import {
   removeTokenFlagSettingsFile,
   requireProfileToken,

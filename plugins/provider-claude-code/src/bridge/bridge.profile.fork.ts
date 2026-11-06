@@ -9,12 +9,12 @@ import {
   type ActiveTokenProfile,
 } from "./profile-env.js";
 import { readProfileToken } from "./profile-token.js";
-import type { ModelProbeTarget } from "./model-list-token.js";
+import type { ModelProbeTarget } from "./model-list.token.fork.js";
 import type { SdkSessionOptions } from "./sdk-session.js";
 import {
   buildTokenProfileFlagSettings,
   type TokenProfileSettingsSource,
-} from "./session-options-token.js";
+} from "./session-options.token.fork.js";
 import { removeOnExit } from "./token-flag-settings.js";
 
 let activeProfile: ActiveProfile | null = null;

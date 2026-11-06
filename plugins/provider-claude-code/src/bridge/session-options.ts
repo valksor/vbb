@@ -13,7 +13,7 @@ import {
   tokenFlagSettingsDirOption,
   tokenProfileFlagSettings,
   type TokenProfileSettingsSource,
-} from "./session-options-token.js";
+} from "./session-options.token.fork.js";
 import type {
   ClaudeMutableFlagSettings,
   ClaudeSdkReasoningEffort,
