@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import type { ContextSnapshot } from "./context-env.js";
+import { withForkCommandGroups } from "./command-groups.fork.js";
 
 export interface CommandGroupDeps {
   getUrl(): string;
@@ -24,17 +25,7 @@ function group<Module>(
   return { name, load: () => load().then(register) };
 }
 
-export const CORE_COMMAND_GROUPS: readonly CommandGroup[] = [
-  group(
-    "maintenance",
-    () => import("./commands/maintenance.js"),
-    (m) => (program) => m.registerMaintenanceCommands(program),
-  ),
-  group(
-    "spend",
-    () => import("./commands/spend.js"),
-    (m) => (program, deps) => m.registerSpendCommands(program, deps.getUrl),
-  ),
+const CANONICAL_COMMAND_GROUPS: readonly CommandGroup[] = [
   group(
     "browser",
     () => import("./commands/browser.js"),
@@ -86,12 +77,6 @@ export const CORE_COMMAND_GROUPS: readonly CommandGroup[] = [
     "terminal",
     () => import("./commands/terminal.js"),
     (m) => (program, deps) => m.registerTerminalCommands(program, deps.getUrl),
-  ),
-  group(
-    "run-in-terminal",
-    () => import("./commands/run-in-terminal.js"),
-    (m) => (program, deps) =>
-      m.registerRunInTerminalCommand(program, deps.getUrl),
   ),
   group(
     "thread",
@@ -147,6 +132,10 @@ export const CORE_COMMAND_GROUPS: readonly CommandGroup[] = [
     (m) => (program, deps) => m.registerVoiceCommands(program, deps.getUrl),
   ),
 ];
+
+export const CORE_COMMAND_GROUPS = withForkCommandGroups(
+  CANONICAL_COMMAND_GROUPS,
+);
 
 export function selectCommandGroups(
   firstArg: string | undefined,
