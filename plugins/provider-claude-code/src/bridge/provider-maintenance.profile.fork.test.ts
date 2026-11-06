@@ -15,8 +15,13 @@ import {
 const keychainCalls = vi.hoisted(() => ({ services: [] as string[] }));
 
 vi.mock("@get-bb/plugin-sdk/process", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@get-bb/plugin-sdk/process")>()),
-  experimental_execHostFile: (_command: string, args: readonly string[]) => {
+  ...(await importOriginal<
+    typeof import("@get-bb/plugin-sdk/process")
+  >()),
+  experimental_execHostFile: (
+    _command: string,
+    args: readonly string[],
+  ) => {
     keychainCalls.services.push(args[args.indexOf("-s") + 1] ?? "");
     return Promise.reject(new Error("keychain item not found"));
   },
@@ -74,14 +79,12 @@ beforeAll(() => {
     value: "darwin",
   });
 });
-
 afterAll(() => {
   Object.defineProperty(process, "platform", {
     configurable: true,
     value: originalPlatform,
   });
 });
-
 beforeEach(() => {
   keychainCalls.services.length = 0;
 });

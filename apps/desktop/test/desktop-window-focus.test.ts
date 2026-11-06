@@ -31,7 +31,7 @@ const mock = vi.hoisted(() => {
 });
 
 vi.mock("electron", () => ({
-  app: { focus: mock.appFocus, isPackaged: false },
+  app: { focus: mock.appFocus },
   BrowserWindow: { fromWebContents: mock.fromWebContents },
   ipcMain: { on: mock.on },
 }));
@@ -46,7 +46,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  vi.unstubAllEnvs();
 });
 
 function request(id: number) {
@@ -54,16 +53,6 @@ function request(id: number) {
 }
 
 describe("desktop notification window activation", () => {
-  it("does not reveal the window while headless", () => {
-    vi.stubEnv("BB_DESKTOP_HEADLESS", "1");
-    mock.window.isMinimized.mockReturnValue(true);
-    request(42);
-    expect(mock.window.restore).not.toHaveBeenCalled();
-    expect(mock.window.show).not.toHaveBeenCalled();
-    expect(mock.window.focus).not.toHaveBeenCalled();
-    expect(mock.appFocus).not.toHaveBeenCalled();
-  });
-
   it.each([
     { platform: "darwin", stealsAppFocus: true },
     { platform: "linux", stealsAppFocus: false },

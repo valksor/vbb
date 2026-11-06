@@ -17,7 +17,6 @@ import {
 } from "../helpers/commands.js";
 import {
   expireArchiveUndoGrace,
-  seedThread,
   seedThreadFixture,
   seedTurnStarted,
 } from "../helpers/seed.js";
@@ -163,38 +162,6 @@ describe("archive undo grace", () => {
       expect(
         listQueuedThreadCommands(harness, "thread.stop", thread.id),
       ).toEqual([]);
-    });
-  });
-
-  it("stops an already-archived active descendant as soon as the parent tree is archived", async () => {
-    await withTestHarness(async (harness) => {
-      const { environment, project, thread } =
-        seedArchivableActiveThread(harness);
-      const archivedChild = seedThread(harness.deps, {
-        projectId: project.id,
-        parentThreadId: thread.id,
-        environmentId: environment.id,
-        status: "active",
-      });
-      harness.deps.db
-        .update(threads)
-        .set({ archivedAt: Date.now() })
-        .where(eq(threads.id, archivedChild.id))
-        .run();
-
-      await archiveThread(harness, thread.id);
-
-      const stopCommand = await waitForQueuedCommand(
-        harness,
-        ({ command }) =>
-          command.type === "thread.stop" &&
-          command.threadId === archivedChild.id,
-      );
-      expect(stopCommand.command).toMatchObject({
-        environmentId: environment.id,
-        threadId: archivedChild.id,
-      });
-      expect(getThread(harness.db, archivedChild.id)?.status).toBe("stopping");
     });
   });
 

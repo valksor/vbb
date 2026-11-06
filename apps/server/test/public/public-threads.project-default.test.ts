@@ -4,14 +4,9 @@ import {
   getThread,
   updateHost,
 } from "@bb/db";
-import {
-  PERSONAL_PROJECT_ID,
-  type PromptInput,
-  threadSchema,
-} from "@bb/domain";
+import { type PromptInput, threadSchema } from "@bb/domain";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { setPluginMachineProviderBridge } from "../../src/services/plugins/plugin-machine-provider-registry.js";
-import { resolveProjectDefaultThreadEnvironment } from "../../src/services/threads/thread-default-policy.js";
 import {
   getThreadProvisionContext,
   type ThreadProvisionEnvironmentIntent,
@@ -29,7 +24,6 @@ import { withTestHarness, type TestAppHarness } from "../helpers/test-app.js";
 import {
   installDefaultEnvironmentProviders,
   installFakeGitWorktreeProvider,
-  installFakePersonalWorkspaceProvider,
 } from "../helpers/environment-provider.js";
 
 interface CreateThreadBodyOverrides {
@@ -135,26 +129,6 @@ describe("project-default thread environment", () => {
         machine: { type: "existing", hostId: host.id },
         inputs: { branch: { kind: "default" } },
         selectionResolved: true,
-      });
-    });
-  });
-
-  it("resolves the personal project to the personal provider on the primary host", async () => {
-    await withTestHarness(async (harness) => {
-      installFakePersonalWorkspaceProvider();
-      const { host } = seedHostSession(harness.deps, {
-        id: "host-personal-default",
-      });
-      seedPrimaryHost(harness.deps, host.id);
-      await expect(
-        resolveProjectDefaultThreadEnvironment(harness.deps, {
-          projectId: PERSONAL_PROJECT_ID,
-        }),
-      ).resolves.toEqual({
-        type: "provider",
-        environmentProviderId: "personal-workspace",
-        machine: { type: "existing", hostId: host.id },
-        inputs: null,
       });
     });
   });

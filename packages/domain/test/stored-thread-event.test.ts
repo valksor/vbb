@@ -162,10 +162,4 @@ describe("parseStoredThreadEvent", () => {
 
     expect(systemThreadInterruptedEventDataSchema.parse(data)).toEqual(data);
   });
-
-  it("parses unanswered-question interruptions", () => {
-    const data = { reason: "question-unanswered" } as const;
-
-    expect(systemThreadInterruptedEventDataSchema.parse(data)).toEqual(data);
-  });
 });

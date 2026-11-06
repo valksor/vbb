@@ -1,5 +1,7 @@
 # ACP providers
 
+See [fork additions](./README.fork.md).
+
 First-party plugin for ACP (Agent Client Protocol) agent providers: Cursor,
 opencode, omp, Grok Build and Hermes Agent.
 

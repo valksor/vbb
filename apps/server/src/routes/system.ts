@@ -25,11 +25,9 @@ import {
 } from "@bb/db";
 import {
   applyAppKeybindingOverrides,
-  appSettingsSchema,
   customThemeNameSchema,
   isBuiltInThemeId,
   PERSONAL_PROJECT_ID,
-  refineProviderTurnIdleThresholds,
   resolveCodeTheme,
   type AppKeybindingOverrides,
   type AppTheme,
@@ -99,6 +97,7 @@ import {
 import { environmentProviderMachineAvailability } from "../services/environments/provider-machine-availability.js";
 import { machineProviderAcceptsEmptyInputs } from "../services/machines/provider-availability.js";
 import { requirePublicProject } from "../services/lib/entity-lookup.js";
+import { resolveGeneralSettingsUpdate } from "./system.fork.js";
 
 const LEADING_ENVIRONMENT_PROVIDER_IDS: readonly string[] = [
   "project-checkout",
@@ -303,65 +302,8 @@ export function registerSystemRoutes(
   });
 
   put(routes.generalSettings, (context, payload) => {
-    const { showUnhandledProviderEvents, ...settings } = payload;
     const current = getAppSettings(deps.db);
-    const diagnosticValue =
-      "showDiagnosticEvents" in settings
-        ? settings.showDiagnosticEvents
-        : undefined;
-    const parsedSettings = appSettingsSchema
-      .superRefine(refineProviderTurnIdleThresholds)
-      .safeParse({
-        ...settings,
-        idleProviderSessionTimeoutMinutes:
-          settings.idleProviderSessionTimeoutMinutes === undefined
-            ? current.idleProviderSessionTimeoutMinutes
-            : settings.idleProviderSessionTimeoutMinutes,
-        allowFastServiceTier:
-          settings.allowFastServiceTier ?? current.allowFastServiceTier,
-        telemetryEnabled:
-          settings.telemetryEnabled ?? current.telemetryEnabled,
-        terminalCopyOnSelect:
-          settings.terminalCopyOnSelect ?? current.terminalCopyOnSelect,
-        keepHistoryAfterContextClear:
-          settings.keepHistoryAfterContextClear ??
-          current.keepHistoryAfterContextClear,
-        summarizeShellCommands:
-          settings.summarizeShellCommands ?? current.summarizeShellCommands,
-        confirmThreadArchive:
-          settings.confirmThreadArchive ?? current.confirmThreadArchive,
-        earlyAdopter: settings.earlyAdopter ?? current.earlyAdopter,
-        onboardingCompletedAt:
-          settings.onboardingCompletedAt === undefined
-            ? current.onboardingCompletedAt
-            : settings.onboardingCompletedAt,
-        providerTurnIdleWatchdogEnabled:
-          settings.providerTurnIdleWatchdogEnabled === undefined
-            ? current.providerTurnIdleWatchdogEnabled
-            : settings.providerTurnIdleWatchdogEnabled,
-        providerTurnIdleNotifyMs:
-          settings.providerTurnIdleNotifyMs === undefined
-            ? current.providerTurnIdleNotifyMs
-            : settings.providerTurnIdleNotifyMs,
-        providerTurnIdleInterruptMs:
-          settings.providerTurnIdleInterruptMs === undefined
-            ? current.providerTurnIdleInterruptMs
-            : settings.providerTurnIdleInterruptMs,
-        showDiagnosticEvents:
-          diagnosticValue === undefined ||
-          (showUnhandledProviderEvents !== undefined &&
-            diagnosticValue === current.showDiagnosticEvents)
-            ? showUnhandledProviderEvents
-            : diagnosticValue,
-      });
-    if (!parsedSettings.success) {
-      throw new ApiError(
-        400,
-        "invalid_request",
-        parsedSettings.error.issues[0]?.message ?? "Invalid general settings",
-      );
-    }
-    const updatedSettings = parsedSettings.data;
+    const updatedSettings = resolveGeneralSettingsUpdate(current, payload);
     setAppSettings(deps.db, updatedSettings);
     if (current.telemetryEnabled && !updatedSettings.telemetryEnabled) {
       deps.telemetry.capture({ name: "telemetry_disabled" });

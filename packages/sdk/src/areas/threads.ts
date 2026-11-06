@@ -1313,30 +1313,6 @@ export function createThreadsArea(args: CreateSdkAreaArgs): ThreadsArea {
   };
   return {
     ...createForkThreadsMethods(args),
-    async experimental_executionProfile(input) {
-      return transport.readJson(
-        transport.api.v1.threads[":id"]["execution-profile"].$get(
-          { param: { id: input.threadId } },
-          ...signalRequestArgs(input.signal),
-        ),
-      );
-    },
-    async experimental_backgroundTaskOutput(input) {
-      return transport.readJson(
-        transport.api.v1.threads[":id"]["background-tasks"][
-          ":itemId"
-        ].output.$get(
-          {
-            param: { id: input.threadId, itemId: input.itemId },
-            query:
-              input.tailBytes === undefined
-                ? {}
-                : { tailBytes: String(input.tailBytes) },
-          },
-          ...signalRequestArgs(input.signal),
-        ),
-      );
-    },
     archive: archiveAll,
     archiveAll,
     async childSummary(input) {

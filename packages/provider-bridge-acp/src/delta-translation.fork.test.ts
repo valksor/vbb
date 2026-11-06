@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { threadEventSchema, type ThreadEvent } from "@bb/domain";
+import { threadEventSchema, turnScope, type ThreadEvent } from "@bb/domain";
 import {
   THREAD_DELTA_KEY_SEPARATOR,
   threadDeltaSchema,
@@ -22,6 +22,524 @@ import {
   type AcpDeltaTranslator,
 } from "./delta-translation.js";
 import { resolveAcpDialect } from "./dialect.js";
+
+describe("acp delta translation source assertions", () => {
+  const THREAD_ID = "t-acp-translation";
+  const ENTROPY = "acp-test";
+
+  interface AcpEquivalenceHarness {
+    assembler: DeltaAssembler;
+    translator: AcpDeltaTranslator;
+    translate(event: ProviderRuntimeEvent): ThreadEvent[];
+    openTurnId(): string;
+  }
+
+  const SESSION_CWD = "/workspace";
+
+  function createHarness(
+    fileCreatedThisTurn?: (path: string) => boolean | undefined,
+  ): AcpEquivalenceHarness {
+    const translator = createAcpDeltaTranslator({
+      cwd: SESSION_CWD,
+      fileCreatedThisTurn,
+    });
+    const assembler = createDeltaAssembler({
+      providerId: "acp",
+      entropyPrefix: ENTROPY,
+      textDeltaFlushMs: 0,
+    });
+    return {
+      assembler,
+      translator,
+      translate(event) {
+        return assembler.assemble({
+          threadId: THREAD_ID,
+          deltas: translator.translateAcpEvent(event, { threadId: THREAD_ID }),
+        });
+      },
+      openTurnId() {
+        return assembler.getOpenTurnId(THREAD_ID) ?? "";
+      },
+    };
+  }
+
+  function turnStartedEvent(): ProviderRuntimeEvent {
+    return {
+      jsonrpc: "2.0",
+      method: ACP_TURN_STARTED_METHOD,
+      params: { threadId: THREAD_ID },
+    };
+  }
+
+  function turnCompletedEvent(stopReason: string): ProviderRuntimeEvent {
+    return {
+      jsonrpc: "2.0",
+      method: ACP_TURN_COMPLETED_METHOD,
+      params: { threadId: THREAD_ID, stopReason },
+    };
+  }
+
+  function updateEvent(update: Record<string, unknown>): ProviderRuntimeEvent {
+    return {
+      jsonrpc: "2.0",
+      method: ACP_UPDATE_METHOD,
+      params: { threadId: THREAD_ID, update },
+    };
+  }
+
+  function completedItems(events: ThreadEvent[]) {
+    return events.flatMap((event) =>
+      event.type === "item/completed" ? [event.item] : [],
+    );
+  }
+
+  describe("acp delta translation (dialects)", () => {
+    function dialectHarness(dialectId: string): AcpEquivalenceHarness {
+      const translator = createAcpDeltaTranslator({
+        cwd: "/workspace",
+        dialect: resolveAcpDialect({ dialectId, command: "node" }),
+      });
+      const assembler = createDeltaAssembler({
+        providerId: "acp",
+        entropyPrefix: ENTROPY,
+        textDeltaFlushMs: 0,
+      });
+      const harness: AcpEquivalenceHarness = {
+        assembler,
+        translator,
+        translate: (event) =>
+          assembler.assemble({
+            threadId: THREAD_ID,
+            deltas: translator.translateAcpEvent(event, { threadId: THREAD_ID }),
+          }),
+        openTurnId: () => assembler.getOpenTurnId(THREAD_ID) ?? "",
+      };
+      harness.translate(turnStartedEvent());
+      return harness;
+    }
+
+    it("keeps the parent ref when a delegation report re-opens a parented call", () => {
+      const harness = dialectHarness("cursor");
+      const parentOpened = harness.translate(
+        updateEvent({
+          sessionUpdate: "tool_call",
+          toolCallId: "call-agent",
+          title: "Agent",
+          kind: "other",
+          status: "in_progress",
+        }),
+      );
+      const parentItemId =
+        parentOpened[0]?.type === "item/started" ? parentOpened[0].item.id : "";
+      harness.translate(
+        updateEvent({
+          sessionUpdate: "tool_call",
+          toolCallId: "call-task",
+          title: "Task: Subagent task",
+          kind: "other",
+          status: "pending",
+          rawInput: { _toolName: "task" },
+          _meta: { claudeCode: { parentToolUseId: "call-agent" } },
+        }),
+      );
+
+      const reported = harness.assembler.assemble({
+        threadId: THREAD_ID,
+        deltas: harness.translator.noteDelegationReport(THREAD_ID, {
+          toolCallId: "call-task",
+          childRef: "child-1",
+          label: "Nested task",
+        }),
+      });
+
+      expect(reported).toEqual([
+        expect.objectContaining({
+          type: "item/started",
+          item: expect.objectContaining({
+            type: "delegation",
+            childRef: "child-1",
+            parentToolCallId: parentItemId,
+          }),
+        }),
+      ]);
+    });
+  });
+
+  describe("acp delta translation (claude-agent-acp subagent attribution)", () => {
+    const AGENT_CALL_ID = "toolu_agent_1";
+    const subagentMeta = { claudeCode: { parentToolUseId: AGENT_CALL_ID } };
+
+    function startedHarness(): AcpEquivalenceHarness {
+      const harness = createHarness();
+      harness.translate(turnStartedEvent());
+      return harness;
+    }
+
+    it("refines a placeholder command when a non-terminal update carries the real input", () => {
+      const harness = startedHarness();
+      const turnId = harness.openTurnId();
+
+      const startedEvents = harness.translate(
+        updateEvent({
+          sessionUpdate: "tool_call",
+          toolCallId: "call-streamed",
+          title: "Terminal",
+          kind: "execute",
+          status: "pending",
+          rawInput: {},
+        }),
+      );
+      const startedItemId =
+        startedEvents[0]?.type === "item/started" ? startedEvents[0].item.id : "";
+
+      expect(
+        harness.translate(
+          updateEvent({
+            sessionUpdate: "tool_call_update",
+            toolCallId: "call-streamed",
+            title: "`sort access.log | uniq -c`",
+            kind: "execute",
+            rawInput: { command: "sort access.log | uniq -c" },
+          }),
+        ),
+      ).toEqual([
+        {
+          type: "item/started",
+          threadId: "",
+          providerThreadId: "",
+          scope: turnScope(turnId),
+          item: {
+            type: "commandExecution",
+            id: startedItemId,
+            command: "sort access.log | uniq -c",
+            cwd: SESSION_CWD,
+            status: "pending",
+            approvalStatus: null,
+            presentation: {
+              label: { pending: "Running command", completed: "Ran command" },
+              icon: { glyph: "Terminal" },
+              title: "sort access.log | uniq -c",
+            },
+          },
+        },
+      ]);
+
+      expect(
+        harness.translate(
+          updateEvent({
+            sessionUpdate: "tool_call_update",
+            toolCallId: "call-streamed",
+            title: "`sort access.log | uniq -c`",
+            kind: "execute",
+            rawInput: { command: "sort access.log | uniq -c" },
+          }),
+        ),
+      ).toEqual([]);
+    });
+
+    function openAgentCall(
+      harness: AcpEquivalenceHarness,
+      toolCallId: string = AGENT_CALL_ID,
+    ): ThreadEvent[] {
+      return harness.translate(
+        updateEvent({
+          sessionUpdate: "tool_call",
+          toolCallId,
+          title: "Agent",
+          kind: "other",
+          status: "in_progress",
+          rawInput: { description: "Review plan", prompt: "Review the plan" },
+        }),
+      );
+    }
+
+    function subagentToolCall(
+      toolCallId: string,
+      meta?: Record<string, unknown>,
+      status: "in_progress" | "failed" = "in_progress",
+    ) {
+      return updateEvent({
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "ls",
+        kind: "execute",
+        status,
+        rawInput: { command: "ls" },
+        ...(meta === undefined ? {} : { _meta: meta }),
+      });
+    }
+
+    function startedItemId(events: ThreadEvent[]): string | undefined {
+      const started = events.find((event) => event.type === "item/started");
+      return started?.type === "item/started" ? started.item.id : undefined;
+    }
+
+    function parentedChunk(text: string, parentToolUseId: string) {
+      return updateEvent({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text },
+        _meta: { claudeCode: { parentToolUseId } },
+      });
+    }
+
+    function mainChunk(text: string) {
+      return updateEvent({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text },
+      });
+    }
+
+    it("keeps the main assistant message whole across subagent tool calls", () => {
+      const harness = startedHarness();
+      const events: ThreadEvent[] = [];
+      events.push(...openAgentCall(harness));
+      events.push(...harness.translate(mainChunk("the plan had")));
+      events.push(
+        ...harness.translate(subagentToolCall("sub-call-1", subagentMeta)),
+      );
+      events.push(
+        ...harness.translate(
+          updateEvent({
+            sessionUpdate: "tool_call_update",
+            toolCallId: "sub-call-1",
+            status: "completed",
+            rawOutput: "file.txt",
+            _meta: subagentMeta,
+          }),
+        ),
+      );
+      events.push(...harness.translate(mainChunk("n't been reviewed")));
+      events.push(...harness.translate(turnCompletedEvent("end_turn")));
+
+      const items = completedItems(events);
+      const messages = items.filter((item) => item.type === "agentMessage");
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toMatchObject({
+        text: "the plan hadn't been reviewed",
+      });
+      const agentItem = items.find(
+        (item) =>
+          item.type !== "agentMessage" && item.type !== "commandExecution",
+      );
+      expect(agentItem?.parentToolCallId).toBeUndefined();
+      const subagentItem = items.find((item) => item.type === "commandExecution");
+      expect(subagentItem).toMatchObject({
+        parentToolCallId: agentItem?.id,
+      });
+      expect(subagentItem?.parentToolCallId).toBeDefined();
+    });
+
+    it("closes a parented tool call from an update that carries no meta", () => {
+      const harness = startedHarness();
+      openAgentCall(harness);
+      harness.translate(subagentToolCall("sub-call-1", subagentMeta));
+      const events = harness.translate(
+        updateEvent({
+          sessionUpdate: "tool_call_update",
+          toolCallId: "sub-call-1",
+          status: "completed",
+          rawOutput: "file.txt",
+        }),
+      );
+      const completed = completedItems(events);
+      expect(completed).toHaveLength(1);
+      expect(completed[0]).toMatchObject({ type: "commandExecution" });
+      expect(completed[0]?.parentToolCallId).toBeDefined();
+    });
+
+    it("routes subagent text to its own message", () => {
+      const harness = startedHarness();
+      openAgentCall(harness);
+      const events: ThreadEvent[] = [];
+      events.push(...harness.translate(mainChunk("main text")));
+      events.push(
+        ...harness.translate(
+          updateEvent({
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "subagent text" },
+            _meta: subagentMeta,
+          }),
+        ),
+      );
+      events.push(...harness.translate(turnCompletedEvent("end_turn")));
+
+      const messages = completedItems(events).filter(
+        (item) => item.type === "agentMessage",
+      );
+      const texts = messages.map((item) => item.text).sort();
+      expect(texts).toEqual(["main text", "subagent text"]);
+      const child = messages.find((item) => item.text === "subagent text");
+      expect(child?.parentToolCallId).toBeDefined();
+      const main = messages.find((item) => item.text === "main text");
+      expect(main?.parentToolCallId).toBeUndefined();
+    });
+
+    it("does not re-key an open call from a self-parented progress beat", () => {
+      const harness = startedHarness();
+      const events: ThreadEvent[] = [];
+      events.push(...openAgentCall(harness));
+      events.push(
+        ...harness.translate(
+          updateEvent({
+            sessionUpdate: "tool_call_update",
+            toolCallId: AGENT_CALL_ID,
+            status: "in_progress",
+            _meta: subagentMeta,
+          }),
+        ),
+      );
+      events.push(
+        ...harness.translate(
+          updateEvent({
+            sessionUpdate: "tool_call_update",
+            toolCallId: AGENT_CALL_ID,
+            status: "completed",
+            rawOutput: "done",
+          }),
+        ),
+      );
+
+      expect(
+        events.filter((event) => event.type === "item/started"),
+      ).toHaveLength(1);
+      const completed = completedItems(events);
+      expect(completed).toHaveLength(1);
+      expect(completed[0]?.parentToolCallId).toBeUndefined();
+      expect(completed[0]?.id).toBe(startedItemId(events));
+    });
+
+    it("keeps a call without a parent unparented when a later update names one", () => {
+      const harness = startedHarness();
+      const events: ThreadEvent[] = [];
+      events.push(...harness.translate(subagentToolCall("main-call")));
+      events.push(
+        ...harness.translate(
+          updateEvent({
+            sessionUpdate: "tool_call_update",
+            toolCallId: "main-call",
+            status: "in_progress",
+            _meta: subagentMeta,
+          }),
+        ),
+      );
+      events.push(
+        ...harness.translate(
+          updateEvent({
+            sessionUpdate: "tool_call_update",
+            toolCallId: "main-call",
+            status: "completed",
+            rawOutput: "file.txt",
+          }),
+        ),
+      );
+
+      const completed = completedItems(events);
+      expect(completed).toHaveLength(1);
+      expect(completed[0]?.parentToolCallId).toBeUndefined();
+      expect(completed[0]?.id).toBe(startedItemId(events));
+    });
+
+    it("completes subagent text when its Agent call completes", () => {
+      const harness = startedHarness();
+      openAgentCall(harness);
+      harness.translate(parentedChunk("subagent text", AGENT_CALL_ID));
+
+      const atCompletion = completedItems(
+        harness.translate(
+          updateEvent({
+            sessionUpdate: "tool_call_update",
+            toolCallId: AGENT_CALL_ID,
+            status: "completed",
+            rawOutput: "done",
+          }),
+        ),
+      );
+      expect(atCompletion.map((item) => item.type)).toEqual([
+        "agentMessage",
+        expect.any(String),
+      ]);
+      expect(atCompletion[0]).toMatchObject({ text: "subagent text" });
+      expect(atCompletion[0]?.parentToolCallId).toBeDefined();
+
+      const rest = [
+        ...harness.translate(mainChunk("main text")),
+        ...harness.translate(turnCompletedEvent("end_turn")),
+      ];
+      const messages = completedItems(rest).filter(
+        (item) => item.type === "agentMessage",
+      );
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toMatchObject({ text: "main text" });
+      expect(messages[0]?.parentToolCallId).toBeUndefined();
+    });
+
+    it("keeps interleaved subagents' messages whole and attributed", () => {
+      const harness = startedHarness();
+      const events: ThreadEvent[] = [];
+      const agentA = openAgentCall(harness, "toolu_agent_a");
+      const agentB = openAgentCall(harness, "toolu_agent_b");
+      events.push(...agentA, ...agentB);
+      events.push(...harness.translate(parentedChunk("a1", "toolu_agent_a")));
+      events.push(
+        ...harness.translate(
+          subagentToolCall("sub-b", {
+            claudeCode: { parentToolUseId: "toolu_agent_b" },
+          }),
+        ),
+      );
+      events.push(...harness.translate(parentedChunk("a2", "toolu_agent_a")));
+      events.push(...harness.translate(mainChunk("m")));
+      events.push(...harness.translate(parentedChunk("b1", "toolu_agent_b")));
+      events.push(...harness.translate(turnCompletedEvent("end_turn")));
+
+      const messages = completedItems(events).filter(
+        (item) => item.type === "agentMessage",
+      );
+      const byText = new Map(messages.map((item) => [item.text, item]));
+      expect([...byText.keys()].sort()).toEqual(["a1a2", "b1", "m"]);
+      expect(byText.get("a1a2")?.parentToolCallId).toBe(startedItemId(agentA));
+      expect(byText.get("b1")?.parentToolCallId).toBe(startedItemId(agentB));
+      expect(byText.get("m")?.parentToolCallId).toBeUndefined();
+    });
+
+    it("keeps the main message whole across an already-failed subagent call", () => {
+      const harness = startedHarness();
+      const events: ThreadEvent[] = [];
+      const agent = openAgentCall(harness);
+      events.push(...harness.translate(mainChunk("before")));
+      events.push(
+        ...harness.translate(
+          subagentToolCall("sub-failed", subagentMeta, "failed"),
+        ),
+      );
+      events.push(...harness.translate(mainChunk("after")));
+      events.push(...harness.translate(turnCompletedEvent("end_turn")));
+
+      const completed = completedItems(events);
+      const messages = completed.filter((item) => item.type === "agentMessage");
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toMatchObject({ text: "beforeafter" });
+      const failed = completed.find((item) => item.type === "commandExecution");
+      expect(failed).toMatchObject({ status: "failed" });
+      expect(failed?.parentToolCallId).toBe(startedItemId(agent));
+    });
+
+    it("still closes the main assistant stream for an unparented tool call", () => {
+      const harness = startedHarness();
+      const events: ThreadEvent[] = [];
+      events.push(...harness.translate(mainChunk("before")));
+      events.push(...harness.translate(subagentToolCall("main-call")));
+      events.push(...harness.translate(mainChunk("after")));
+      events.push(...harness.translate(turnCompletedEvent("end_turn")));
+
+      const messages = completedItems(events).filter(
+        (item) => item.type === "agentMessage",
+      );
+      expect(messages.map((item) => item.text)).toEqual(["before", "after"]);
+    });
+  });
+
+});
 
 const THREAD_ID = "t-acp-parent-refs";
 

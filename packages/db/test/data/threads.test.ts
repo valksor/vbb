@@ -68,63 +68,6 @@ function mustCreateThreadSection(
 }
 
 describe("threads", () => {
-  it.each([
-    {
-      name: "plan approval",
-      payload: JSON.stringify({
-        kind: "approval",
-        subject: { kind: "plan", itemId: "plan-1", plan: "Implement the plan", planFilePath: null },
-        reason: null,
-        availableDecisions: ["allow_once", "deny"],
-      }),
-      expectedKind: "plan_approval",
-    },
-    {
-      name: "question",
-      payload: JSON.stringify({
-        kind: "user_question",
-        questions: [{ id: "question-1", prompt: "Proceed?", multiSelect: false, allowFreeText: true, required: true }],
-      }),
-      expectedKind: "question",
-    },
-    { name: "no pending interaction", payload: null, expectedKind: null },
-  ] as const)("projects pending interaction state without query-only columns for $name", ({ name, payload, expectedKind }) => {
-    const { db, project } = setup();
-    try {
-      const thread = createThread(db, noopNotifier, {
-        projectId: project.id,
-        providerId: "codex",
-      });
-      if (payload !== null) {
-        createPendingInteraction(db, {
-          payload,
-          providerId: "codex",
-          providerRequestId: `projection-request-${name}`,
-          providerThreadId: "projection-provider-thread",
-          threadId: thread.id,
-          turnId: "projection-turn",
-        });
-      }
-      const returnedRows = [
-        listThreadsWithPendingInteractionState(db, { threadIds: [thread.id] })[0],
-        listThreadsWithPendingInteractionStateForProjects(db, { projectIds: [project.id] })[0],
-      ];
-      for (const row of returnedRows) {
-        expect(row).toMatchObject({
-          id: thread.id,
-          projectId: project.id,
-          providerId: "codex",
-          hasPendingInteraction: payload !== null,
-          pendingInteractionKind: expectedKind,
-        });
-        expect(row).not.toHaveProperty("pendingInteractionPayloadKind");
-        expect(row).not.toHaveProperty("pendingInteractionApprovalSubjectKind");
-      }
-    } finally {
-      db.$client.close();
-    }
-  });
-
   it("creates pinned threads in order and retains their section after unpinning", () => {
     const { db, project } = setup();
     const section = mustCreateThreadSection(db, "Managers");

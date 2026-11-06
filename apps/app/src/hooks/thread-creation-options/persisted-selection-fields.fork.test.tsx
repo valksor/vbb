@@ -5,7 +5,11 @@ import { createStore, Provider } from "jotai";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { resetProjectProviderPreferencesForTests } from "./persisted-selection-fields.fork";
-import { usePromptBoxProviderPreference } from "./persisted-selection-fields";
+import {
+  usePromptBoxModelPreference,
+  usePromptBoxProviderPreference,
+  usePromptBoxReasoningLevelPreference,
+} from "./persisted-selection-fields";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -18,6 +22,24 @@ afterEach(() => {
   window.localStorage.clear();
   window.sessionStorage.clear();
 });
+
+function renderSelections() {
+  const store = createStore();
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <Provider store={store}>{children}</Provider>
+  );
+  return renderHook(
+    () => {
+      const provider = usePromptBoxProviderPreference();
+      return {
+        provider,
+        model: usePromptBoxModelPreference(provider.value),
+        reasoning: usePromptBoxReasoningLevelPreference(provider.value),
+      };
+    },
+    { wrapper },
+  );
+}
 
 describe("project-scoped provider preferences", () => {
   it("keeps a separate provider per project without inheriting the global pick", () => {
@@ -79,5 +101,61 @@ describe("project-scoped provider preferences", () => {
     expect(
       window.localStorage.getItem("bb.promptbox.provider-project-c-1"),
     ).toBe("project-provider");
+  });
+
+  it("pins legacy provider model and reasoning before another tab changes the legacy owner", () => {
+    window.localStorage.setItem("bb.promptbox.provider", "codex");
+    window.localStorage.setItem("bb.promptbox.model", "legacy-model");
+    window.localStorage.setItem("bb.promptbox.reasoning", "high");
+    const first = renderSelections();
+    expect(first.result.current.model.value).toBe("legacy-model");
+    expect(first.result.current.reasoning.value).toBe("high");
+    first.unmount();
+    window.localStorage.setItem("bb.promptbox.provider", "claude-code");
+    window.localStorage.removeItem("bb.promptbox.model");
+    window.localStorage.removeItem("bb.promptbox.reasoning");
+    const reloaded = renderSelections();
+    expect(reloaded.result.current.provider.value).toBe("codex");
+    expect(reloaded.result.current.model.value).toBe("legacy-model");
+    expect(reloaded.result.current.reasoning.value).toBe("high");
+  });
+
+  it("does not inherit legacy selections from another provider", () => {
+    window.localStorage.setItem("bb.promptbox.provider", "codex");
+    window.localStorage.setItem("bb.promptbox.model", "legacy-model");
+    window.localStorage.setItem("bb.promptbox.reasoning", "high");
+    const store = createStore();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <Provider store={store}>{children}</Provider>
+    );
+    const { result } = renderHook(
+      () => ({
+        model: usePromptBoxModelPreference("claude-code"),
+        reasoning: usePromptBoxReasoningLevelPreference("claude-code"),
+      }),
+      { wrapper },
+    );
+    expect(result.current.model.value).toBe("");
+    expect(result.current.reasoning.value).toBe("");
+  });
+
+  it.each([
+    {
+      model: "scoped-model",
+      reasoning: "low",
+    },
+    {
+      model: "",
+      reasoning: "",
+    },
+  ])("prefers scoped $model/$reasoning selections over legacy values", ({ model, reasoning }) => {
+    window.localStorage.setItem("bb.promptbox.provider", "codex");
+    window.localStorage.setItem("bb.promptbox.model", "legacy-model");
+    window.localStorage.setItem("bb.promptbox.reasoning", "high");
+    window.localStorage.setItem("bb.promptbox.model-codex-1", model);
+    window.localStorage.setItem("bb.promptbox.reasoning-codex-1", reasoning);
+    const selections = renderSelections();
+    expect(selections.result.current.model.value).toBe(model);
+    expect(selections.result.current.reasoning.value).toBe(reasoning);
   });
 });

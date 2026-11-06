@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { printExecutionProfile } from "./execution-profile.js";
+import { printExecutionProfile } from "./show.fork.js";
 
 describe("printExecutionProfile (get-bb/bb#1787)", () => {
   afterEach(() => {

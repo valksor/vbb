@@ -67,27 +67,6 @@ function installBridge(
 }
 
 describe("buildBridgeInjectionScript", () => {
-  it("rejects immediately when the native bridge cannot receive a request", async () => {
-    vi.useFakeTimers();
-    const consoleWarn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    try {
-      const { native, fakeWindow } = installBridge();
-      fakeWindow.ReactNativeWebView.postMessage = () => {
-        throw new Error("bridge detached");
-      };
-      await expect(
-        Promise.race([
-          native.request("share", { text: "hello" }),
-          Promise.resolve("still pending"),
-        ]),
-      ).rejects.toThrow("native bridge unavailable");
-      expect(vi.getTimerCount()).toBe(0);
-    } finally {
-      consoleWarn.mockRestore();
-      vi.useRealTimers();
-    }
-  });
-
   it.each(["image", "html"])(
     "sends Android %s copy through the request/reply bridge",
     async (format) => {

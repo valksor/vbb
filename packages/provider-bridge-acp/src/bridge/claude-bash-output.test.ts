@@ -152,16 +152,85 @@ describe("ClaudeAgentBashOutputWatcher", () => {
   });
 
   it("shows nothing when two new Bash task files appear for one call", async () => {
-    watcher.observe(toolCall({ toolCallId: "toolu_x", name: "Bash" }));
-    await settle();
-    await Promise.all([
-      writeFile(join(tasksDir, "b0aaa0001.output"), "a\n"),
-      writeFile(join(tasksDir, "b0bbb0001.output"), "b\n"),
-    ]);
-    await settle(60);
-    await writeFile(join(tasksDir, "b0aaa0001.output"), "a\nmore\n");
-    await settle(60);
-    expect(published).toEqual([]);
+    let releaseBaseline = () => {};
+    let controlledWatcher:
+      | Pick<ClaudeAgentBashOutputWatcher, "dispose" | "observe">
+      | undefined;
+    vi.useFakeTimers();
+    const scheduledPolls = vi.spyOn(globalThis, "setTimeout");
+    try {
+      let markBaselineStarted = () => {};
+      const baselineStarted = new Promise<void>((resolve) => {
+        markBaselineStarted = resolve;
+      });
+      let releaseBaselineGate = () => {};
+      const baselineReleased = new Promise<void>((resolve) => {
+        releaseBaselineGate = resolve;
+      });
+      releaseBaseline = releaseBaselineGate;
+      vi.resetModules();
+      vi.doMock("node:fs/promises", async (importOriginal) => {
+        const fs = await importOriginal<typeof import("node:fs/promises")>();
+        let isInitialTasksRead = true;
+        return {
+          ...fs,
+          readdir: async (...args: Parameters<typeof fs.readdir>) => {
+            const entries = await fs.readdir(...args);
+            if (isInitialTasksRead && args[0] === tasksDir && args.length > 1) {
+              isInitialTasksRead = false;
+              expect(entries).toEqual([]);
+              markBaselineStarted();
+              await baselineReleased;
+            }
+            return entries;
+          },
+        };
+      });
+      const { ClaudeAgentBashOutputWatcher: ControlledWatcher } =
+        await import("./claude-bash-output.js");
+      controlledWatcher = new ControlledWatcher({
+        tempRoot,
+        sessionId: SESSION_ID,
+        pollIntervalMs: 5,
+        publish: (toolCallId, text, parentRef) => {
+          published.push([toolCallId, text]);
+          parentRefs.set(toolCallId, parentRef);
+        },
+      });
+      controlledWatcher.observe(
+        toolCall({ toolCallId: "toolu_x", name: "Bash" }),
+      );
+      await baselineStarted;
+      await Promise.all([
+        writeFile(join(tasksDir, "b0aaa0001.output"), "a\n"),
+        writeFile(join(tasksDir, "b0bbb0001.output"), "b\n"),
+      ]);
+      releaseBaseline();
+      await vi.advanceTimersByTimeAsync(5);
+      await vi.waitFor(() => {
+        expect(
+          scheduledPolls.mock.calls.filter(([, delay]) => delay === 5).length,
+        ).toBeGreaterThanOrEqual(2);
+      });
+      const beforeAppend = scheduledPolls.mock.calls.filter(
+        ([, delay]) => delay === 5,
+      ).length;
+      await writeFile(join(tasksDir, "b0aaa0001.output"), "a\nmore\n");
+      await vi.advanceTimersByTimeAsync(5);
+      await vi.waitFor(() => {
+        expect(
+          scheduledPolls.mock.calls.filter(([, delay]) => delay === 5).length,
+        ).toBeGreaterThan(beforeAppend);
+      });
+      expect(published).toEqual([]);
+    } finally {
+      releaseBaseline();
+      controlledWatcher?.dispose();
+      vi.doUnmock("node:fs/promises");
+      vi.resetModules();
+      scheduledPolls.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it("never streams a background call and skips its task file later", async () => {

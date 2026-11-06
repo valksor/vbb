@@ -570,68 +570,6 @@ describe("acp delta translation (moved from the legacy adapter suite)", () => {
     return harness;
   }
 
-  it("refines a placeholder command when a non-terminal update carries the real input", () => {
-    const harness = startedHarness();
-    const turnId = harness.openTurnId();
-
-    const startedEvents = harness.translate(
-      updateEvent({
-        sessionUpdate: "tool_call",
-        toolCallId: "call-streamed",
-        title: "Terminal",
-        kind: "execute",
-        status: "pending",
-        rawInput: {},
-      }),
-    );
-    const startedItemId =
-      startedEvents[0]?.type === "item/started" ? startedEvents[0].item.id : "";
-
-    expect(
-      harness.translate(
-        updateEvent({
-          sessionUpdate: "tool_call_update",
-          toolCallId: "call-streamed",
-          title: "`sort access.log | uniq -c`",
-          kind: "execute",
-          rawInput: { command: "sort access.log | uniq -c" },
-        }),
-      ),
-    ).toEqual([
-      {
-        type: "item/started",
-        threadId: "",
-        providerThreadId: "",
-        scope: turnScope(turnId),
-        item: {
-          type: "commandExecution",
-          id: startedItemId,
-          command: "sort access.log | uniq -c",
-          cwd: SESSION_CWD,
-          status: "pending",
-          approvalStatus: null,
-          presentation: {
-            label: { pending: "Running command", completed: "Ran command" },
-            icon: { glyph: "Terminal" },
-            title: "sort access.log | uniq -c",
-          },
-        },
-      },
-    ]);
-
-    expect(
-      harness.translate(
-        updateEvent({
-          sessionUpdate: "tool_call_update",
-          toolCallId: "call-streamed",
-          title: "`sort access.log | uniq -c`",
-          kind: "execute",
-          rawInput: { command: "sort access.log | uniq -c" },
-        }),
-      ),
-    ).toEqual([]);
-  });
-
   it("translates ACP usage updates into exact context-window usage", () => {
     const harness = startedHarness();
     expect(

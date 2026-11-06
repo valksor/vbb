@@ -112,6 +112,7 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 import { appendFileSync, renameSync, writeFileSync } from "node:fs";
+import { forkAgentCapabilities, handleForkPrompt } from "./fake-acp-agent.fork.mjs";
 
 const failLoad = process.env.FAKE_ACP_FAIL_LOAD === "1";
 const loadSession = process.env.FAKE_ACP_LOAD_SESSION === "1" || failLoad;
@@ -620,6 +621,9 @@ async function handlePrompt(message) {
       outcome = "error";
     }
     notifyUpdate(messageChunk(`permission:${outcome}`));
+  } else if (
+    await handleForkPrompt({ text, notifyUpdate, sleep, activeSessionId })
+  ) {
   } else if (text.includes("request-permission")) {
     notifyUpdate({
       sessionUpdate: "tool_call",
@@ -940,6 +944,7 @@ async function handleMessage(message) {
                 ],
               }
             : {}),
+          ...forkAgentCapabilities(),
         },
       });
       return;

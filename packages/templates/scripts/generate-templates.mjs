@@ -10,6 +10,7 @@ import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
+import { assembleForkTemplateBody } from "./generate-templates.fork.mjs";
 import { writeGeneratedFile } from "./write-generated.mjs";
 
 const packageRoot = path.resolve(
@@ -125,7 +126,10 @@ function validateVariables(templateId, declaredVars, body) {
 }
 
 const fileNames = (await readdir(templatesDir))
-  .filter((fileName) => fileName.endsWith(".md"))
+  .filter(
+    (fileName) =>
+      fileName.endsWith(".md") && !fileName.endsWith(".fork.md"),
+  )
   .sort();
 
 const definitions = [];
@@ -138,7 +142,11 @@ for (const fileName of fileNames) {
   const kind = asNonEmptyString(parsed.data.kind) ?? "prompt";
   const id = toTemplateId(fileName);
   const variablesParsed = parseVariables(parsed.data.variables);
-  const body = parsed.content.trim();
+  const body = await assembleForkTemplateBody(
+    templatesDir,
+    fileName,
+    parsed.content,
+  );
 
   if (!TEMPLATE_KINDS.has(kind)) {
     validationErrors.push(`Template "${id}": unknown kind "${kind}"`);

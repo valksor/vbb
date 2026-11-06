@@ -4,13 +4,11 @@ import {
   TERMINAL_DATA_MAX_BASE64_LENGTH,
   TERMINAL_DATA_MAX_BYTES,
   TERMINAL_ROWS_MAX,
-  pluginInteractionDescriptionSchema,
   threadScope,
   turnScope,
   type JsonObject,
 } from "@bb/domain";
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
 import * as contract from "../src/index.js";
 import {
   HOST_ARTIFACT_MAX_BYTES,
@@ -1623,105 +1621,6 @@ describe("host-daemon command schemas", () => {
         decision: "allow_for_session",
       },
     });
-
-    expect(
-      hostDaemonCommandSchema.parse({
-        type: "interactive.resolve",
-        environmentId: "env_123",
-        threadId: "thr_123",
-        interactionId: "pint_124",
-        providerId: "codex",
-        providerThreadId: "provider-thread-123",
-        providerRequestId: "request-124",
-        resolution: {
-          decision: "deny",
-          message: "held for review",
-        },
-      }),
-    ).toMatchObject({
-      type: "interactive.resolve",
-      interactionId: "pint_124",
-      resolution: {
-        decision: "deny",
-        message: "held for review",
-      },
-    });
-
-    const pluginSubmittedCommand = {
-      type: "interactive.resolve",
-      environmentId: "env_123",
-      threadId: "thr_123",
-      interactionId: "pint_125",
-      providerId: "codex",
-      providerThreadId: "provider-thread-123",
-      providerRequestId: "request-125",
-    } as const;
-    expect(
-      hostDaemonCommandSchema.parse({
-        ...pluginSubmittedCommand,
-        resolution: { kind: "plugin_submitted" },
-      }),
-    ).toMatchObject({ resolution: { kind: "plugin_submitted" } });
-    expect(
-      hostDaemonCommandSchema.parse({
-        ...pluginSubmittedCommand,
-        resolution: { kind: "plugin_submitted", answeredVia: "app" },
-      }),
-    ).toMatchObject({
-      resolution: { kind: "plugin_submitted", answeredVia: "app" },
-    });
-    expect(
-      hostDaemonCommandSchema.safeParse({
-        ...pluginSubmittedCommand,
-        resolution: { kind: "plugin_submitted", answeredVia: "desktop" },
-      }).success,
-    ).toBe(false);
-  });
-
-  it("keeps the pinned protocol267 plugin-resolution parser compatible with answer origin", () => {
-    const legacyPluginSubmittedResolutionAtD0 = z.object({
-      kind: z.literal("plugin_submitted"),
-      description: pluginInteractionDescriptionSchema.optional(),
-    });
-    const legacyPluginResolveCommandAtD0 = z
-      .object({
-        environmentId: z.string().min(1),
-        threadId: z.string().min(1),
-        type: z.literal("interactive.resolve"),
-        interactionId: z.string().min(1),
-        providerId: z.string().min(1),
-        providerThreadId: z.string().min(1),
-        providerRequestId: z.string().min(1),
-        resolution: legacyPluginSubmittedResolutionAtD0,
-      })
-      .strict();
-    const target = {
-      type: "interactive.resolve",
-      environmentId: "env_123",
-      threadId: "thr_123",
-      interactionId: "pint_125",
-      providerId: "codex",
-      providerThreadId: "provider-thread-123",
-      providerRequestId: "request-125",
-    } as const;
-    const description = { title: "Submitted" };
-    for (const answeredVia of ["app", "api"] as const) {
-      const parsed = legacyPluginResolveCommandAtD0.parse({
-        ...target,
-        resolution: { kind: "plugin_submitted", description, answeredVia },
-      });
-      expect(parsed.resolution).toEqual({
-        kind: "plugin_submitted",
-        description,
-      });
-      expect(parsed.resolution).not.toHaveProperty("answeredVia");
-    }
-    expect(
-      legacyPluginResolveCommandAtD0.parse({
-        ...target,
-        resolution: { kind: "plugin_submitted" },
-      }).resolution,
-    ).toEqual({ kind: "plugin_submitted" });
   });
 
   it("rejects online-RPC-only read commands from the settled command schema", () => {
@@ -3114,58 +3013,6 @@ describe("host-daemon session schemas", () => {
         },
       ],
     });
-
-    expect(
-      hostDaemonEventBatchRequestSchema.parse({
-        sessionId: "session_123",
-        eventGroups: [
-          {
-            threadId: "thr_123",
-            events: [
-              {
-                type: "thread/execution/reported",
-                threadId: "thr_123",
-                providerThreadId: "provider-thread-123",
-                scope: threadScope(),
-                execution: {
-                  model: "claude-opus-4-6",
-                  reasoningLevel: null,
-                  permissionMode: null,
-                  serviceTier: null,
-                },
-              },
-            ],
-          },
-        ],
-      }),
-    ).toMatchObject({
-      eventGroups: [{ events: [{ type: "thread/execution/reported" }] }],
-    });
-
-    expect(() =>
-      hostDaemonEventBatchRequestSchema.parse({
-        sessionId: "session_123",
-        eventGroups: [
-          {
-            threadId: "thr_123",
-            events: [
-              {
-                type: "thread/execution/reported",
-                threadId: "thr_123",
-                providerThreadId: "provider-thread-123",
-                scope: threadScope(),
-                execution: {
-                  model: "",
-                  reasoningLevel: null,
-                  permissionMode: null,
-                  serviceTier: null,
-                },
-              },
-            ],
-          },
-        ],
-      }),
-    ).toThrow();
 
     expect(
       hostDaemonEventBatchRequestSchema.parse({

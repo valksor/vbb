@@ -21,6 +21,12 @@ import {
   type AnnotationChipPlacement,
 } from "./annotation";
 import anatomy from "./anatomy-manifest.json";
+import {
+  ComposerAsideBadge,
+  ComposerAsideFixture,
+  composerRowClassName,
+  pendingInteractionClassName,
+} from "./wireframes.fork";
 
 export interface SurfaceMapState {
   activeId: string | null;
@@ -105,7 +111,7 @@ function engagedRingClass(outlined: boolean) {
     : undefined;
 }
 
-function Mark({
+export function Mark({
   id,
   label,
   className,
@@ -236,7 +242,7 @@ export const useBrowserLayoutEffect =
 const CHIP_SIZE = 20;
 const CHIP_GAP = 8;
 
-function MeasuredBadge({
+export function MeasuredBadge({
   id,
   label,
   anchor,
@@ -423,58 +429,11 @@ function MiniIcon({ icon, className }: { icon: IconName; className?: string }) {
   );
 }
 
-function PluginGlyph({ className }: { className?: string }) {
+export function PluginGlyph({ className }: { className?: string }) {
   return (
     <Icon
       name="Plug02"
       className={cn("size-4 shrink-0 text-foreground", className)}
-    />
-  );
-}
-
-function composerRowClassName(mobile: boolean): string {
-  return cn(
-    "border-t border-border-hairline p-4",
-    mobile ? "space-y-2" : "flex items-end gap-3",
-  );
-}
-
-function pendingInteractionClassName(mobile: boolean): string {
-  return cn(
-    "block border border-border bg-card p-3",
-    !mobile && "min-w-0 flex-1",
-  );
-}
-
-function ComposerAsideFixture({ mobile }: { mobile: boolean }) {
-  if (mobile) return null;
-  return (
-    <Mark
-      id="composer-aside"
-      label="Plugin composer-aside content, in the gutter beside the composer"
-      className="w-24 shrink-0 border border-border bg-card p-2"
-      showChip={false}
-    >
-      <span className="flex items-center gap-1.5 text-foreground">
-        <PluginGlyph className="size-3" />
-        <span className="text-2xs">Checks</span>
-      </span>
-      <span
-        aria-hidden
-        className="mt-1.5 block h-1.5 w-full rounded-sm bg-muted/60"
-      />
-    </Mark>
-  );
-}
-
-function ComposerAsideBadge({ scene }: { scene: string }) {
-  if (scene !== "desktop") return null;
-  return (
-    <MeasuredBadge
-      id="composer-aside"
-      label="Plugin composer-aside content, in the gutter beside the composer"
-      anchor='[data-guide-region="composer-aside"]'
-      at="above"
     />
   );
 }

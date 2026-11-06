@@ -1,4 +1,7 @@
-import { FORK_PERIODIC_SWEEP_JOBS } from "./periodic-sweeps.fork.js";
+import {
+  FORK_PERIODIC_SWEEP_JOBS,
+  runChunkedIncrementalVacuum,
+} from "./periodic-sweeps.fork.js";
 import {
   runThreadPruningSweep,
   THREAD_PRUNING_SWEEP_LIMITS,
@@ -21,7 +24,6 @@ import {
   compactDatabase,
   DATABASE_COMPACTION_MIN_RECLAIMABLE_BYTES,
   DATABASE_COMPACTION_MIN_RECLAIMABLE_RATIO,
-  DATABASE_INCREMENTAL_VACUUM_MAX_PAGES,
   DATABASE_INCREMENTAL_VACUUM_MIN_FREELIST_PAGES,
   DEFAULT_CLOSED_SESSION_PRUNE_BATCH_SIZE,
   deleteExpiredRetainedEventOutputs,
@@ -39,7 +41,6 @@ import {
   environments,
   pruneClosedSessions,
   RETAINED_EVENT_OUTPUT_TARGETS,
-  runIncrementalVacuum,
   shouldCompactDatabase,
   shouldRunIncrementalVacuum,
   threads,
@@ -88,7 +89,6 @@ type PeriodicSweepDeps = LoggedPendingInteractionWorkSessionDeps & {
 };
 
 const DATABASE_MAINTENANCE_CHECK_INTERVAL_MS = 60 * 60_000;
-const DATABASE_INCREMENTAL_VACUUM_CHUNK_PAGES = 256;
 const COMPLETED_EVENT_OUTPUT_MIGRATION_MAX_ADVANCES_PER_SWEEP = 64;
 const RETAINED_EVENT_OUTPUT_EXPIRY_MAX_ADVANCES_PER_SWEEP = 256;
 const RETAINED_EVENT_OUTPUT_EXPIRY_BATCH_SIZE = 1;
@@ -175,58 +175,6 @@ export async function runPeriodicSweepJobs(
   for (const job of jobs) {
     await runPeriodicSweepJob(deps, job, now);
   }
-}
-
-function isSqliteBusyError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    "code" in error &&
-    typeof error.code === "string" &&
-    error.code.startsWith("SQLITE_BUSY")
-  );
-}
-
-async function runChunkedIncrementalVacuum(
-  deps: DatabaseMaintenanceSweepDeps,
-): Promise<ReturnType<typeof runIncrementalVacuum> | null> {
-  let first: ReturnType<typeof runIncrementalVacuum> | null = null;
-  let last: ReturnType<typeof runIncrementalVacuum> | null = null;
-  for (
-    let vacuumedPages = 0;
-    vacuumedPages < DATABASE_INCREMENTAL_VACUUM_MAX_PAGES;
-    vacuumedPages += DATABASE_INCREMENTAL_VACUUM_CHUNK_PAGES
-  ) {
-    if (last !== null) {
-      await new Promise<void>((resolve) => setImmediate(resolve));
-    }
-    let chunk: ReturnType<typeof runIncrementalVacuum>;
-    try {
-      chunk = runIncrementalVacuum(deps.db, {
-        maxPages: Math.min(
-          DATABASE_INCREMENTAL_VACUUM_CHUNK_PAGES,
-          DATABASE_INCREMENTAL_VACUUM_MAX_PAGES - vacuumedPages,
-        ),
-      });
-    } catch (error) {
-      if (first === null || last === null || !isSqliteBusyError(error)) {
-        throw error;
-      }
-      deps.logger.warn(
-        { err: error, result: { before: first.before, after: last.after } },
-        "Incremental database vacuum stopped early",
-      );
-      return null;
-    }
-    last = chunk;
-    first ??= chunk;
-    if (last.after.freelistCount === 0) {
-      break;
-    }
-  }
-  if (first === null || last === null) {
-    throw new Error("Incremental vacuum ran no chunks");
-  }
-  return { before: first.before, after: last.after };
 }
 
 export async function runDatabaseMaintenanceSweep(

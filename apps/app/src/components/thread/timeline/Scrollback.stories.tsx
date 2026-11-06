@@ -9,6 +9,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import { makeThread } from "../../../../.ladle/story-fixtures";
+import { StoryThreadActionsProvider } from "../../../../.ladle/story-thread-actions.fork";
 import { conversationRow } from "@/test/fixtures/thread-timeline-rows";
 import {
   makeThreadResponse,
@@ -27,8 +28,6 @@ import {
 } from "@/hooks/cache-owners/thread-timeline-push-owner";
 import { BottomAnchoredScrollBody } from "@/components/ui/bottom-anchored-scroll-body";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { SidebarThreadEntriesProvider } from "@/lib/sidebar-thread-entries";
-import { ThreadActionsProvider } from "@/components/thread/ThreadActionsProvider";
 import { ThreadTimelineSurface } from "./ThreadTimelineSurface";
 import { useThreadTimelineController } from "./useThreadTimelineController";
 
@@ -313,47 +312,39 @@ function ScrollbackStory({
   return (
     <QueryClientProvider client={story.queryClient}>
       <JotaiProvider store={store}>
-        <SidebarThreadEntriesProvider navigation={undefined}>
-          <ThreadActionsProvider>
-            <SidebarProvider>
-              <div
-                className="flex h-screen w-full flex-col bg-background"
-                style={width === null ? undefined : { maxWidth: width }}
-              >
-                <div className="flex flex-wrap gap-2 border-b border-border-seam p-2 text-xs">
-                  <button type="button" onClick={story.controls.stream}>
-                    Stream
-                  </button>
-                  <button type="button" onClick={story.controls.newTurn}>
-                    New turn
-                  </button>
-                  <button
-                    type="button"
-                    onClick={story.controls.refetchUnchanged}
-                  >
-                    Refetch unchanged
-                  </button>
-                  <button
-                    type="button"
-                    onClick={story.controls.renameWithEvent}
-                  >
-                    Rename
-                  </button>
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <BottomAnchoredScrollBody
-                    footer={null}
-                    maxWidthClassName="max-w-3xl"
-                    contentClassName="!px-2 !pb-3 !pt-4"
-                    scrollAnchorThreadId={THREAD_ID}
-                  >
-                    <ScrollbackTimeline />
-                  </BottomAnchoredScrollBody>
-                </div>
+        <StoryThreadActionsProvider navigation={undefined}>
+          <SidebarProvider>
+            <div
+              className="flex h-screen w-full flex-col bg-background"
+              style={width === null ? undefined : { maxWidth: width }}
+            >
+              <div className="flex flex-wrap gap-2 border-b border-border-seam p-2 text-xs">
+                <button type="button" onClick={story.controls.stream}>
+                  Stream
+                </button>
+                <button type="button" onClick={story.controls.newTurn}>
+                  New turn
+                </button>
+                <button type="button" onClick={story.controls.refetchUnchanged}>
+                  Refetch unchanged
+                </button>
+                <button type="button" onClick={story.controls.renameWithEvent}>
+                  Rename
+                </button>
               </div>
-            </SidebarProvider>
-          </ThreadActionsProvider>
-        </SidebarThreadEntriesProvider>
+              <div className="flex min-h-0 flex-1 flex-col">
+                <BottomAnchoredScrollBody
+                  footer={null}
+                  maxWidthClassName="max-w-3xl"
+                  contentClassName="!px-2 !pb-3 !pt-4"
+                  scrollAnchorThreadId={THREAD_ID}
+                >
+                  <ScrollbackTimeline />
+                </BottomAnchoredScrollBody>
+              </div>
+            </div>
+          </SidebarProvider>
+        </StoryThreadActionsProvider>
       </JotaiProvider>
     </QueryClientProvider>
   );
