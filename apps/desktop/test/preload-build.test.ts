@@ -21,7 +21,6 @@ const execFileAsync = promisify(execFile);
 const require = createRequire(__filename);
 const electronBinary = require("electron") as string;
 const desktopPackageRoot = process.cwd();
-
 const ELECTRON_STARTUP_TIMEOUT_MS = 15_000;
 const ELECTRON_EXIT_TIMEOUT_MS = 5_000;
 const ELECTRON_POST_READY_SETTLE_MS = 300;

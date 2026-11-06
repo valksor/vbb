@@ -318,8 +318,6 @@ describe("MarkdownPreview", () => {
     expect(container.querySelector("ol")?.getAttribute("start")).toBe("2");
   });
 
-
-
   it("HTML-escapes fenced code so it cannot inject markup", () => {
     const { container } = render(
       <MarkdownPreview

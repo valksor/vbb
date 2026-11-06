@@ -766,5 +766,4 @@ describe("desktop window factory", () => {
       }
     },
   );
-
 });

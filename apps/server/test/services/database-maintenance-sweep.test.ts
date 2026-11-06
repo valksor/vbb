@@ -308,6 +308,4 @@ describe("runDatabaseMaintenanceSweep", () => {
       tempDatabase.cleanup();
     }
   });
-
-
 });

@@ -1621,7 +1621,6 @@ describe("host-daemon command schemas", () => {
         decision: "allow_for_session",
       },
     });
-
   });
 
   it("rejects online-RPC-only read commands from the settled command schema", () => {

@@ -165,8 +165,6 @@ afterEach(() => {
 });
 
 describe("ThreadPromptContextBanner child questions", () => {
-
-
   it("auto-expands to the row list without opening a question", () => {
     const { rerender } = render(bannerElement(section([]), false));
 

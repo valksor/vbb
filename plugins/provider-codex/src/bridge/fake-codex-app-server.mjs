@@ -65,7 +65,6 @@ function firstInputText(input) {
   return first && first.type === "text" ? first.text : undefined;
 }
 
-
 const FIXED_TOKEN_USAGE = {
   total: {
     totalTokens: 39970,
